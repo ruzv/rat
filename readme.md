@@ -44,6 +44,11 @@ Build the go project from source
 - Create new node (note)
   - `cmd + shift + p` insert the name of node and approve with `enter`
 
+### Nodes
+
+A node is a single entry in your graph of nodes - notes. Node is a markdown file
+with a standart YAML header. Each node can have sub-nodes.
+
 ### Rat Tags
 
 - Todo

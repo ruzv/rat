@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	pathutil "private/rat/graph/util/path"
+	pathutil "rat/graph/util/path"
 
 	"github.com/pkg/errors"
 )

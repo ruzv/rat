@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"regexp"
 
-	"private/rat/graph"
-	pathutil "private/rat/graph/util/path"
-	"private/rat/handler/graphhttp/nodeshttp"
-	"private/rat/handler/shared"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
+	"rat/handler/graphhttp/nodeshttp"
+	"rat/handler/shared"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"

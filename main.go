@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"private/rat/args"
-	"private/rat/config"
-	"private/rat/handler/router"
+	"rat/args"
+	"rat/config"
+	"rat/handler/router"
 
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -49,56 +49,13 @@ func run() error {
 
 	signal.Notify(quit, syscall.SIGINT)
 
-	var (
-		ctx    context.Context
-		cancel context.CancelFunc
-	)
+	<-quit
 
-	for q := range quit {
-		if q != syscall.SIGINT {
-			log.Warning("received unexpected signal", q)
+	defer close(quit)
 
-			continue
-		}
-
-		if ctx == nil {
-			err = stopServer(server)
-			if err != nil {
-				close(quit)
-
-				return errors.Wrap(err, "failed to stop server")
-			}
-
-			ctx, cancel = context.WithCancel(context.Background())
-
-			go func() {
-				select {
-				case <-time.After(1 * time.Second):
-					defer func() {
-						cancel()
-
-						ctx = nil
-					}()
-
-					server, err = setupServer(cmdArgs)
-					if err != nil {
-						log.Error("failed to setup server", err)
-						close(quit)
-
-						return
-					}
-
-					go startServer(server)
-
-				case <-ctx.Done():
-					log.Warning("restart cancelled")
-					close(quit)
-				}
-			}()
-		} else {
-			cancel()
-			ctx = nil
-		}
+	err = stopServer(server)
+	if err != nil {
+		return errors.Wrap(err, "failed to stop server")
 	}
 
 	return nil

@@ -4,12 +4,12 @@ import (
 	"io"
 	"strings"
 
-	"private/rat/graph"
-	"private/rat/graph/render/templ"
-	"private/rat/graph/render/todo"
-	"private/rat/graph/token"
-	"private/rat/graph/util"
-	pathutil "private/rat/graph/util/path"
+	"rat/graph"
+	"rat/graph/render/templ"
+	"rat/graph/render/todo"
+	"rat/graph/token"
+	"rat/graph/util"
+	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"

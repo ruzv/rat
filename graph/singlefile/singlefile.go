@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"private/rat/graph"
-	pathutil "private/rat/graph/util/path"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"

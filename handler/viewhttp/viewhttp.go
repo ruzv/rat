@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"private/rat/graph"
-	"private/rat/graph/render/templ"
-	"private/rat/graph/util"
-	pathutil "private/rat/graph/util/path"
-	"private/rat/handler/shared"
+	"rat/graph"
+	"rat/graph/render/templ"
+	"rat/graph/util"
+	pathutil "rat/graph/util/path"
+	"rat/handler/shared"
 
 	"github.com/gorilla/mux"
 	"github.com/op/go-logging"

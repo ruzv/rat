@@ -3,6 +3,6 @@
 
   "graph": {
     "name": "notes",
-    "path": "/path/to/your/notes/dir"
+    "path": "/home/ruzv/notes"
   }
 }
