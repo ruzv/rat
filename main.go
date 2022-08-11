@@ -1,69 +1,75 @@
 package main
 
 import (
-	"fmt"
-	"private/notes/config"
-	"private/notes/graph"
+	"private/rat/graph"
 
-	"github.com/gin-gonic/gin"
+	"private/rat/errors"
 )
 
-func main() {
-
-	conf, err := config.Load("./config.json")
+func run() error {
+	g, err := graph.Init("notes", "./content")
 	if err != nil {
-		panic(err)
-	}
-
-	g, err := graph.Load("notes")
-	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to init graph")
 	}
 
 	g.Print()
 
-	router := gin.Default()
+	n, err := g.Get("notes/tools")
+	if err != nil {
+		return errors.Wrap(err, "failed to get node")
+	}
 
-	router.GET(
-		"/*path",
-		func(c *gin.Context) {
-			path := c.Param("path")
+	_, err = n.Add("commit-script")
+	if err != nil {
+		return errors.Wrap(err, "failed to add node")
+	}
 
-			if len(path) > 0 && path[0] == '/' {
-				path = path[1:]
-			}
+	g.Print()
 
-			n, err := g.Get(path)
-			if err != nil {
-				c.JSON(404, gin.H{
-					"error": err.Error(),
-				})
+	return nil
+}
 
-				return
-			}
-
-			c.JSON(200, gin.H{
-				"path": path,
-				"body": n.Node().Body(),
-			})
-		},
-	)
-
-	err = router.Run(fmt.Sprintf(":%d", conf.Port))
+func main() {
+	err := run()
 	if err != nil {
 		panic(err)
 	}
 
-	// n, err := g.Get(g.Root())
+	// conf, err := config.Load("./config.json")
 	// if err != nil {
 	// 	panic(err)
 	// }
 
-	// _, err = n.Add("docs")
+	// router := gin.Default()
+
+	// router.GET(
+	// 	"/*path",
+	// 	func(c *gin.Context) {
+	// 		path := c.Param("path")
+
+	// 		if len(path) > 0 && path[0] == '/' {
+	// 			path = path[1:]
+	// 		}
+
+	// 		n, err := g.Get(path)
+	// 		if err != nil {
+	// 			c.JSON(404, gin.H{
+	// 				"error": err.Error(),
+	// 			})
+
+	// 			return
+	// 		}
+
+	// 		c.JSON(200, gin.H{
+	// 			"path": path,
+	// 			// "body": n.Node().Body(),
+	// 		})
+	// 	},
+	// )
+
+	// err = router.Run(fmt.Sprintf(":%d", conf.Port))
 	// if err != nil {
 	// 	panic(err)
 	// }
-
-	// n.Add("test")
 
 }
