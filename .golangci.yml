@@ -1,0 +1,86 @@
+run:
+  deadline: 2m
+  allow-parallel-runners: true
+
+linters-settings:
+  lll:
+    line-length: 80
+    tab-width: 4
+  gocyclo:
+    min-complexity: 10
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+      - io/ioutil
+      - github.com/aws/aws-sdk-go/*
+      - github.com/satori/go.uuid
+      - github.com/satori/uuid
+  grouper:
+    const-require-single-const: true
+    import-require-single-import: true
+
+linters:
+  enable-all: true
+  # disable:
+    # - gomnd
+    # - tagliatelle
+    # - wrapcheck # FIXME: Reenabling of this linter will be done in LOAD-2034.
+    # # default disabled linters
+    # - dupl
+    # - exhaustive
+    # - exhaustivestruct
+    # - exhaustruct
+    # - funlen
+    # - gochecknoglobals
+    # - gochecknoinits
+    # - godox
+    # - gofumpt
+    # - ifshort
+    # - ireturn
+    # - varnamelen
+    # # deprecated linters
+    # - golint
+    # - interfacer
+    # - maligned
+    # - scopelint
+    # # FIXME: temporary disabled linter until golangci-lint supports go 1.18
+    # - nolintlint
+    # # FIXME: temporary disabled linter due to bug: https://github.com/lufeee/execinquery/issues/3
+    # - execinquery
+  fast: false
+
+# issues:
+#   include:
+#     - EXC0012
+#     - EXC0014
+#   exclude-rules:
+#     - path: _test\.go
+#       linters:
+#         - goerr113
+#         - gofmt
+#         - nestif
+#         # default unit test disabled linters
+#         - containedctx
+#         - cyclop
+#         - errcheck
+#         - forcetypeassert
+#         - gocognit
+#         - gocyclo
+#         - gosec
+#         - maintidx
+#         - paralleltest
+#         - testpackage
+#     - path: _test\.go
+#       source: "^func Test"
+#       linters:
+#         - nosnakecase
+#     - path: awshelper/awstest
+#       linters:
+#         - forcetypeassert
+#     - path: types/classificator/classificatortest
+#       linters:
+#         - forcetypeassert
+#     - linters:
+#         - lll
+#       source: "^// swagger:"
