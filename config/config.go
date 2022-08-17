@@ -8,7 +8,13 @@ import (
 )
 
 type Config struct {
-	Port int `json:"port"`
+	Port  int          `json:"port"`
+	Graph *GraphConfig `json:"graph"`
+}
+
+type GraphConfig struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 func Load(path string) (*Config, error) {

@@ -15,6 +15,9 @@ const (
 	contentFilename  = "content.md"
 )
 
+// Node is a single part of the graph. Graphs structure is defined by a file
+// tree where each node is a directory with files for metadata and content.
+// each node can contain subdirectories of other nodes.
 type Node struct {
 	cont *content
 	meta *metadata
@@ -29,100 +32,12 @@ type content struct {
 	body string
 }
 
-// func (m *metadata) get() error {
-// 	metaFilepath := filepath.Join(m.Path, metadataFilename)
-
-// 	f, err := os.Open(metaFilepath)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to open meta file")
-// 	}
-
-// 	defer f.Close()
-
-// 	return json.NewDecoder(f).Decode(m)
-// }
-
-// func (m *metadata) set() error {
-// 	err := os.Mkdir(m.Path, os.ModeDir|os.ModePerm)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to create dir")
-// 	}
-
-// 	metaFilepath := filepath.Join(m.Path, metadataFilename)
-
-// 	f, err := os.Create(metaFilepath)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to create meta file")
-// 	}
-
-// 	defer f.Close()
-
-// 	return json.NewEncoder(f).Encode(m)
-// }
-
-// func (m *metadata) getContent() (*content, error) {
-// 	contentPath := filepath.Join(m.Path, contentFilename)
-
-// 	data, err := os.ReadFile(contentPath)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to read content file")
-// 	}
-
-// 	return &content{
-// 		body: string(data),
-// 	}, nil
-// }
-
-// func (m *metadata) setContent(c *content) error {
-// 	contentPath := filepath.Join(m.Path, contentFilename)
-
-// 	f, err := os.Create(contentPath)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to create content file")
-// 	}
-
-// 	defer f.Close()
-
-// 	_, err = f.WriteString(c.body)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to write content")
-// 	}
-
-// 	return nil
-// }
-
-// func (n *Node) Create() error {
-// 	err := n.meta.set()
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to set metadata")
-// 	}
-
-// 	err = n.meta.setContent(n.cont)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to set content")
-// 	}
-
-// 	return nil
-// }
-
-// func (n *Node) Read() error {
-// 	err := n.meta.get()
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to get metadata")
-// 	}
-
-// 	n.cont, err = n.meta.getContent()
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to get content")
-// 	}
-
-// 	return nil
-// }
-
+// NameFromPath returns name of node from its path.
 func NameFromPath(path string) string {
 	return filepath.Base(path)
 }
 
+// Create creates a new Node
 func Create(path string) (*Node, error) {
 	n := &Node{
 		meta: &metadata{
@@ -181,6 +96,7 @@ func (n *Node) setCont(path string) error {
 	return nil
 }
 
+// Reads a node from filesystem.
 func Read(path string) (*Node, error) {
 	var (
 		node Node
@@ -233,37 +149,7 @@ func getCont(path string) (*content, error) {
 	}, nil
 }
 
-func setMeta(path string, m *metadata) error {
-	metaFilepath := filepath.Join(path, metadataFilename)
-
-	f, err := os.Create(metaFilepath)
-	if err != nil {
-		return errors.Wrap(err, "failed to create meta file")
-	}
-
-	defer f.Close()
-
-	return json.NewEncoder(f).Encode(m)
-}
-
-func setCont(path string, c *content) error {
-	contentPath := filepath.Join(path, contentFilename)
-
-	f, err := os.Create(contentPath)
-	if err != nil {
-		return errors.Wrap(err, "failed to create content file")
-	}
-
-	defer f.Close()
-
-	_, err = f.WriteString(c.body)
-	if err != nil {
-		return errors.Wrap(err, "failed to write content")
-	}
-
-	return nil
-}
-
+// Leafs reads all leaf nodes of node specified by path.
 func Leafs(path string) ([]*Node, error) {
 	leafs, err := os.ReadDir(path)
 	if err != nil {
@@ -290,10 +176,17 @@ func Leafs(path string) ([]*Node, error) {
 	return leafNodes, nil
 }
 
+// Node ID.
 func (n *Node) ID() uuid.UUID {
 	return n.meta.ID
 }
 
+// Node Name.
 func (n *Node) Name() string {
 	return n.meta.Name
+}
+
+// Node Content.
+func (n *Node) Content() string {
+	return n.cont.body
 }

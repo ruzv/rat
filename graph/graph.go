@@ -12,25 +12,17 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+// Graph holds cached information about graph and its nodes.
 type Graph struct {
-	path  string
-	root  uuid.UUID
-	nodes map[uuid.UUID]*node.Node
-	leafs map[uuid.UUID][]uuid.UUID
-	paths map[string]uuid.UUID
+	path  string                    // path to a directory containing the graph
+	root  uuid.UUID                 // uuid of root node
+	nodes map[uuid.UUID]*node.Node  // node storage
+	leafs map[uuid.UUID][]uuid.UUID // leaf storage
+	paths map[string]uuid.UUID      // path -> node ID
 }
 
-// func NewGraph(dir string, name string) *Graph {
-// 	n := node.NewNode(name, "")
-
-// 	_, err := n.Save(dir)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	return nil
-// }
-
+// Init initializes graph with given name. in given directory (path). if a graph
+// with given name already exists, it is loaded.
 func Init(name, path string) (*Graph, error) {
 	rootPath := filepath.Join(path, name)
 
@@ -70,6 +62,7 @@ func Init(name, path string) (*Graph, error) {
 	return g, nil
 }
 
+// creates a new graph.
 func create(path string) (*Graph, error) {
 	g := &Graph{
 		path:  path,
@@ -89,30 +82,25 @@ func create(path string) (*Graph, error) {
 	return g, nil
 }
 
-// func Load(root string) (*Graph, error) {
-// 	n, err := node.Get(root)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to load node")
-// 	}
-
-// 	err = g.Load()
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to load graph")
-// 	}
-
-// 	return g, nil
-// }
-
 func (g *Graph) Load() error {
 	n := g.Root()
 
 	return n.walk(0, nil)
 }
 
-type graphNode struct {
-	node  *node.Node
-	graph *Graph
-	path  string
+func (g *Graph) Print() {
+	callback := func(depth int, gn *graphNode) {
+		fmt.Printf("%s%s\n", strings.Repeat("   ", depth), gn.node.Name())
+	}
+
+	root := g.Root()
+
+	callback(0, root)
+
+	err := root.walk(1, callback)
+	if err != nil {
+		fmt.Printf("failed to walk graph: %s\n", err)
+	}
 }
 
 // returns the root node of the graph
@@ -175,6 +163,16 @@ func (g *Graph) set(n *node.Node, path string) *graphNode {
 		graph: g,
 		path:  path,
 	}
+}
+
+// -------------------------------------------------------------------------- //
+// GRAPH NODE
+// -------------------------------------------------------------------------- //
+
+type graphNode struct {
+	node  *node.Node
+	graph *Graph
+	path  string
 }
 
 // Leafs returns all leafs of a node. checks cache first. then attempts to load.
@@ -264,61 +262,6 @@ func (n *graphNode) walk(
 	return nil
 }
 
-func (g *Graph) Print() {
-	callback := func(depth int, gn *graphNode) {
-		fmt.Printf("%s%s\n", strings.Repeat("   ", depth), gn.node.Name())
-	}
-
-	root := g.Root()
-
-	callback(0, root)
-
-	root.walk(1, callback)
-
-	// err = g.walk(n.Node(), callback, 1)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
+func (n *graphNode) Content() string {
+	return n.node.Content()
 }
-
-// func (g *Graph) addLeaf(parent string, leaf *node.Node) error {
-// 	// n, err := g.Get(parent)
-// 	// if err != nil {
-// 	// 	return errors.Wrap(err, "failed to get parent")
-// 	// }
-
-// 	leafs, ok := g.leafs[parent]
-// 	if !ok || leafs == nil {
-// 		leafs = make([]*node.Node, 0, 1)
-// 	}
-
-// 	leafs = append(leafs, leaf)
-
-// 	g.leafs[parent] = leafs
-
-// 	return nil
-// }
-
-// func (gn *graphNode) Node() *node.Node {
-// 	return gn.node
-// }
-
-// func (gn *graphNode) Add(name string) (*graphNode, error) {
-
-// 	n, err := gn.node.Add(name)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to add node")
-// 	}
-
-// 	gn.graph.nodes[n.Path()] = n
-
-// 	err = gn.graph.addLeaf(gn.node.Path(), n)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to add leaf")
-// 	}
-
-// 	return &graphNode{
-// 		node:  n,
-// 		graph: gn.graph,
-// 	}, nil
-// }
