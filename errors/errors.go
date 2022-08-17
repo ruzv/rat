@@ -5,20 +5,21 @@ import (
 	"runtime"
 )
 
-var _ error = (*ErrWithTrace)(nil)
+const filenameUnknown = "unknown"
 
-// type Err struct {
-// 	errors []error
-// }
+var _ error = (*TraceError)(nil)
 
-type ErrWithTrace struct {
+// ErrWithTrace wrapper struct for error that also implements error.
+// Hods additional trace information.
+type TraceError struct {
 	line    int
 	file    string
 	message string
 	err     error
 }
 
-func (e *ErrWithTrace) Error() string {
+// Error converts an error to string.
+func (e *TraceError) Error() string {
 	var errMessage string
 	if e.err != nil {
 		errMessage = e.err.Error()
@@ -27,28 +28,30 @@ func (e *ErrWithTrace) Error() string {
 	return fmt.Sprintf("%s:%d %s\n%s", e.file, e.line, e.message, errMessage)
 }
 
+// New creates a new error with the given message and adds trace information.
 func New(message string) error {
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
-		file = "???"
+		file = filenameUnknown
 		line = 0
 	}
 
-	return &ErrWithTrace{
+	return &TraceError{
 		line:    line,
 		file:    file,
 		message: message,
 	}
 }
 
+// Wrap wraps an error with trace information.
 func Wrap(err error, message string) error {
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
-		file = "???"
+		file = filenameUnknown
 		line = 0
 	}
 
-	return &ErrWithTrace{
+	return &TraceError{
 		line:    line,
 		file:    file,
 		message: message,
@@ -56,14 +59,15 @@ func Wrap(err error, message string) error {
 	}
 }
 
+// Wrapf wraps an error with trace information.
 func Wrapf(err error, format string, args ...interface{}) error {
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
-		file = "???"
+		file = filenameUnknown
 		line = 0
 	}
 
-	return &ErrWithTrace{
+	return &TraceError{
 		line:    line,
 		file:    file,
 		message: fmt.Sprintf(format, args...),

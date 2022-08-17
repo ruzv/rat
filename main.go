@@ -2,10 +2,20 @@ package main
 
 import (
 	"fmt"
+
 	"private/rat/config"
+	"private/rat/errors"
 	"private/rat/handler/graphhttp"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/pflag"
+)
+
+var (
+	configPath = pflag.StringP(
+		"config", "c", "./config.json", "path to config file",
+	)
+	help = pflag.BoolP("help", "h", false, "show help")
 )
 
 func main() {
@@ -13,52 +23,33 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	// router.GET(
-	// 	"/*path",
-	// 	func(c *gin.Context) {
-	// 		path := c.Param("path")
-
-	// 		if len(path) > 0 && path[0] == '/' {
-	// 			path = path[1:]
-	// 		}
-
-	// 		n, err := g.Get(path)
-	// 		if err != nil {
-	// 			c.JSON(404, gin.H{
-	// 				"error": err.Error(),
-	// 			})
-
-	// 			return
-	// 		}
-
-	// 		c.JSON(200, gin.H{
-	// 			"path": path,
-	// 			// "body": n.Node().Body(),
-	// 		})
-	// 	},
-	// )
-
-	// err = router.Run(fmt.Sprintf(":%d", conf.Port))
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 }
 
 func run() error {
-	conf, err := config.Load("./config.json")
+	pflag.Parse()
+
+	if *help {
+		pflag.PrintDefaults()
+
+		return nil
+	}
+
+	conf, err := config.Load(*configPath)
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to load config")
 	}
 
 	router := gin.Default()
+	router.LoadHTMLFiles("./templates/index.html")
 
-	graphhttp.RegisterRoutes(conf, router.RouterGroup)
+	err = graphhttp.RegisterRoutes(conf, router.RouterGroup)
+	if err != nil {
+		return errors.Wrap(err, "failed to register routes")
+	}
 
 	err = router.Run(fmt.Sprintf(":%d", conf.Port))
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "failed to run router")
 	}
 
 	return nil

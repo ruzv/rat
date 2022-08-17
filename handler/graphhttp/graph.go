@@ -1,6 +1,8 @@
 package graphhttp
 
 import (
+	"html/template"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -10,6 +12,7 @@ import (
 	"private/rat/handler"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gomarkdown/markdown"
 )
 
 type Handler struct {
@@ -17,8 +20,8 @@ type Handler struct {
 	graph     *graph.Graph
 }
 
-// creates a new Handler
-func new(conf *config.Config) (*Handler, error) {
+// creates a new Handler.
+func newHandler(conf *config.Config) (*Handler, error) {
 	graph, err := graph.Init(conf.Graph.Name, conf.Graph.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init graph")
@@ -31,8 +34,9 @@ func new(conf *config.Config) (*Handler, error) {
 		nil
 }
 
+// RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(conf *config.Config, router gin.RouterGroup) error {
-	h, err := new(conf)
+	h, err := newHandler(conf)
 	if err != nil {
 		return errors.Wrap(err, "failed create new graph handler")
 	}
@@ -52,13 +56,10 @@ func (h *Handler) read(c *gin.Context) error {
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	c.JSON(
-		200,
-		gin.H{
-			"path":    path,
-			"content": n.Content(),
-		},
-	)
+	out := markdown.ToHTML([]byte(n.Content()), nil, nil)
+
+	//nolint:gosec
+	c.HTML(http.StatusOK, "index.html", gin.H{"content": template.HTML(out)})
 
 	return nil
 }

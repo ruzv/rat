@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"private/rat/graph/node"
+	"regexp"
 	"strings"
 
 	"private/rat/errors"
+	"private/rat/graph/node"
 
 	"github.com/gofrs/uuid"
 )
@@ -18,7 +19,8 @@ type Graph struct {
 	root  uuid.UUID                 // uuid of root node
 	nodes map[uuid.UUID]*node.Node  // node storage
 	leafs map[uuid.UUID][]uuid.UUID // leaf storage
-	paths map[string]uuid.UUID      // path -> node ID
+	ids   map[string]uuid.UUID      // path -> node ID
+	paths map[uuid.UUID]string      // node ID -> path
 }
 
 // Init initializes graph with given name. in given directory (path). if a graph
@@ -43,7 +45,8 @@ func Init(name, path string) (*Graph, error) {
 		path:  path,
 		nodes: make(map[uuid.UUID]*node.Node),
 		leafs: make(map[uuid.UUID][]uuid.UUID),
-		paths: make(map[string]uuid.UUID),
+		ids:   make(map[string]uuid.UUID),
+		paths: make(map[uuid.UUID]string),
 	}
 
 	n, err := node.Read(rootPath)
@@ -52,7 +55,7 @@ func Init(name, path string) (*Graph, error) {
 	}
 
 	g.root = n.ID()
-	g.set(n, path)
+	g.set(n, name)
 
 	err = g.Load()
 	if err != nil {
@@ -68,7 +71,8 @@ func create(path string) (*Graph, error) {
 		path:  path,
 		nodes: make(map[uuid.UUID]*node.Node),
 		leafs: make(map[uuid.UUID][]uuid.UUID),
-		paths: make(map[string]uuid.UUID),
+		ids:   make(map[string]uuid.UUID),
+		paths: make(map[uuid.UUID]string),
 	}
 
 	n, err := node.Create(path)
@@ -103,18 +107,18 @@ func (g *Graph) Print() {
 	}
 }
 
-// returns the root node of the graph
-func (g *Graph) Root() *graphNode {
+// returns the root node of the graph.
+func (g *Graph) Root() *graphNode { //nolint:golint
 	return &graphNode{
 		node:  g.nodes[g.root],
 		graph: g,
-		path:  filepath.Join(g.path, g.nodes[g.root].Name()),
+		// path:  filepath.Join(g.path, g.nodes[g.root].Name()),
 	}
 }
 
 // Get returns a node by path. checks cache first. then attempts to load from
-// filesystem. retrived node is cached.
-func (g *Graph) Get(path string) (*graphNode, error) {
+// filesystem. retrieved node is cached.
+func (g *Graph) Get(path string) (*graphNode, error) { //nolint:golint
 	path = filepath.Join(g.path, path)
 
 	gn, err := g.get(path)
@@ -130,18 +134,18 @@ func (g *Graph) Get(path string) (*graphNode, error) {
 	return gn, nil
 }
 
-// checks cache for node
+// checks cache for node.
 func (g *Graph) get(path string) (*graphNode, error) {
-	id, ok := g.paths[path]
+	id, ok := g.ids[path]
 	if !ok {
 		return nil, errors.New("node path not found")
 	}
 
-	return g.getByID(id, filepath.Dir(path))
+	return g.getByID(id)
 }
 
-// check cache for node, error if not found
-func (g *Graph) getByID(id uuid.UUID, parentPath string) (*graphNode, error) {
+// check cache for node, error if not found. parentPath path to parent node
+func (g *Graph) getByID(id uuid.UUID) (*graphNode, error) {
 	n, ok := g.nodes[id]
 	if !ok {
 		return nil, errors.New("node not found")
@@ -150,18 +154,19 @@ func (g *Graph) getByID(id uuid.UUID, parentPath string) (*graphNode, error) {
 	return &graphNode{
 		node:  n,
 		graph: g,
-		path:  filepath.Join(parentPath, n.Name()),
+		// path:  filepath.Join(parentPath, n.Name()),
 	}, nil
 }
 
 func (g *Graph) set(n *node.Node, path string) *graphNode {
 	g.nodes[n.ID()] = n
-	g.paths[path] = n.ID()
+	g.ids[path] = n.ID()
+	g.paths[n.ID()] = path
 
 	return &graphNode{
 		node:  n,
 		graph: g,
-		path:  path,
+		// path:  path,
 	}
 }
 
@@ -172,15 +177,14 @@ func (g *Graph) set(n *node.Node, path string) *graphNode {
 type graphNode struct {
 	node  *node.Node
 	graph *Graph
-	path  string
+	// path  string
 }
 
 // Leafs returns all leafs of a node. checks cache first. then attempts to load.
-// from filesystem. retrived nodes are cached.
+// from filesystem. retrieved nodes are cached.
 func (n *graphNode) Leafs() ([]*graphNode, error) {
 	leafs, err := n.cachedLeafs()
 	if err != nil {
-
 		leafs, err = n.loadLeafs()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to load leafs")
@@ -200,7 +204,7 @@ func (n *graphNode) cachedLeafs() ([]*graphNode, error) {
 	gns := make([]*graphNode, 0, len(leafsIDs))
 
 	for _, id := range leafsIDs {
-		gn, err := n.graph.getByID(id, n.node.Name())
+		gn, err := n.graph.getByID(id)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get leaf")
 		}
@@ -213,16 +217,23 @@ func (n *graphNode) cachedLeafs() ([]*graphNode, error) {
 
 // loads leafs from filesystem and caches them.
 func (n *graphNode) loadLeafs() ([]*graphNode, error) {
-	leafs, err := node.Leafs(n.path)
+	path, ok := n.graph.paths[n.node.ID()]
+	if !ok {
+		return nil, errors.New("node has no path cached")
+	}
+
+	fmt.Println(path)
+
+	leafs, err := node.Leafs(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load leafs of node %s", n.path)
+		return nil, errors.Wrapf(err, "failed to load leafs of node %s", path)
 	}
 
 	gns := make([]*graphNode, 0, len(leafs))
 	for _, leaf := range leafs {
 		gns = append(
 			gns,
-			n.graph.set(leaf, filepath.Join(n.path, leaf.Name())),
+			n.graph.set(leaf, filepath.Join(path, leaf.Name())),
 		)
 	}
 
@@ -230,7 +241,12 @@ func (n *graphNode) loadLeafs() ([]*graphNode, error) {
 }
 
 func (n *graphNode) Add(name string) (*graphNode, error) {
-	path := filepath.Join(n.path, name)
+	path, ok := n.graph.paths[n.node.ID()]
+	if !ok {
+		return nil, errors.New("node has no path cached")
+	}
+
+	path = filepath.Join(path, name)
 
 	newNode, err := node.Create(path)
 	if err != nil {
@@ -256,12 +272,52 @@ func (n *graphNode) walk(
 			callback(depth, leaf)
 		}
 
-		leaf.walk(depth+1, callback)
+		err = leaf.walk(depth+1, callback)
+		if err != nil {
+			return errors.Wrap(err, "failed to walk leaf")
+		}
 	}
 
 	return nil
 }
 
+// <rat (.*)>
+var ratRegex = regexp.MustCompile(`<rat (.*)>`)
+
 func (n *graphNode) Content() string {
-	return n.node.Content()
+	source := n.node.Content()
+
+	matches := ratRegex.FindAllIndex(source, -1)
+
+	var rats []string
+
+	for _, match := range matches {
+		tag := string(source[match[0]:match[1]])
+
+		tag = strings.Trim(tag, "<>")
+
+		args := strings.Split(tag, " ")
+
+		if len(args) != 2 {
+			continue // log
+		}
+
+		if args[0] != "link" {
+			continue // log
+		}
+
+		id, err := uuid.FromString(args[1])
+		if err != nil {
+			continue // log
+		}
+
+		path, ok := n.graph.paths[id]
+		if !ok {
+			continue // log
+		}
+
+		rats = append(rats, path)
+	}
+
+	return string(source) + strings.Join(rats, "\n")
 }

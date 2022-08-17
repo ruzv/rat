@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -9,7 +11,7 @@ func Wrap(handler func(*gin.Context) error) gin.HandlerFunc {
 		err := handler(c)
 		if err != nil {
 			c.JSON(
-				500,
+				http.StatusInternalServerError,
 				gin.H{
 					"error": err.Error(),
 				},

@@ -2,12 +2,13 @@ package node
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/gofrs/uuid"
-
 	"private/rat/errors"
+
+	"github.com/gofrs/uuid"
 )
 
 const (
@@ -29,7 +30,7 @@ type metadata struct {
 }
 
 type content struct {
-	body string
+	body []byte
 }
 
 // NameFromPath returns name of node from its path.
@@ -37,7 +38,7 @@ func NameFromPath(path string) string {
 	return filepath.Base(path)
 }
 
-// Create creates a new Node
+// Create creates a new Node.
 func Create(path string) (*Node, error) {
 	n := &Node{
 		meta: &metadata{
@@ -75,7 +76,12 @@ func (n *Node) setMeta(path string) error {
 
 	defer f.Close()
 
-	return json.NewEncoder(f).Encode(n.meta)
+	err = json.NewEncoder(f).Encode(n.meta)
+	if err != nil {
+		return errors.Wrap(err, "failed to encode meta")
+	}
+
+	return nil
 }
 
 func (n *Node) setCont(path string) error {
@@ -88,7 +94,7 @@ func (n *Node) setCont(path string) error {
 
 	defer f.Close()
 
-	_, err = f.WriteString(n.cont.body)
+	_, err = f.Write(n.cont.body)
 	if err != nil {
 		return errors.Wrap(err, "failed to write content")
 	}
@@ -145,7 +151,7 @@ func getCont(path string) (*content, error) {
 	}
 
 	return &content{
-		body: string(data),
+		body: data,
 	}, nil
 }
 
@@ -156,7 +162,10 @@ func Leafs(path string) ([]*Node, error) {
 		return nil, errors.Wrapf(err, "failed to read dir %s", path)
 	}
 
-	leafNodes := make([]*Node, 0, len(leafs)-2) // cont, meta
+	fmt.Println(len(leafs) - 2)
+
+	// cont, meta
+	leafNodes := make([]*Node, 0, len(leafs)-2) //nolint:gomnd
 
 	for _, leaf := range leafs {
 		if !leaf.IsDir() {
@@ -187,6 +196,6 @@ func (n *Node) Name() string {
 }
 
 // Node Content.
-func (n *Node) Content() string {
+func (n *Node) Content() []byte {
 	return n.cont.body
 }

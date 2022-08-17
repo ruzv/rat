@@ -22,7 +22,13 @@ linters-settings:
 
 linters:
   enable-all: true
-  # disable:
+  disable:
+    - varnamelen
+    - ifshort
+    - exhaustivestruct
+    - exhaustruct
+    - gofumpt
+    - gci
     # - gomnd
     # - tagliatelle
     # - wrapcheck # FIXME: Reenabling of this linter will be done in LOAD-2034.
