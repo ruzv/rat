@@ -6,6 +6,7 @@ import (
 	"private/rat/config"
 	"private/rat/errors"
 	"private/rat/handler/graphhttp"
+	"private/rat/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
@@ -14,6 +15,9 @@ import (
 var (
 	configPath = pflag.StringP(
 		"config", "c", "./config.json", "path to config file",
+	)
+	logPath = pflag.StringP(
+		"log", "l", "./logs.log", "path to log file",
 	)
 	help = pflag.BoolP("help", "h", false, "show help")
 )
@@ -34,10 +38,21 @@ func run() error {
 		return nil
 	}
 
+	err := logger.NewDefault(*logPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to create default logger")
+	}
+
+	defer logger.Close()
+
+	logger.Infof("rat server starting")
+
 	conf, err := config.Load(*configPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to load config")
 	}
+
+	logger.Infof("have config")
 
 	router := gin.Default()
 	router.LoadHTMLFiles("./templates/index.html")
@@ -51,6 +66,8 @@ func run() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to run router")
 	}
+
+	logger.Infof("rat server stopped")
 
 	return nil
 }
