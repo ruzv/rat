@@ -75,7 +75,11 @@ func (n *Node) setMeta(path string) error {
 
 	defer f.Close()
 
-	err = json.NewEncoder(f).Encode(n.meta)
+	e := json.NewEncoder(f)
+
+	e.SetIndent("", "    ")
+
+	err = e.Encode(n.meta)
 	if err != nil {
 		return errors.Wrap(err, "failed to encode meta")
 	}
