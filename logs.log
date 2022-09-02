@@ -1,0 +1,23 @@
+2022/09/02 13:20:47.846125 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: INFO: rat server starting
+2022/09/02 13:20:47.870443 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: INFO: have config
+2022/09/02 13:20:47.890831 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: INFO: will load graph - notes from ./content
+2022/09/02 13:20:47.913853 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: will load leafs from filesystem content/notes
+2022/09/02 13:20:47.936286 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: will load leafs from filesystem content/notes/docs
+2022/09/02 13:20:47.958487 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: will load leafs from filesystem content/notes/tools
+2022/09/02 13:20:47.981118 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: will load leafs from filesystem content/notes/tools/commit-script
+2022/09/02 13:20:47.999565 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: will load leafs from filesystem content/notes/tools/dm
+2022/09/02 13:20:48.017718 /Users/rudolfszvejs/go/src/private/rat/logger/logger.go:50: DEBUG: loaded graph:
+id: 856e996d-d449-42d1-901c-3c59b69c2bf4, path: notes
+leafs: 
+	9ec6f641-a2e4-49a8-abac-a9cd34ecfd92
+	00005f92-0203-4b31-a14f-1776cc49bcb2
+id: 9ec6f641-a2e4-49a8-abac-a9cd34ecfd92, path: notes/docs
+leafs: 
+id: 00005f92-0203-4b31-a14f-1776cc49bcb2, path: notes/tools
+leafs: 
+	7de92a20-1a45-453d-9eb7-538971041e12
+	d7433631-d2a1-4281-8e26-92465378f303
+id: 7de92a20-1a45-453d-9eb7-538971041e12, path: notes/tools/commit-script
+leafs: 
+id: d7433631-d2a1-4281-8e26-92465378f303, path: notes/tools/dm
+leafs: 

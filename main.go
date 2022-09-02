@@ -3,24 +3,13 @@ package main
 import (
 	"fmt"
 
+	"private/rat/args"
 	"private/rat/config"
 	"private/rat/errors"
 	"private/rat/handler/graphhttp"
 	"private/rat/logger"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/pflag"
-)
-
-//nolint:gochecknoglobals
-var (
-	configPath = pflag.StringP(
-		"config", "c", "./config.json", "path to config file",
-	)
-	logPath = pflag.StringP(
-		"log", "l", "./logs.log", "path to log file",
-	)
-	help = pflag.BoolP("help", "h", false, "show help")
 )
 
 func main() {
@@ -31,15 +20,12 @@ func main() {
 }
 
 func run() error {
-	pflag.Parse()
-
-	if *help {
-		pflag.PrintDefaults()
-
+	cmdArgs, ok := args.Load()
+	if !ok {
 		return nil
 	}
 
-	err := logger.NewDefault(*logPath)
+	err := logger.NewDefault(cmdArgs.LogPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to create default logger")
 	}
@@ -48,7 +34,7 @@ func run() error {
 
 	logger.Infof("rat server starting")
 
-	conf, err := config.Load(*configPath)
+	conf, err := config.Load(cmdArgs.ConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to load config")
 	}
