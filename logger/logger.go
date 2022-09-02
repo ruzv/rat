@@ -8,7 +8,7 @@ import (
 	"private/rat/errors"
 )
 
-var defaultLogger *Logger
+var defaultLogger *Logger //nolint:gochecknoglobals
 
 func NewDefault(logPath string) error {
 	l, err := NewLogger(logPath)
@@ -29,7 +29,7 @@ type Logger struct {
 func NewLogger(logPath string) (*Logger, error) {
 	logFile, err := os.OpenFile(
 		logPath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, //nolint:nosnakecase
 		os.ModePerm,
 	)
 	if err != nil {
@@ -46,29 +46,34 @@ func NewLogger(logPath string) (*Logger, error) {
 	}, nil
 }
 
-func (l *Logger) log(level, format string, args ...interface{}) {
+func (l *Logger) logf(level, format string, args ...interface{}) {
 	l.logger.Printf("%s: %s\n", level, fmt.Sprintf(format, args...))
-	l.logFile.Sync()
+	l.logFile.Sync() //nolint:errcheck
 }
 
 func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.log("DEBUG", format, args...)
+	l.logf("DEBUG", format, args...)
 }
 
 func (l *Logger) Infof(format string, args ...interface{}) {
-	l.log("INFO", format, args...)
+	l.logf("INFO", format, args...)
 }
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
-	l.log("WARN", format, args...)
+	l.logf("WARN", format, args...)
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.log("ERROR", format, args...)
+	l.logf("ERROR", format, args...)
 }
 
 func (l *Logger) Close() error {
-	return l.logFile.Close()
+	err := l.logFile.Close()
+	if err != nil {
+		return errors.Wrap(err, "failed to close log file")
+	}
+
+	return nil
 }
 
 func Debugf(format string, args ...interface{}) {

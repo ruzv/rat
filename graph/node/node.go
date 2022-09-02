@@ -2,7 +2,6 @@ package node
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -161,8 +160,6 @@ func Leafs(path string) ([]*Node, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read dir %s", path)
 	}
-
-	fmt.Println(len(leafs) - 2)
 
 	// cont, meta
 	leafNodes := make([]*Node, 0, len(leafs)-2) //nolint:gomnd

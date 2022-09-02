@@ -10,6 +10,7 @@ import (
 	"private/rat/errors"
 	"private/rat/graph"
 	"private/rat/handler"
+	"private/rat/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gomarkdown/markdown"
@@ -26,6 +27,8 @@ func newHandler(conf *config.Config) (*Handler, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init graph")
 	}
+
+	logger.Debugf("loaded graph:\n%s", graph.String())
 
 	return &Handler{
 			graphName: conf.Graph.Name,

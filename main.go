@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+//nolint:gochecknoglobals
 var (
 	configPath = pflag.StringP(
 		"config", "c", "./config.json", "path to config file",
