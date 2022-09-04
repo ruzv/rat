@@ -6,10 +6,8 @@ import (
 	"private/rat/args"
 	"private/rat/config"
 	"private/rat/errors"
-	"private/rat/handler/graphhttp"
+	"private/rat/handler/router"
 	"private/rat/logger"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -41,12 +39,9 @@ func run() error {
 
 	logger.Infof("have config")
 
-	router := gin.Default()
-	router.LoadHTMLFiles("./templates/index.html")
-
-	err = graphhttp.RegisterRoutes(conf, router.RouterGroup)
+	router, err := router.New(conf)
 	if err != nil {
-		return errors.Wrap(err, "failed to register routes")
+		return errors.Wrap(err, "failed to create new router")
 	}
 
 	err = router.Run(fmt.Sprintf(":%d", conf.Port))

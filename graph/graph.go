@@ -120,8 +120,8 @@ func (g *Graph) String() string {
 }
 
 // Root returns the root node of the graph.
-func (g *Graph) Root() *graphNode { //nolint:golint
-	return &graphNode{
+func (g *Graph) Root() *GraphNode { //nolint:golint
+	return &GraphNode{
 		node:  g.nodes[g.root],
 		graph: g,
 	}
@@ -129,7 +129,7 @@ func (g *Graph) Root() *graphNode { //nolint:golint
 
 // Get returns a node by path. checks cache first. then attempts to load from
 // filesystem. retrieved node is cached.
-func (g *Graph) Get(path string) (*graphNode, error) { //nolint:golint
+func (g *Graph) Get(path string) (*GraphNode, error) { //nolint:golint
 	gn, err := g.get(path)
 	if err != nil {
 		fullPath := filepath.Join(g.path, path)
@@ -146,7 +146,7 @@ func (g *Graph) Get(path string) (*graphNode, error) { //nolint:golint
 }
 
 // checks cache for node.
-func (g *Graph) get(path string) (*graphNode, error) {
+func (g *Graph) get(path string) (*GraphNode, error) {
 	id, ok := g.ids[path]
 	if !ok {
 		logger.Debugf("node %s not found in cache", path)
@@ -158,24 +158,25 @@ func (g *Graph) get(path string) (*graphNode, error) {
 }
 
 // check cache for node, error if not found. parentPath path to parent node.
-func (g *Graph) getByID(id uuid.UUID) (*graphNode, error) {
+func (g *Graph) getByID(id uuid.UUID) (*GraphNode, error) {
 	n, ok := g.nodes[id]
 	if !ok {
 		return nil, errors.New("node not found")
 	}
 
-	return &graphNode{
+	return &GraphNode{
 		node:  n,
 		graph: g,
 	}, nil
 }
 
-func (g *Graph) set(n *node.Node, path string) *graphNode {
+// set caches a given node with an given path. path is short path not full path.
+func (g *Graph) set(n *node.Node, path string) *GraphNode {
 	g.nodes[n.ID()] = n
 	g.ids[path] = n.ID()
 	g.paths[n.ID()] = path
 
-	return &graphNode{
+	return &GraphNode{
 		node:  n,
 		graph: g,
 	}

@@ -25,7 +25,7 @@ type Node struct {
 
 type metadata struct {
 	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	name string
 }
 
 type content struct {
@@ -37,12 +37,16 @@ func NameFromPath(path string) string {
 	return filepath.Base(path)
 }
 
-// Create creates a new Node.
+func ParentPath(path string) string {
+	return filepath.Dir(path)
+}
+
+// Create creates a new Node. mkdir path
 func Create(path string) (*Node, error) {
 	n := &Node{
 		meta: &metadata{
 			ID:   uuid.Must(uuid.NewV4()),
-			Name: filepath.Base(path),
+			name: NameFromPath(path),
 		},
 		cont: &content{},
 	}
@@ -105,6 +109,34 @@ func (n *Node) setCont(path string) error {
 	return nil
 }
 
+// -------------------------------------------------------------------------- //
+// UPDATE
+// -------------------------------------------------------------------------- //
+
+func (n *Node) Rename(path, newName string) (string, error) {
+	newPath := filepath.Join(ParentPath(path), newName)
+
+	err := os.Rename(path, newPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to rename")
+	}
+
+	n.meta.name = newName
+
+	return newPath, nil
+}
+
+func (n *Node) Update(path, content string) error {
+	n.cont.body = []byte(content)
+
+	err := n.setCont(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to set content")
+	}
+
+	return nil
+}
+
 // Reads a node from filesystem.
 func Read(path string) (*Node, error) {
 	var (
@@ -141,6 +173,8 @@ func getMeta(path string) (*metadata, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode meta")
 	}
+
+	m.name = NameFromPath(path)
 
 	return &m, nil
 }
@@ -193,7 +227,7 @@ func (n *Node) ID() uuid.UUID {
 
 // Node Name.
 func (n *Node) Name() string {
-	return n.meta.Name
+	return n.meta.name
 }
 
 // Node Content.
