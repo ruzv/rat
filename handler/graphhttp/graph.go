@@ -1,13 +1,14 @@
 package graphhttp
 
 import (
-	"html/template"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"private/rat/config"
 	"private/rat/errors"
 	"private/rat/graph"
+	"private/rat/graph/storefilesystem"
 	"private/rat/handler"
 	"private/rat/logger"
 
@@ -16,21 +17,24 @@ import (
 
 type Handler struct {
 	graphName string
-	graph     *graph.Graph
+	// graph     *graph.Graph // remove
+	store graph.Store
 }
 
 // creates a new Handler.
 func newHandler(conf *config.Config) (*Handler, error) {
-	graph, err := graph.Init(conf.Graph.Name, conf.Graph.Path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to init graph")
-	}
+	store := storefilesystem.NewFileSystem(conf.Graph.Name, conf.Graph.Path)
 
-	logger.Debugf("loaded graph:\n%s", graph.String())
+	// graph, err := graph.Init(conf.Graph.Name, conf.Graph.Path)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to init graph")
+	// }
+
+	logger.Debugf("loaded graph:\n%s", conf.Graph.Name)
 
 	return &Handler{
 			graphName: conf.Graph.Name,
-			graph:     graph,
+			store:     store,
 		},
 		nil
 }
@@ -47,27 +51,14 @@ func RegisterRoutes(conf *config.Config, router gin.RouterGroup) error {
 	subroute.POST("", handler.Wrap(h.create))
 	subroute.GET("", handler.Wrap(h.read))
 	subroute.PUT("", handler.Wrap(h.update))
-
-	// router.GET("/edit/*path", handler.Wrap(h.edit))
+	subroute.DELETE("", handler.Wrap(h.delete))
 
 	return nil
 }
 
-// func (h *Handler) edit(c *gin.Context) error {
-// 	n, err := h.getNode(c)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to get node")
-// 	}
-
-// 	//nolint:gosec
-// 	c.HTML(
-// 		http.StatusOK,
-// 		"edit.html",
-// 		gin.H{"content": template.HTML(n.Content().HTML())},
-// 	)
-
-// 	return nil
-// }
+// -------------------------------------------------------------------------- //
+// CREATE
+// -------------------------------------------------------------------------- //
 
 func (h *Handler) create(c *gin.Context) error {
 	body, err := handler.Body[struct {
@@ -93,10 +84,14 @@ func (h *Handler) create(c *gin.Context) error {
 		return errors.Wrap(err, "failed to create node")
 	}
 
-	c.JSON(http.StatusOK, gin.H{"path": n.Path()})
+	c.JSON(http.StatusOK, gin.H{"path": n.Path})
 
 	return nil
 }
+
+// -------------------------------------------------------------------------- //
+// READ
+// -------------------------------------------------------------------------- //
 
 func (h *Handler) read(c *gin.Context) error {
 	n, err := h.getNode(c)
@@ -109,14 +104,18 @@ func (h *Handler) read(c *gin.Context) error {
 		http.StatusOK,
 		"index.html",
 		gin.H{
-			"html":     template.HTML(n.Content().HTML()),
-			"markdown": n.Content().Markdown(),
-			"raw":      n.Content().Raw(),
+			"html":     n.HTML(),
+			"markdown": n.Markdown(),
+			"raw":      n.Content,
 		},
 	)
 
 	return nil
 }
+
+// -------------------------------------------------------------------------- //
+// UPDATE
+// -------------------------------------------------------------------------- //
 
 func (h *Handler) update(c *gin.Context) error {
 	body, err := handler.Body[struct {
@@ -133,8 +132,10 @@ func (h *Handler) update(c *gin.Context) error {
 		return errors.Wrap(err, "failed to get node")
 	}
 
+	fmt.Println(body.Name)
+
 	if body.Name != "" {
-		err = n.Update().Name(body.Name)
+		err = n.Rename(body.Name)
 		if err != nil {
 			handler.WriteErrorJSON(
 				c,
@@ -147,7 +148,9 @@ func (h *Handler) update(c *gin.Context) error {
 	}
 
 	if body.Content != "" {
-		err = n.Update().Content(body.Content)
+		n.Content = body.Content
+
+		err = n.Update()
 		if err != nil {
 			handler.WriteErrorJSON(
 				c,
@@ -162,14 +165,38 @@ func (h *Handler) update(c *gin.Context) error {
 	return nil
 }
 
+// -------------------------------------------------------------------------- //
+// DELETE
+// -------------------------------------------------------------------------- //
+
+func (h *Handler) delete(c *gin.Context) error {
+	n, err := h.getNode(c)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node")
+	}
+
+	err = n.DeleteSingle()
+	if err != nil {
+		handler.WriteErrorJSON(
+			c,
+			http.StatusInternalServerError,
+			"failed to delete node",
+		)
+
+		return errors.Wrapf(err, "failed to delete node")
+	}
+
+	return nil
+}
+
 func getPath(c *gin.Context) string {
 	return strings.Trim(c.Param("path"), "/")
 }
 
 // getNode reads the node specified by path route param. on error writes JSON
 // response.
-func (h *Handler) getNode(c *gin.Context) (*graph.GraphNode, error) {
-	n, err := h.graph.Get(getPath(c))
+func (h *Handler) getNode(c *gin.Context) (*graph.Node, error) {
+	n, err := h.store.GetByPath(getPath(c))
 	if err != nil {
 		handler.WriteErrorJSON(
 			c,

@@ -14,3 +14,4 @@
 
 # this is a header
 
+<rat graph>
