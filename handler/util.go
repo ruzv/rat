@@ -23,7 +23,7 @@ func WriteErrorJSON(c *gin.Context, code int, message string) {
 	c.JSON(code, gin.H{"code": code, "message": message})
 }
 
-func Body[T any](c *gin.Context) (T, error) {
+func Body[T any](c *gin.Context) (T, error) { //nolint:ireturn
 	var body, empty T
 
 	err := c.BindJSON(&body)

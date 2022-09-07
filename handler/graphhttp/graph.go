@@ -1,7 +1,6 @@
 package graphhttp
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -22,7 +21,7 @@ type Handler struct {
 }
 
 // creates a new Handler.
-func newHandler(conf *config.Config) (*Handler, error) {
+func newHandler(conf *config.Config) (*Handler, error) { //nolint:unparam
 	store := storefilesystem.NewFileSystem(conf.Graph.Name, conf.Graph.Path)
 
 	// graph, err := graph.Init(conf.Graph.Name, conf.Graph.Path)
@@ -99,7 +98,6 @@ func (h *Handler) read(c *gin.Context) error {
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	//nolint:gosec
 	c.HTML(
 		http.StatusOK,
 		"index.html",
@@ -131,8 +129,6 @@ func (h *Handler) update(c *gin.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get node")
 	}
-
-	fmt.Println(body.Name)
 
 	if body.Name != "" {
 		err = n.Rename(body.Name)

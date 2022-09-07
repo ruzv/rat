@@ -203,9 +203,9 @@ func setMeta(node *graph.Node, path string) error {
 	e.SetIndent("", "    ")
 
 	m := struct {
-		id uuid.UUID `json:"id`
+		ID uuid.UUID `json:"id"`
 	}{
-		id: node.ID,
+		ID: node.ID,
 	}
 
 	err = e.Encode(m)
@@ -255,5 +255,10 @@ func (fs *FileSystem) Move(node *graph.Node, path string) error {
 }
 
 func (fs *FileSystem) Delete(node *graph.Node) error {
-	return os.RemoveAll(fs.fullPath(node.Path))
+	err := os.RemoveAll(fs.fullPath(node.Path))
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove all")
+	}
+
+	return nil
 }

@@ -34,7 +34,12 @@ type Node struct {
 }
 
 func (n *Node) Leafs() ([]*Node, error) {
-	return n.Store.Leafs(n.Path)
+	leafs, err := n.Store.Leafs(n.Path)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get leafs")
+	}
+
+	return leafs, nil
 }
 
 func (n *Node) GenID() error {
@@ -49,9 +54,15 @@ func (n *Node) GenID() error {
 }
 
 func (n *Node) Add(name string) (*Node, error) {
-	return n.Store.Add(n, name)
+	node, err := n.Store.Add(n, name)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to add node")
+	}
+
+	return node, nil
 }
 
+//nolint:gosec
 func (n *Node) HTML() template.HTML {
 	return template.HTML(markdown.ToHTML([]byte(n.Markdown()), nil, nil))
 }
@@ -98,11 +109,9 @@ const (
 	ratTagKeywordGraph = "graph"
 )
 
+// <rat keyword arg1 arg2> .
 func (n *Node) parseRatTag(tag string) (string, error) {
-	// <rat keyword arg1 arg2>
-
-	// rat keyword arg1 arg2
-	tag = strings.Trim(tag, "<>")
+	tag = strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
 
 	// keyword arg1 arg2
 	args := strings.Split(tag, " ")[1:]
@@ -115,7 +124,7 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 
 	switch keyword {
 	case ratTagKeywordLink:
-		if len(args) == 2 {
+		if len(args) == 2 { //nolint:gomnd
 			return n.parseRatTagLink(args[0], args[1])
 		}
 
@@ -213,15 +222,30 @@ func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
 // -------------------------------------------------------------------------- //
 
 func (n *Node) Update() error {
-	return n.Store.Update(n)
+	err := n.Store.Update(n)
+	if err != nil {
+		return errors.Wrap(err, "failed to update")
+	}
+
+	return nil
 }
 
 func (n *Node) Rename(name string) error {
-	return n.Store.Move(n, filepath.Join(ParentPath(n.Path), name))
+	err := n.Store.Move(n, filepath.Join(ParentPath(n.Path), name))
+	if err != nil {
+		return errors.Wrap(err, "failed to rename")
+	}
+
+	return nil
 }
 
 func (n *Node) Move(path string) error {
-	return n.Store.Move(n, path)
+	err := n.Store.Move(n, path)
+	if err != nil {
+		return errors.Wrap(err, "failed to move")
+	}
+
+	return nil
 }
 
 // -------------------------------------------------------------------------- //
@@ -229,7 +253,12 @@ func (n *Node) Move(path string) error {
 // -------------------------------------------------------------------------- //
 
 func (n *Node) DeleteAll() error {
-	return n.Store.Delete(n)
+	err := n.Store.Delete(n)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete")
+	}
+
+	return nil
 }
 
 func (n *Node) DeleteSingle() error {
@@ -247,7 +276,12 @@ func (n *Node) DeleteSingle() error {
 		}
 	}
 
-	return n.DeleteAll()
+	err = n.DeleteAll()
+	if err != nil {
+		return errors.Wrap(err, "failed to delete all")
+	}
+
+	return nil
 }
 
 // -------------------------------------------------------------------------- //
