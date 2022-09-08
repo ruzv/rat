@@ -41,6 +41,7 @@ hurl tests.hurl --color
 
 kill -9 $(pgrep ^rat$)
 
+rm rat
 
 rm config.json
 
