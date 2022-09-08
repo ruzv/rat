@@ -1,8 +1,8 @@
 {
-  "port": 8081,
+  "port": 8889,
 
   "graph": {
-    "name": "notes",
-    "path": "./content"
+    "name": "test_graph",
+    "path": "./"
   }
 }
