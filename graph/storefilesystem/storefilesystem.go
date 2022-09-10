@@ -14,7 +14,7 @@ import (
 var _ graph.Store = (*FileSystem)(nil)
 
 const (
-	metadataFilename = "metadata.json"
+	metadataFilename = ".metadata.json"
 	contentFilename  = "content.md"
 )
 
@@ -23,11 +23,47 @@ type FileSystem struct {
 	path string // path to a directory containing the graph
 }
 
-func NewFileSystem(root, path string) *FileSystem {
-	return &FileSystem{
+func NewFileSystem(root, path string) (*FileSystem, error) {
+	fs := &FileSystem{
 		root: root,
 		path: path,
 	}
+
+	dir, err := os.ReadDir(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read dir")
+	}
+
+	for _, d := range dir {
+		if d.Name() == root {
+			if !d.IsDir() {
+				return nil, errors.New("root node named file")
+			}
+
+			return fs, nil
+		}
+	}
+
+	p := filepath.Join(path, root)
+
+	err = os.MkdirAll(p, os.ModePerm)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create root node dir")
+	}
+
+	n := fs.newNode(root, root)
+
+	err = setCont(n, p)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set cont")
+	}
+
+	err = setMeta(n, p)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set meta")
+	}
+
+	return fs, nil
 }
 
 func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {

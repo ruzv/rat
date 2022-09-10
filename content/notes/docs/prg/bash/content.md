@@ -1,3 +1,3 @@
-# notes
+# bash
 
 <rat graph>

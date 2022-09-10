@@ -36,10 +36,15 @@ go build
 
 sleep 5
 
+failed=0
 hurl tests.hurl --color
-
+if [ $? != 0 ]; then
+    failed=1
+fi
 
 kill -9 $(pgrep ^rat$)
+
+cat logs.log
 
 rm rat
 
@@ -48,3 +53,8 @@ rm config.json
 mv config.json.backup config.json
 
 rm -rf test_graph
+
+
+if [ $failed -eq 1 ]; then
+    exit 1
+fi

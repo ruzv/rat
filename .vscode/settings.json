@@ -22,7 +22,7 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-    "prettier.tabWidth": 4,
+    "prettier.tabWidth": 2,
 
     "zenMode.hideActivityBar": false
 }

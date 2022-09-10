@@ -18,8 +18,8 @@ func Wrap(handler func(*gin.Context) error) gin.HandlerFunc {
 	}
 }
 
-// WriteErrorJSON writes code and error message in JSON format as http response.
-func WriteErrorJSON(c *gin.Context, code int, message string) {
+// WriteJSON writes code and error message in JSON format as http response.
+func WriteJSON(c *gin.Context, code int, message string) {
 	c.JSON(code, gin.H{"code": code, "message": message})
 }
 
@@ -28,7 +28,7 @@ func Body[T any](c *gin.Context) (T, error) { //nolint:ireturn
 
 	err := c.BindJSON(&body)
 	if err != nil {
-		WriteErrorJSON(c, http.StatusBadRequest, "failed to read body")
+		WriteJSON(c, http.StatusBadRequest, "failed to read body")
 
 		return empty, errors.Wrap(err, "failed to bind body struct")
 	}

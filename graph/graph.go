@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"private/rat/errors"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/parser"
 )
 
 type Store interface {
@@ -64,7 +67,18 @@ func (n *Node) Add(name string) (*Node, error) {
 
 //nolint:gosec
 func (n *Node) HTML() template.HTML {
-	return template.HTML(markdown.ToHTML([]byte(n.Markdown()), nil, nil))
+	return template.HTML(
+		markdown.ToHTML(
+			[]byte(n.Markdown()),
+			parser.NewWithExtensions(parser.CommonExtensions),
+			html.NewRenderer(
+				html.RendererOptions{Flags: html.Smartypants |
+					html.SmartypantsFractions |
+					html.SmartypantsDashes |
+					html.SmartypantsLatexDashes},
+			),
+		),
+	)
 }
 
 func (n *Node) Markdown() string {
@@ -134,7 +148,11 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 
 		return "", errors.New("too many arguments")
 	case ratTagKeywordGraph:
-		return n.parseRatTagGraph()
+		if len(args) == 0 {
+			return n.parseRatTagGraph("-1")
+		}
+
+		return n.parseRatTagGraph(args[0])
 	default:
 		return "", errors.New("unknown keyword")
 	}
@@ -156,16 +174,25 @@ func (n *Node) parseRatTagLink(
 	return node.link(name), nil
 }
 
-func (n *Node) parseRatTagGraph() (string, error) {
-	root, err := n.Store.Root()
+func (n *Node) parseRatTagGraph(depth string) (string, error) {
+	d, err := strconv.Atoi(depth)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get root node")
+		return "", errors.Wrap(err, "failed to parse depth")
 	}
+
+	// root, err := n.Store.Root()
+	// if err != nil {
+	// 	return "", errors.Wrap(err, "failed to get root node")
+	// }
 
 	var links []string
 
-	err = root.Walk(
+	err = n.Walk(
 		func(depth int, node *Node) bool {
+			if depth == d {
+				return false
+			}
+
 			links = append(
 				links,
 				fmt.Sprintf(

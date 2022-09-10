@@ -21,13 +21,14 @@ type Handler struct {
 }
 
 // creates a new Handler.
-func newHandler(conf *config.Config) (*Handler, error) { //nolint:unparam
-	store := storefilesystem.NewFileSystem(conf.Graph.Name, conf.Graph.Path)
-
-	// graph, err := graph.Init(conf.Graph.Name, conf.Graph.Path)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "failed to init graph")
-	// }
+func newHandler(conf *config.Config) (*Handler, error) {
+	store, err := storefilesystem.NewFileSystem(
+		conf.Graph.Name,
+		conf.Graph.Path,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create net fs")
+	}
 
 	logger.Debugf("loaded graph:\n%s", conf.Graph.Name)
 
@@ -45,12 +46,52 @@ func RegisterRoutes(conf *config.Config, router gin.RouterGroup) error {
 		return errors.Wrap(err, "failed create new graph handler")
 	}
 
-	subroute := router.Group("/graphs/*path")
+	graphsRoute := router.Group("/graphs")
 
-	subroute.POST("", handler.Wrap(h.create))
-	subroute.GET("", handler.Wrap(h.read))
-	subroute.PUT("", handler.Wrap(h.update))
-	subroute.DELETE("", handler.Wrap(h.delete))
+	router.POST("/move", handler.Wrap(h.move))
+
+	nodesRoute := graphsRoute.Group("/*path")
+
+	nodesRoute.POST("", handler.Wrap(h.create))
+	nodesRoute.GET("", handler.Wrap(h.read))
+	nodesRoute.PUT("", handler.Wrap(h.update))
+	nodesRoute.DELETE("", handler.Wrap(h.delete))
+
+	return nil
+}
+
+func (h *Handler) move(c *gin.Context) error {
+	body, err := handler.Body[struct {
+		Src  string `json:"src" binding:"required"`
+		Dest string `json:"dest" binding:"required"`
+	}](c)
+	if err != nil {
+		return errors.Wrap(err, "failed to get body")
+	}
+
+	src, err := h.store.GetByPath(body.Src)
+	if err != nil {
+		handler.WriteJSON(
+			c,
+			http.StatusInternalServerError,
+			"failed to get src node",
+		)
+
+		return errors.Wrap(err, "failed to get src node")
+	}
+
+	err = src.Move(body.Dest)
+	if err != nil {
+		handler.WriteJSON(
+			c,
+			http.StatusInternalServerError,
+			"failed to move to dest",
+		)
+
+		return errors.Wrap(err, "failed to move to dest")
+	}
+
+	c.Status(http.StatusNoContent)
 
 	return nil
 }
@@ -74,7 +115,7 @@ func (h *Handler) create(c *gin.Context) error {
 
 	n, err := parent.Add(body.Name)
 	if err != nil {
-		handler.WriteErrorJSON(
+		handler.WriteJSON(
 			c,
 			http.StatusInternalServerError,
 			"failed to create node",
@@ -133,7 +174,7 @@ func (h *Handler) update(c *gin.Context) error {
 	if body.Name != "" {
 		err = n.Rename(body.Name)
 		if err != nil {
-			handler.WriteErrorJSON(
+			handler.WriteJSON(
 				c,
 				http.StatusInternalServerError,
 				"failed to update node name",
@@ -148,7 +189,7 @@ func (h *Handler) update(c *gin.Context) error {
 
 		err = n.Update()
 		if err != nil {
-			handler.WriteErrorJSON(
+			handler.WriteJSON(
 				c,
 				http.StatusInternalServerError,
 				"failed to update node content",
@@ -173,7 +214,7 @@ func (h *Handler) delete(c *gin.Context) error {
 
 	err = n.DeleteSingle()
 	if err != nil {
-		handler.WriteErrorJSON(
+		handler.WriteJSON(
 			c,
 			http.StatusInternalServerError,
 			"failed to delete node",
@@ -194,7 +235,7 @@ func getPath(c *gin.Context) string {
 func (h *Handler) getNode(c *gin.Context) (*graph.Node, error) {
 	n, err := h.store.GetByPath(getPath(c))
 	if err != nil {
-		handler.WriteErrorJSON(
+		handler.WriteJSON(
 			c,
 			http.StatusInternalServerError,
 			"failed to get node",
