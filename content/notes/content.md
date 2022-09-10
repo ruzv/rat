@@ -1,5 +1,0 @@
-# notes
-
-<rat graph>
-
-# hello

@@ -1,3 +1,0 @@
-# curls
-
-<rat graph>

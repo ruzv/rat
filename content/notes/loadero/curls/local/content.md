@@ -1,3 +1,0 @@
-# local
-
-<rat graph>
