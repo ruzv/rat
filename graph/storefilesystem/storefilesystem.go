@@ -7,6 +7,7 @@ import (
 
 	"private/rat/errors"
 	"private/rat/graph"
+	"private/rat/logger"
 
 	"github.com/gofrs/uuid"
 )
@@ -148,6 +149,10 @@ func getCont(node *graph.Node, path string) error {
 	data, err := os.ReadFile(contentPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to read content file")
+	}
+
+	if len(data) == 0 {
+		logger.Debugf("zero length read")
 	}
 
 	node.Content = string(data)

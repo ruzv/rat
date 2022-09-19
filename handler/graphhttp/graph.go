@@ -2,6 +2,7 @@ package graphhttp
 
 import (
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"private/rat/config"
@@ -40,22 +41,25 @@ func newHandler(conf *config.Config) (*Handler, error) {
 }
 
 // RegisterRoutes registers graph routes on given router.
-func RegisterRoutes(conf *config.Config, router gin.RouterGroup) error {
+func RegisterRoutes(conf *config.Config, router *gin.RouterGroup) error {
 	h, err := newHandler(conf)
 	if err != nil {
 		return errors.Wrap(err, "failed create new graph handler")
 	}
 
-	graphsRoute := router.Group("/graphs")
+	router.Static("/img", filepath.Join(conf.Graph.Path, "img"))
 
-	router.POST("/move", handler.Wrap(h.move))
+	graphsRoute := router.Group("/graphs") // rename -> node
 
-	nodesRoute := graphsRoute.Group("/*path")
+	router.POST("/move", handler.Wrap(h.move)) // remove and replace this
+	// logic with update.
 
-	nodesRoute.POST("", handler.Wrap(h.create))
-	nodesRoute.GET("", handler.Wrap(h.read))
-	nodesRoute.PUT("", handler.Wrap(h.update))
-	nodesRoute.DELETE("", handler.Wrap(h.delete))
+	nodeRoute := graphsRoute.Group("/*path")
+
+	nodeRoute.POST("", handler.Wrap(h.create))
+	nodeRoute.GET("", handler.Wrap(h.read))
+	nodeRoute.PUT("", handler.Wrap(h.update))
+	nodeRoute.DELETE("", handler.Wrap(h.delete))
 
 	return nil
 }
@@ -124,7 +128,9 @@ func (h *Handler) create(c *gin.Context) error {
 		return errors.Wrap(err, "failed to create node")
 	}
 
-	c.JSON(http.StatusOK, gin.H{"path": n.Path})
+	writeNode(c, n)
+
+	// c.JSON(http.StatusOK, gin.H{"path": n.Path})
 
 	return nil
 }
@@ -136,18 +142,16 @@ func (h *Handler) create(c *gin.Context) error {
 func (h *Handler) read(c *gin.Context) error {
 	n, err := h.getNode(c)
 	if err != nil {
+		handler.WriteJSON(
+			c,
+			http.StatusInternalServerError,
+			"failed to get node",
+		)
+
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	c.HTML(
-		http.StatusOK,
-		"index.html",
-		gin.H{
-			"html":     n.HTML(),
-			"markdown": n.Markdown(),
-			"raw":      n.Content,
-		},
-	)
+	writeNode(c, n)
 
 	return nil
 }
@@ -199,6 +203,8 @@ func (h *Handler) update(c *gin.Context) error {
 		}
 	}
 
+	writeNode(c, n)
+
 	return nil
 }
 
@@ -245,4 +251,23 @@ func (h *Handler) getNode(c *gin.Context) (*graph.Node, error) {
 	}
 
 	return n, nil
+}
+
+func writeNode(c *gin.Context, n *graph.Node) {
+	// ID      uuid.UUID
+	// Name    string
+	// Path    string
+	// Content string
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"id":       n.ID.String(),
+			"name":     n.Name,
+			"path":     n.Path,
+			"raw":      n.Content,
+			"markdown": n.Markdown(),
+			"html":     n.HTML(),
+		},
+	)
 }

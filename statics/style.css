@@ -1,0 +1,141 @@
+body {
+  background-color: black;
+  color: #acacac;
+  font-family: "Roboto Mono", monospace;
+  font-size: 15px;
+}
+
+/* links */
+a:link {
+  color: #4f92d5;
+}
+
+a:visited {
+  color: #905dc4;
+}
+
+/* main column of page */
+.page {
+  width: 75vw;
+  margin: 0 auto;
+}
+
+/* single entry in page - row */
+.page-box {
+  width: 100%;
+  padding: 10px;
+  margin: 10px;
+  background-color: #282828;
+}
+
+/* -------------------------------------------------------------------------- */
+/* console */
+/* -------------------------------------------------------------------------- */
+
+.console {
+  content: "";
+  display: table;
+  clear: both;
+  width: 100%;
+}
+
+.console-column {
+  float: left;
+  margin: 0;
+  width: 33%;
+}
+
+.console-column-padded {
+  padding: 15px;
+}
+
+.console-controls-input {
+  /* height: 100%; */
+  width: 100%;
+  font-size: 20px;
+  /* color: #5d5d5d; */
+  background-color: #7f7f7f;
+}
+
+/* input.console-controls-input:focus{
+  border: 10px solid red;
+} */
+
+.console-controls-button {
+  width: 100%;
+  /* height: 100%; */
+  font-size: 20px;
+
+  background-color: #5d5d5d;
+
+  margin-top: 10px;
+
+}
+
+.console-data-label {
+  font-weight: bold;
+  margin: 0;
+}
+
+.console-data-field {
+  color: #5d5d5d;
+  /* font-weight: bold; */
+  margin: 0;
+  margin-bottom: 10px;
+  border: 2px solid #282828;
+}
+
+.console-data-field:hover {
+  border: 2px solid #7a7a7a;
+}
+
+
+/* set image width to be 100% of parent element, 
+will help when image support is added */
+img {
+  width: 100%;
+}
+
+/* lists */
+ul {
+  list-style-type: square;
+}
+
+#editor {
+  width: 100%;
+
+  background-color: #474646;
+  color: #ffffff;
+}
+
+.markdown-code-block {
+  width: 100%;
+  background-color: #474646;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+pre {
+  margin: 10px;
+}
+
+.markdown-code {
+  background-color: #474646;
+  padding-left: 5px;
+  padding-right: 5px;
+
+  font-size: 15px;
+}
+
+table,
+th,
+td {
+  border: 3px solid #8e8e8e;
+  border-collapse: collapse;
+}
+
+/* {
+  box-sizing: border-box;
+} */

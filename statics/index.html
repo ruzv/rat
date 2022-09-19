@@ -1,0 +1,94 @@
+<html>
+  <head>
+    <!-- style -->
+    <link rel="stylesheet" href="/statics/style.css" />
+
+    <!-- tab icon -->
+    <link rel="icon" href="/statics/logo/rat_transparent_square.png" />
+
+    <!-- font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div class="page">
+      <div class="page-box">
+        <div class="console">
+          <div class="console-column">
+            <div class="console-column-padded">
+              <img src="/statics/logo/rat_transparent.png" />
+            </div>
+          </div>
+
+          <div class="console-column" hidden="true">
+            <div class="console-column-padded">
+              <input
+                id="console-controls-input"
+                class="console-controls-input"
+                type="text"
+              />
+
+              <button
+                class="console-controls-button"
+                onclick="consoleControlsAdd()"
+              >
+                add
+              </button>
+
+              <button class="console-controls-button">mv</button>
+
+              <button
+                id="console-controls-delete"
+                class="console-controls-button"
+                onclick="consoleControlsDelete()"
+              >
+                delete
+              </button>
+            </div>
+          </div>
+
+          <div class="console-column">
+            <div class="console-column-padded">
+              <p class="console-data-label">ID</p>
+              <p
+                id="console-data-field-id"
+                class="console-data-field"
+                onclick="copyConsoleDataField(this)"
+              ></p>
+              <p class="console-data-label">Name</p>
+              <p
+                id="console-data-field-name"
+                class="console-data-field"
+                onclick="copyConsoleDataField(this)"
+              ></p>
+              <p class="console-data-label">Path</p>
+              <p
+                id="console-data-field-path"
+                class="console-data-field"
+                onclick="copyConsoleDataField(this)"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-content" class="page-box">
+        <!-- </div id="content"></div> -->
+      </div>
+      <!-- <div id="page-editor" class="page-box" hidden="true">
+        <textarea id="editor" cols="81">{{ .raw }}</textarea>
+      </div> -->
+    </div>
+
+    <script>
+      let PATH = "{{ .path }}";
+    </script>
+    <!-- logic -->
+    <script type="text/javascript" src="/statics/logic.js"></script>
+  </body>
+</html>

@@ -1,8 +1,11 @@
 package graph
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
+	"io"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -13,6 +16,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 )
@@ -65,6 +69,40 @@ func (n *Node) Add(name string) (*Node, error) {
 	return node, nil
 }
 
+func renderHook(
+	rend *html.Renderer,
+) func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	return func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+		b := &bytes.Buffer{}
+
+		var parsed string
+
+		switch n := node.(type) {
+		case *ast.CodeBlock:
+			rend.CodeBlock(b, n)
+			parsed = fmt.Sprintf(
+				"<div class=\"markdown-code-block\">%s</div>", b.String(),
+			)
+
+		case *ast.Code:
+			rend.Code(b, n)
+			parsed = fmt.Sprintf(
+				"<span class=\"markdown-code\">%s</span>", b.String(),
+			)
+
+		default:
+			return ast.GoToNext, false
+		}
+
+		_, err := io.WriteString(w, parsed)
+		if err != nil {
+			return ast.GoToNext, false
+		}
+
+		return ast.GoToNext, true
+	}
+}
+
 //nolint:gosec
 func (n *Node) HTML() template.HTML {
 	return template.HTML(
@@ -72,10 +110,11 @@ func (n *Node) HTML() template.HTML {
 			[]byte(n.Markdown()),
 			parser.NewWithExtensions(parser.CommonExtensions),
 			html.NewRenderer(
-				html.RendererOptions{Flags: html.Smartypants |
-					html.SmartypantsFractions |
-					html.SmartypantsDashes |
-					html.SmartypantsLatexDashes},
+				html.RendererOptions{
+					RenderNodeHook: renderHook(
+						html.NewRenderer(html.RendererOptions{}),
+					),
+				},
 			),
 		),
 	)
@@ -107,7 +146,8 @@ func (n *Node) Markdown() string {
 // -------------------------------------------------------------------------- //
 
 var ratTagRegex = regexp.MustCompile(
-	`<rat( ([[:alnum:]]+)|([[:alnum:]]+)-([[:alnum:]]+))+>`,
+	// `<rat( ([[:alnum:]]+)|([[:alnum:]]+)-([[:alnum:]]+))+>`,
+	`<rat(\s([^>]+))>`,
 )
 
 func ReverseSlice[T any](a []T) []T {
@@ -121,6 +161,7 @@ func ReverseSlice[T any](a []T) []T {
 const (
 	ratTagKeywordLink  = "link"
 	ratTagKeywordGraph = "graph"
+	ratTagKeywordImg   = "img"
 )
 
 // <rat keyword arg1 arg2> .
@@ -128,7 +169,7 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 	tag = strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
 
 	// keyword arg1 arg2
-	args := strings.Split(tag, " ")[1:]
+	args := strings.Fields(tag)[1:]
 
 	// keyword
 	keyword := args[0]
@@ -153,6 +194,12 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 		}
 
 		return n.parseRatTagGraph(args[0])
+	case ratTagKeywordImg:
+		if len(args) != 1 {
+			return "", errors.New("invalid argument count")
+		}
+
+		return parseRatTagImg(args[0])
 	default:
 		return "", errors.New("unknown keyword")
 	}
@@ -210,6 +257,15 @@ func (n *Node) parseRatTagGraph(depth string) (string, error) {
 	return strings.Join(links, "\n"), nil
 }
 
+func parseRatTagImg(imgPath string) (string, error) {
+	imgURL, err := url.JoinPath("/img", imgPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to join img path")
+	}
+
+	return fmt.Sprintf("\n<img src=\"%s\">\n", imgURL), nil
+}
+
 func (n *Node) link(name string) string {
 	path := n.Path
 
@@ -217,7 +273,7 @@ func (n *Node) link(name string) string {
 		name = n.Name
 	}
 
-	return fmt.Sprintf("[%s](/graphs/%s)", name, path)
+	return fmt.Sprintf("[%s](/edit/%s)", name, path)
 }
 
 func (n *Node) Walk(callback func(int, *Node) bool) error {
