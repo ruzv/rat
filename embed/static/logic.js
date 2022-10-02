@@ -3,7 +3,11 @@
 // -------------------------------------------------------------------------- //
 
 function apiPath() {
-  return "/graphs/" + PATH;
+  if (PATH === "") {
+    return "http://localhost:8889/nodes/";
+  }
+
+  return "http://localhost:8889/nodes/" + PATH + "/";
 }
 
 // -------------------------------------------------------------------------- //
@@ -35,7 +39,7 @@ function consoleControlsAdd() {
     .then((response) => {
       // indicates whether the response is successful (status code 200-299) or not
       if (!response.ok) {
-        throw new Error(`Request failed with status ${reponse.status}`);
+        throw new Error(`Request failed with status ${response.status}`);
       }
 
       return response.json();
@@ -137,11 +141,16 @@ class Content {
   }
 }
 
+function setTitle(title) {}
+
 let content;
 let consoleData;
 
 function getNode() {
-  fetch(apiPath(), {
+  let url = new URL(apiPath());
+  url.searchParams.append("format", "html");
+
+  fetch(url, {
     method: "GET",
   })
     .then((response) => {
@@ -159,9 +168,9 @@ function getNode() {
       // "markdown": n.Markdown(),
       // "html":     n.HTML(),
 
-      content = new Content(data.html);
+      content = new Content(data.content);
       consoleData = new ConsoleData(data.id, data.name, data.path);
-      // editor = new Editor(data.raw, content);
+      document.title = data.name;
     })
     .catch((error) => console.log(error));
 }

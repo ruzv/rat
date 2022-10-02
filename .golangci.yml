@@ -29,4 +29,7 @@ linters:
     - exhaustruct
     - gofumpt
     - gci
+    - funlen
+    - gochecknoglobals
+    - gomnd
   fast: false

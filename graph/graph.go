@@ -3,7 +3,6 @@ package graph
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"net/url"
 	"path/filepath"
@@ -11,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"private/rat/errors"
-	"private/rat/logger"
+	"github.com/op/go-logging"
+	"github.com/pkg/errors"
 
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"
@@ -20,6 +19,8 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 )
+
+var log = logging.MustGetLogger("graph")
 
 type Store interface {
 	GetByID(id uuid.UUID) (*Node, error)
@@ -33,11 +34,11 @@ type Store interface {
 }
 
 type Node struct {
-	ID      uuid.UUID
-	Name    string
-	Path    string
-	Content string
-	Store   Store
+	ID      uuid.UUID `json:"id"`
+	Name    string    `json:"name"`
+	Path    string    `json:"path"`
+	Content string    `json:"content"`
+	Store   Store     `json:"-"`
 }
 
 func (n *Node) Leafs() ([]*Node, error) {
@@ -72,7 +73,9 @@ func (n *Node) Add(name string) (*Node, error) {
 func renderHook(
 	rend *html.Renderer,
 ) func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
-	return func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+	return func(
+		w io.Writer, node ast.Node, entering bool,
+	) (ast.WalkStatus, bool) {
 		b := &bytes.Buffer{}
 
 		var parsed string
@@ -103,11 +106,22 @@ func renderHook(
 	}
 }
 
-//nolint:gosec
-func (n *Node) HTML() template.HTML {
-	return template.HTML(
+// -------------------------------------------------------------------------- //
+// FORMATS
+// -------------------------------------------------------------------------- //
+
+const (
+	// nodeFormatRAW      = "raw".
+	nodeFormatHTML     = "html"
+	nodeFormatMarkdown = "markdown"
+)
+
+func (n *Node) HTML() *Node {
+	htmlN := *n
+
+	htmlN.Content = string(
 		markdown.ToHTML(
-			[]byte(n.Markdown()),
+			[]byte(n.parseContent(nodeFormatHTML)),
 			parser.NewWithExtensions(parser.CommonExtensions),
 			html.NewRenderer(
 				html.RendererOptions{
@@ -118,18 +132,32 @@ func (n *Node) HTML() template.HTML {
 			),
 		),
 	)
+
+	return &htmlN
 }
 
-func (n *Node) Markdown() string {
+func (n *Node) Markdown() *Node {
+	mdN := *n
+
+	mdN.Content = n.parseContent(nodeFormatMarkdown)
+
+	return &mdN
+}
+
+// -------------------------------------------------------------------------- //
+// RAT TAGS
+// -------------------------------------------------------------------------- //
+
+func (n *Node) parseContent(format string) string {
 	matches := ratTagRegex.FindAllIndex([]byte(n.Content), -1)
 	parsedSource := n.Content
 
 	for _, match := range ReverseSlice(matches) {
 		tag := n.Content[match[0]:match[1]]
 
-		parsed, err := n.parseRatTag(tag)
+		parsed, err := n.parseRatTag(tag, format)
 		if err != nil {
-			logger.Warnf("failed to parse rat tag %s: %v", tag, err)
+			log.Warningf("failed to parse rat tag %s: %v", tag, err)
 		}
 
 		left := parsedSource[:match[0]]
@@ -140,10 +168,6 @@ func (n *Node) Markdown() string {
 
 	return parsedSource
 }
-
-// -------------------------------------------------------------------------- //
-// RAT TAGS
-// -------------------------------------------------------------------------- //
 
 var ratTagRegex = regexp.MustCompile(
 	// `<rat( ([[:alnum:]]+)|([[:alnum:]]+)-([[:alnum:]]+))+>`,
@@ -158,6 +182,7 @@ func ReverseSlice[T any](a []T) []T {
 	return a
 }
 
+//nolint:grouper
 const (
 	ratTagKeywordLink  = "link"
 	ratTagKeywordGraph = "graph"
@@ -165,7 +190,7 @@ const (
 )
 
 // <rat keyword arg1 arg2> .
-func (n *Node) parseRatTag(tag string) (string, error) {
+func (n *Node) parseRatTag(tag, format string) (string, error) {
 	tag = strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
 
 	// keyword arg1 arg2
@@ -180,20 +205,20 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 	switch keyword {
 	case ratTagKeywordLink:
 		if len(args) == 2 { //nolint:gomnd
-			return n.parseRatTagLink(args[0], args[1])
+			return n.parseRatTagLink(args[0], args[1], format)
 		}
 
 		if len(args) == 1 {
-			return n.parseRatTagLink(args[0], "")
+			return n.parseRatTagLink(args[0], "", format)
 		}
 
 		return "", errors.New("too many arguments")
 	case ratTagKeywordGraph:
 		if len(args) == 0 {
-			return n.parseRatTagGraph("-1")
+			return n.parseRatTagGraph("-1", format)
 		}
 
-		return n.parseRatTagGraph(args[0])
+		return n.parseRatTagGraph(args[0], format)
 	case ratTagKeywordImg:
 		if len(args) != 1 {
 			return "", errors.New("invalid argument count")
@@ -206,7 +231,7 @@ func (n *Node) parseRatTag(tag string) (string, error) {
 }
 
 func (n *Node) parseRatTagLink(
-	linkID string, name string,
+	linkID, name, format string,
 ) (string, error) {
 	id, err := uuid.FromString(linkID)
 	if err != nil {
@@ -218,10 +243,10 @@ func (n *Node) parseRatTagLink(
 		return "", errors.Wrap(err, "failed to get node by ID")
 	}
 
-	return node.link(name), nil
+	return node.link(name, format), nil
 }
 
-func (n *Node) parseRatTagGraph(depth string) (string, error) {
+func (n *Node) parseRatTagGraph(depth, format string) (string, error) {
 	d, err := strconv.Atoi(depth)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse depth")
@@ -243,7 +268,8 @@ func (n *Node) parseRatTagGraph(depth string) (string, error) {
 			links = append(
 				links,
 				fmt.Sprintf(
-					"%s- %s", strings.Repeat("\t", depth), node.link(""),
+					"%s- %s",
+					strings.Repeat("\t", depth), node.link("", format),
 				),
 			)
 
@@ -266,14 +292,32 @@ func parseRatTagImg(imgPath string) (string, error) {
 	return fmt.Sprintf("\n<img src=\"%s\">\n", imgURL), nil
 }
 
-func (n *Node) link(name string) string {
+func (n *Node) link(name, format string) string {
 	path := n.Path
 
 	if name == "" {
 		name = n.Name
 	}
 
-	return fmt.Sprintf("[%s](/edit/%s)", name, path)
+	switch format {
+	case nodeFormatHTML:
+		var (
+			u url.URL
+			q = make(url.Values)
+		)
+
+		u.Path = "/view/"
+
+		q.Add("node", path)
+
+		u.RawQuery = q.Encode()
+
+		return fmt.Sprintf("[%s](%s)", name, u.String())
+	case nodeFormatMarkdown:
+		return fmt.Sprintf("[%s](/nodes/%s)", name, path)
+	}
+
+	return "unknown format"
 }
 
 func (n *Node) Walk(callback func(int, *Node) bool) error {

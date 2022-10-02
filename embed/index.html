@@ -1,10 +1,10 @@
 <html>
   <head>
     <!-- style -->
-    <link rel="stylesheet" href="/statics/style.css" />
+    <link rel="stylesheet" href="/static/style.css" />
 
     <!-- tab icon -->
-    <link rel="icon" href="/statics/logo/rat_transparent_square.png" />
+    <link rel="icon" href="/static/logo/rat_head.png" />
 
     <!-- font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,7 +21,9 @@
         <div class="console">
           <div class="console-column">
             <div class="console-column-padded">
-              <img src="/statics/logo/rat_transparent.png" />
+              <a href="/view/">
+                <img src="/static/logo/rat_transparent.png" />
+              </a>
             </div>
           </div>
 
@@ -40,12 +42,13 @@
                 add
               </button>
 
-              <button class="console-controls-button">mv</button>
+              <button class="console-controls-button" hidden="true">mv</button>
 
               <button
                 id="console-controls-delete"
                 class="console-controls-button"
                 onclick="consoleControlsDelete()"
+                hidden="true"
               >
                 delete
               </button>
@@ -89,6 +92,6 @@
       let PATH = "{{ .path }}";
     </script>
     <!-- logic -->
-    <script type="text/javascript" src="/statics/logic.js"></script>
+    <script type="text/javascript" src="/static/logic.js"></script>
   </body>
 </html>

@@ -5,12 +5,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"private/rat/errors"
+	"github.com/op/go-logging"
+	"github.com/pkg/errors"
+
 	"private/rat/graph"
-	"private/rat/logger"
 
 	"github.com/gofrs/uuid"
 )
+
+var log = logging.MustGetLogger("storefilesystem")
 
 var _ graph.Store = (*FileSystem)(nil)
 
@@ -152,7 +155,7 @@ func getCont(node *graph.Node, path string) error {
 	}
 
 	if len(data) == 0 {
-		logger.Debugf("zero length read")
+		log.Debugf("zero length read")
 	}
 
 	node.Content = string(data)

@@ -1,0 +1,357 @@
+package nodeshttp
+
+import (
+	"fmt"
+	"net/http"
+	"regexp"
+
+	"private/rat/config"
+
+	"private/rat/graph"
+	"private/rat/graph/storefilesystem"
+	"private/rat/handler"
+
+	"github.com/op/go-logging"
+	"github.com/pkg/errors"
+
+	"github.com/gorilla/mux"
+)
+
+var log = logging.MustGetLogger("nodeshttp")
+
+type Handler struct {
+	store graph.Store
+}
+
+// creates a new Handler.
+func newHandler(conf *config.Config) (*Handler, error) {
+	store, err := storefilesystem.NewFileSystem(
+		conf.Graph.Name,
+		conf.Graph.Path,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create net fs")
+	}
+
+	r, err := store.Root()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get root")
+	}
+
+	log.Notice("loaded graph")
+
+	err = r.Walk(func(i int, n *graph.Node) bool {
+		log.Info(n.Path)
+
+		return true
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to walk")
+	}
+
+	return &Handler{store: store}, nil
+}
+
+// RegisterRoutes registers graph routes on given router.
+func RegisterRoutes(conf *config.Config, router *mux.Router) error {
+	h, err := newHandler(conf)
+	if err != nil {
+		return errors.Wrap(err, "failed create new graph handler")
+	}
+
+	nodesRouter := router.PathPrefix("/nodes").Subrouter()
+
+	nodesRouter.HandleFunc("/", handler.Wrap(h.read)).Methods(http.MethodGet)
+	nodesRouter.HandleFunc("/", handler.Wrap(h.create)).Methods(http.MethodPost)
+
+	pathRe := regexp.MustCompile(
+		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
+	)
+
+	nodeRouter := nodesRouter.
+		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
+		Subrouter()
+
+	nodeRouter.HandleFunc("/", handler.Wrap(h.read)).Methods(http.MethodGet)
+	nodeRouter.HandleFunc("/", handler.Wrap(h.create)).Methods(http.MethodPost)
+
+	return nil
+}
+
+// func (h *Handler) move(c *gin.Context) error {
+// 	body, err := handler.Body[struct {
+// 		Src  string `json:"src" binding:"required"`
+// 		Dest string `json:"dest" binding:"required"`
+// 	}](c)
+// 	if err != nil {
+// 		return errors.Wrap(err, "failed to get body")
+// 	}
+
+// 	src, err := h.store.GetByPath(body.Src)
+// 	if err != nil {
+// 		handler.WriteJSON(
+// 			c,
+// 			http.StatusInternalServerError,
+// 			"failed to get src node",
+// 		)
+
+// 		return errors.Wrap(err, "failed to get src node")
+// 	}
+
+// 	err = src.Move(body.Dest)
+// 	if err != nil {
+// 		handler.WriteJSON(
+// 			c,
+// 			http.StatusInternalServerError,
+// 			"failed to move to dest",
+// 		)
+
+// 		return errors.Wrap(err, "failed to move to dest")
+// 	}
+
+// 	c.Status(http.StatusNoContent)
+
+// 	return nil
+// }
+
+// -------------------------------------------------------------------------- //
+// CREATE
+// -------------------------------------------------------------------------- //
+
+func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
+	body, err := handler.Body[struct {
+		Name string `json:"name" binding:"required"`
+	}](w, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get body")
+	}
+
+	n, err := h.getNode(w, r)
+	if err != nil {
+		handler.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to get node",
+		)
+
+		return errors.Wrap(err, "failed to get node error")
+	}
+
+	_, err = n.Add(body.Name)
+	if err != nil {
+		handler.WriteError(
+			w, http.StatusInternalServerError, "failed to create node",
+		)
+
+		return errors.Wrap(err, "failed to create node")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
+
+// -------------------------------------------------------------------------- //
+// READ
+// -------------------------------------------------------------------------- //
+
+func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
+	n, err := h.getNode(w, r)
+	if err != nil {
+		handler.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to get node",
+		)
+
+		return errors.Wrap(err, "failed to get node")
+	}
+
+	err = writeFormat(w, r, n)
+	if err != nil {
+		return errors.Wrap(err, "failed to write format")
+	}
+
+	return nil
+}
+
+func (h *Handler) getNode(
+	w http.ResponseWriter,
+	r *http.Request,
+) (*graph.Node, error) {
+	path := mux.Vars(r)["path"]
+
+	var (
+		n   *graph.Node
+		err error
+	)
+
+	if path == "" {
+		n, err = h.store.Root()
+		if err != nil {
+			handler.WriteError(
+				w,
+				http.StatusInternalServerError,
+				"failed to get node",
+			)
+
+			return nil, errors.Wrap(err, "failed to write error")
+		}
+	} else {
+		n, err = h.store.GetByPath(path)
+		if err != nil {
+			handler.WriteError(
+				w,
+				http.StatusInternalServerError,
+				"failed to get node",
+			)
+
+			return nil, errors.Wrap(err, "failed to write error")
+		}
+	}
+
+	return n, nil
+}
+
+func writeFormat(w http.ResponseWriter, r *http.Request, n *graph.Node) error {
+	var (
+		f   interface{}
+		err error
+	)
+
+	format := r.URL.Query().Get("format")
+
+	switch format {
+	case "html":
+		f = n.HTML()
+	case "md":
+		f = n.Markdown()
+	default:
+		f = n
+	}
+
+	err = handler.WriteResponse(w, http.StatusOK, f)
+	if err != nil {
+		handler.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to write response",
+		)
+
+		return errors.Wrap(err, "failed to write response")
+	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------------- //
+// UPDATE
+// -------------------------------------------------------------------------- //
+
+// func (h *Handler) update(c *gin.Context) error {
+// 	body, err := handler.Body[struct {
+// 		Name    string `json:"name"`
+// 		Content string `json:"content"`
+// 		Clear   bool   `json:"clear"`
+// 	}](c)
+// 	if err != nil {
+// 		return errors.Wrap(err, "failed to get body")
+// 	}
+
+// 	n, err := h.getNode(c)
+// 	if err != nil {
+// 		return errors.Wrap(err, "failed to get node")
+// 	}
+
+// 	if body.Name != "" {
+// 		err = n.Rename(body.Name)
+// 		if err != nil {
+// 			handler.WriteJSON(
+// 				c,
+// 				http.StatusInternalServerError,
+// 				"failed to update node name",
+// 			)
+
+// 			return errors.Wrap(err, "failed to update node name")
+// 		}
+// 	}
+
+// 	if body.Content != "" {
+// 		n.Content = body.Content
+
+// 		err = n.Update()
+// 		if err != nil {
+// 			handler.WriteJSON(
+// 				c,
+// 				http.StatusInternalServerError,
+// 				"failed to update node content",
+// 			)
+
+// 			return errors.Wrap(err, "failed to update node content")
+// 		}
+// 	}
+
+// 	writeNode(c, n)
+
+// 	return nil
+// }
+
+// -------------------------------------------------------------------------- //
+// DELETE
+// -------------------------------------------------------------------------- //
+
+// func (h *Handler) delete(c *gin.Context) error {
+// 	n, err := h.getNode(c)
+// 	if err != nil {
+// 		return errors.Wrap(err, "failed to get node")
+// 	}
+
+// 	err = n.DeleteSingle()
+// 	if err != nil {
+// 		handler.WriteJSON(
+// 			c,
+// 			http.StatusInternalServerError,
+// 			"failed to delete node",
+// 		)
+
+// 		return errors.Wrapf(err, "failed to delete node")
+// 	}
+
+// 	return nil
+// }
+
+// // getNode reads the node specified by path route param. on error writes JSON
+// // response.
+// func (h *Handler) getNode(c *gin.Context) (*graph.Node, error) {
+// 	n, err := h.store.GetByPath(getPath(c))
+// 	if err != nil {
+// 		handler.WriteJSON(
+// 			c,
+// 			http.StatusInternalServerError,
+// 			"failed to get node",
+// 		)
+
+// 		return nil, errors.Wrap(err, "failed to get node")
+// 	}
+
+// 	return n, nil
+// }
+
+// func writeNode(c *gin.Context, n *graph.Node) {
+// 	// ID      uuid.UUID
+// 	// Name    string
+// 	// Path    string
+// 	// Content string
+
+// 	c.JSON(
+// 		http.StatusOK,
+// 		gin.H{
+// 			"id":       n.ID.String(),
+// 			"name":     n.Name,
+// 			"path":     n.Path,
+// 			"raw":      n.Content,
+// 			"markdown": n.Markdown(),
+// 			"html":     n.HTML(),
+// 		},
+// 	)
+// }

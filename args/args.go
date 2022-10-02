@@ -5,6 +5,7 @@ import "github.com/spf13/pflag"
 type Args struct {
 	ConfigPath string
 	LogPath    string
+	Embed      bool
 }
 
 func Load() (*Args, bool) {
@@ -14,6 +15,10 @@ func Load() (*Args, bool) {
 	logPath := pflag.StringP(
 		"log", "l", "./logs.log", "path to log file",
 	)
+	embed := pflag.BoolP(
+		"embed", "e", false, "flag to toggle usage of embedded files",
+	)
+
 	help := pflag.BoolP("help", "h", false, "show help")
 
 	pflag.Parse()
@@ -27,5 +32,6 @@ func Load() (*Args, bool) {
 	return &Args{
 		ConfigPath: *configPath,
 		LogPath:    *logPath,
+		Embed:      *embed,
 	}, true
 }
