@@ -80,16 +80,14 @@
         </div>
       </div>
 
-      <div id="page-content" class="page-box">
-        <!-- </div id="content"></div> -->
+      <div class="page-box">
+        <div id="page-content" class="page-content-box"></div>
       </div>
-      <!-- <div id="page-editor" class="page-box" hidden="true">
-        <textarea id="editor" cols="81">{{ .raw }}</textarea>
-      </div> -->
     </div>
 
     <script>
-      let PATH = "{{ .path }}";
+      const PATH = "{{ .path }}";
+      const API_BASE = "{{ .api_base }}";
     </script>
     <!-- logic -->
     <script type="text/javascript" src="/static/logic.js"></script>

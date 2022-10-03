@@ -50,9 +50,14 @@ func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 	path := r.URL.Query().Get("node")
 
+	// w.Header().Add("Access-Control-Allow-Origin", "*")
+
 	w.WriteHeader(http.StatusOK)
 
-	err := h.viewTemplate.Execute(w, map[string]string{"path": path})
+	err := h.viewTemplate.Execute(
+		w,
+		map[string]string{"path": path, "api_base": ""},
+	)
 	if err != nil {
 		handler.WriteError(
 			w,

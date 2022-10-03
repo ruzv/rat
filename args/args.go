@@ -16,7 +16,7 @@ func Load() (*Args, bool) {
 		"log", "l", "./logs.log", "path to log file",
 	)
 	embed := pflag.BoolP(
-		"embed", "e", false, "flag to toggle usage of embedded files",
+		"embed", "e", true, "flag to toggle usage of embedded files",
 	)
 
 	help := pflag.BoolP("help", "h", false, "show help")

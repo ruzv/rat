@@ -32,4 +32,12 @@ linters:
     - funlen
     - gochecknoglobals
     - gomnd
+    - nosnakecase
+    - golint
+    - deadcode
+    - varcheck
+    - structcheck
+    - maligned
+    - interfacer
+    - scopelint
   fast: false

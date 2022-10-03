@@ -88,9 +88,8 @@ func renderHook(
 			)
 
 		case *ast.Code:
-			rend.Code(b, n)
 			parsed = fmt.Sprintf(
-				"<span class=\"markdown-code\">%s</span>", b.String(),
+				"<span class=\"markdown-code\">%s</span>", string(n.Literal),
 			)
 
 		default:
@@ -191,10 +190,10 @@ const (
 
 // <rat keyword arg1 arg2> .
 func (n *Node) parseRatTag(tag, format string) (string, error) {
-	tag = strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
+	pTag := strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
 
 	// keyword arg1 arg2
-	args := strings.Fields(tag)[1:]
+	args := strings.Fields(pTag)[1:]
 
 	// keyword
 	keyword := args[0]
@@ -293,10 +292,13 @@ func parseRatTagImg(imgPath string) (string, error) {
 }
 
 func (n *Node) link(name, format string) string {
-	path := n.Path
+	var (
+		path     = n.Path
+		linkName = n.Name
+	)
 
-	if name == "" {
-		name = n.Name
+	if name != "" {
+		linkName = name
 	}
 
 	switch format {
@@ -312,9 +314,9 @@ func (n *Node) link(name, format string) string {
 
 		u.RawQuery = q.Encode()
 
-		return fmt.Sprintf("[%s](%s)", name, u.String())
+		return fmt.Sprintf("[%s](%s)", linkName, u.String())
 	case nodeFormatMarkdown:
-		return fmt.Sprintf("[%s](/nodes/%s)", name, path)
+		return fmt.Sprintf("[%s](/nodes/%s)", linkName, path)
 	}
 
 	return "unknown format"

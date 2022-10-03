@@ -163,6 +163,6 @@ func removeFromLeafs(leafs []uuid.UUID, id uuid.UUID) []uuid.UUID {
 	return removed
 }
 
-func (c *Cache) Delete(node *graph.Node) error {
+func (c *Cache) Delete(_ *graph.Node) error {
 	return errors.New("not implemented")
 }

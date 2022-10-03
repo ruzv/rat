@@ -4,10 +4,10 @@
 
 function apiPath() {
   if (PATH === "") {
-    return "http://localhost:8889/nodes/";
+    return window.location.origin + "/nodes/";
   }
 
-  return "http://localhost:8889/nodes/" + PATH + "/";
+  return window.location.origin + "/nodes/" + PATH + "/";
 }
 
 // -------------------------------------------------------------------------- //

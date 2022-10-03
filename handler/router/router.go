@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"private/rat/args"
 	"private/rat/config"
 	"private/rat/handler/nodeshttp"
 	"private/rat/handler/statichttp"
@@ -22,7 +21,6 @@ var log = logging.MustGetLogger("router")
 // New creates a new router, loads templates and registers handlers for routes.
 func New(
 	conf *config.Config,
-	args *args.Args,
 	embeds fs.FS,
 ) (*mux.Router, error) {
 	router := mux.NewRouter()

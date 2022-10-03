@@ -130,7 +130,7 @@ func setupServer(cmdArgs *args.Args) (*http.Server, error) {
 
 	log.Infof("have config")
 
-	router, err := router.New(conf, cmdArgs, embeds)
+	r, err := router.New(conf, embeds)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new router")
 	}
@@ -138,7 +138,7 @@ func setupServer(cmdArgs *args.Args) (*http.Server, error) {
 	log.Infof("have router")
 
 	server := http.Server{
-		Handler:      router,
+		Handler:      r,
 		Addr:         fmt.Sprintf(":%d", conf.Port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
