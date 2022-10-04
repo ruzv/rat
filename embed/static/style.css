@@ -22,10 +22,10 @@ a:visited {
 
 /* single entry in page - row */
 .page-box {
-  width: 100%;
   padding: 10px;
   margin-top: 20px; 
   background-color: #2d2d2d;
+  border: 3px solid #2d2d2d;
   border-radius: 8px;
 }
 
@@ -38,25 +38,48 @@ a:visited {
   padding-bottom: 10px;
 }
 
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border: 3px solid #841a84;
+}
+
+/* -------------------------------------------------------------------------- */
+/* structuring */
+/* -------------------------------------------------------------------------- */
+
+.container {  
+  width: 100%;
+  overflow: hidden;  
+}
+
+.container-column-two {
+  float: left;
+  width: 50%;
+}
+
+
+.container-column-three {
+  float: left;
+  width: 33%;
+}
+
+
+
 /* -------------------------------------------------------------------------- */
 /* console */
 /* -------------------------------------------------------------------------- */
 
-.console {
-  content: "";
-  display: table;
-  clear: both;
-  width: 100%;
-}
-
-.console-column {
-  float: left;
-  margin: 0;
-  width: 33%;
-}
 
 .console-column-padded {
   padding: 15px;
+}
+
+.console-logo {
+  border: 3px solid #ffffff00;
+  border-radius: 8px;
 }
 
 .console-controls-input {
@@ -100,6 +123,18 @@ a:visited {
 }
 
 
+/* -------------------------------------------------------------------------- */
+/* leafs                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.leafs-column-padding-left {
+  padding-right: 10px;
+}
+
+.leafs-column-padding-right {
+  padding-left: 10px;
+}
+
 /* set image width to be 100% of parent element, 
 will help when image support is added */
 img {
@@ -112,18 +147,26 @@ ul {
 }
 
 .markdown-code-block {
-  width: 100%;
+  /* width:100%; */
   background-color: #272822;
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding: 10px;
+  /* padding-top: 2px;
+  padding-bottom: 2px; */
   margin-top: 10px;
   margin-bottom: 10px;
   border-radius: 8px;
+  overflow: auto;
+  white-space: nowrap;
 }
 
-pre {
-  margin: 10px;
+div.markdown-code-block > code {
+  width:100%;
+  overflow: auto;
+  white-space: nowrap;
 }
+/* pre {
+  margin: 10px;
+} */
 
 .markdown-code {
   background-color: #474646;
@@ -140,7 +183,3 @@ td {
   border: 3px solid #8e8e8e;
   border-collapse: collapse;
 }
-
-/* {
-  box-sizing: border-box;
-} */

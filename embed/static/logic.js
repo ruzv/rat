@@ -2,12 +2,12 @@
 // utils
 // -------------------------------------------------------------------------- //
 
-function apiPath() {
-  if (PATH === "") {
+function apiPath(path) {
+  if (path === "") {
     return window.location.origin + "/nodes/";
   }
 
-  return window.location.origin + "/nodes/" + PATH + "/";
+  return window.location.origin + "/nodes/" + path + "/";
 }
 
 // -------------------------------------------------------------------------- //
@@ -27,7 +27,7 @@ function consoleControlsAdd() {
     return;
   }
 
-  fetch(apiPath(), {
+  fetch(apiPath(PATH), {
     method: "POST",
     body: JSON.stringify({
       name: v,
@@ -122,33 +122,68 @@ class Content {
   getElement() {
     return document.getElementById("page-content");
   }
+}
 
-  update() {
-    fetch(apiPath(), {
-      method: "GET",
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
+// -------------------------------------------------------------------------- //
+// leafs
+// -------------------------------------------------------------------------- //
 
-        return response.json();
-      })
-      .then((data) => {
-        this.getElement().innerHTML = data.html;
-      })
-      .catch((error) => console.log(error));
+class Leafs {
+  constructor(leafPaths) {
+    this.leafPaths = leafPaths;
+    this.containerSwitcher = false;
+
+    this.loadLeafs();
+  }
+
+  getContainer() {
+    // id="leafs-container-two"
+    let c;
+    if (this.containerSwitcher == false) {
+      c = document.getElementById("leafs-container-one");
+    } else {
+      c = document.getElementById("leafs-container-two");
+    }
+
+    this.containerSwitcher = !this.containerSwitcher;
+    return c;
+  }
+
+  newLeaf(path) {
+    // let leafLink = document.createElement("a");
+    // leafLink.href = "/view/?node=" + path;
+
+    let leafBox = document.createElement("div");
+    leafBox.className = "page-box clickable";
+    leafBox.onclick = () => {
+      window.location = "/view/?node=" + path;
+    };
+
+    let leaf = document.createElement("div");
+    leaf.className = "page-content-box";
+
+    leafBox.appendChild(leaf);
+    this.getContainer().appendChild(leafBox);
+
+    return leaf;
+  }
+
+  loadLeafs() {
+    this.leafPaths.forEach((path) => {
+      let leaf = this.newLeaf(path);
+
+      getNode(path, "html", "false", (data) => {
+        leaf.innerHTML = data.content;
+      });
+    });
   }
 }
 
-function setTitle(title) {}
+function getNode(path, format, includeLeafs, callback) {
+  let url = new URL(apiPath(path));
 
-let content;
-let consoleData;
-
-function getNode() {
-  let url = new URL(apiPath());
-  url.searchParams.append("format", "html");
+  url.searchParams.append("format", format);
+  url.searchParams.append("leafs", includeLeafs);
 
   fetch(url, {
     method: "GET",
@@ -160,19 +195,18 @@ function getNode() {
 
       return response.json();
     })
-    .then((data) => {
-      // "id":       n.ID.String(),
-      // "name":     n.Name,
-      // "path":     n.Path,
-      // "raw":      n.Content,
-      // "markdown": n.Markdown(),
-      // "html":     n.HTML(),
-
-      content = new Content(data.content);
-      consoleData = new ConsoleData(data.id, data.name, data.path);
-      document.title = data.name;
-    })
+    .then(callback)
     .catch((error) => console.log(error));
 }
 
-getNode();
+let content;
+let consoleData;
+let leafs;
+
+getNode(PATH, "html", true, (data) => {
+  content = new Content(data.content);
+  consoleData = new ConsoleData(data.id, data.name, data.path);
+  leafs = new Leafs(data.leafs);
+
+  document.title = data.name;
+});

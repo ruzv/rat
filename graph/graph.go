@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/url"
@@ -76,15 +75,47 @@ func renderHook(
 	return func(
 		w io.Writer, node ast.Node, entering bool,
 	) (ast.WalkStatus, bool) {
-		b := &bytes.Buffer{}
+		// b := &bytes.Buffer{}
 
 		var parsed string
 
 		switch n := node.(type) {
 		case *ast.CodeBlock:
-			rend.CodeBlock(b, n)
+			// rend.CodeBlock(b, n)
+
+			lines := strings.Split(string(n.Literal), "\n")
+
+			for idx, line := range lines {
+				step := 10
+
+				var (
+					parts   []string
+					counter int
+				)
+
+				for {
+					if counter+step > len(line) {
+						parts = append(parts, line[counter:])
+						break
+					}
+
+					parts = append(parts, line[counter:counter+step])
+					counter += step
+				}
+
+				// for idxP, part := range parts {
+				// 	parts[idxP] = fmt.Sprintf("<span>%s</span>", part)
+				// }
+
+				lines[idx] = fmt.Sprintf(
+					"<span style=\"display:flex; flex-wrap: wrap;\">%s</span>",
+					strings.Join(parts, "")+"\n",
+				)
+			}
+
 			parsed = fmt.Sprintf(
-				"<div class=\"markdown-code-block\">%s</div>", b.String(),
+				"<div class=\"markdown-code-block\"><code>%s</code></div>",
+				strings.Join(lines, "\n"),
 			)
 
 		case *ast.Code:

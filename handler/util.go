@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/op/go-logging"
 	"github.com/pkg/errors"
-
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 )
+
+var log = logging.MustGetLogger("handler-utils")
 
 type (
 	MuxHandlerFunc func(http.ResponseWriter, *http.Request)
@@ -47,11 +47,6 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 			Error: message,
 		},
 	)
-}
-
-// WriteJSON writes code and error message in JSON format as http response.
-func WriteJSON(c *gin.Context, code int, message string) {
-	c.JSON(code, gin.H{"code": code, "message": message})
 }
 
 func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) { //nolint:ireturn,lll

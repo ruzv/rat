@@ -1,9 +1,12 @@
 package nodeshttp
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 
 	"private/rat/config"
 
@@ -167,12 +170,62 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	err = writeFormat(w, r, n)
+	f, err := format(w, r, n)
 	if err != nil {
-		return errors.Wrap(err, "failed to write format")
+		return errors.Wrap(err, "failed to format")
+	}
+
+	if includeLeafs(r) {
+		leafs, err := getLeafPaths(w, n)
+		if err != nil {
+			return errors.Wrap(err, "failed to get leaf paths")
+		}
+
+		f["leafs"] = leafs
+	}
+
+	handler.WriteResponse(w, http.StatusOK, f)
+	if err != nil {
+		return errors.Wrap(err, "failed to write response")
 	}
 
 	return nil
+}
+
+func getLeafPaths(w http.ResponseWriter, n *graph.Node) ([]string, error) {
+	leafNodes, err := n.Leafs()
+	if err != nil {
+		handler.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to get leafs",
+		)
+
+		return nil, errors.Wrap(err, "failed to get leafs")
+	}
+
+	var leafs []string
+
+	for _, lf := range leafNodes {
+		leafs = append(leafs, lf.Path)
+	}
+
+	return leafs, nil
+}
+
+func includeLeafs(r *http.Request) bool {
+	leafsParam := r.URL.Query().Get("leafs")
+	if leafsParam == "" {
+		return false
+	}
+
+	l, err := strconv.ParseBool(leafsParam)
+	if err != nil {
+		log.Debug("failed to parse leafs param", err)
+		return false
+	}
+
+	return l
 }
 
 func (h *Handler) getNode(
@@ -213,13 +266,12 @@ func (h *Handler) getNode(
 	return n, nil
 }
 
-func writeFormat(w http.ResponseWriter, r *http.Request, n *graph.Node) error {
-	var (
-		f   interface{}
-		err error
-	)
-
+func format(
+	w http.ResponseWriter, r *http.Request, n *graph.Node,
+) (map[string]interface{}, error) {
 	format := r.URL.Query().Get("format")
+
+	var f interface{}
 
 	switch format {
 	case "html":
@@ -230,19 +282,63 @@ func writeFormat(w http.ResponseWriter, r *http.Request, n *graph.Node) error {
 		f = n
 	}
 
-	err = handler.WriteResponse(w, http.StatusOK, f)
+	buff := &bytes.Buffer{}
+
+	err := json.NewEncoder(buff).Encode(f)
 	if err != nil {
 		handler.WriteError(
 			w,
 			http.StatusInternalServerError,
-			"failed to write response",
+			"failed to encode format",
 		)
 
-		return errors.Wrap(err, "failed to write response")
+		return nil, errors.Wrap(err, "failed to encode format")
 	}
 
-	return nil
+	var res map[string]interface{} = make(map[string]interface{})
+
+	err = json.NewDecoder(buff).Decode(&res)
+	if err != nil {
+		handler.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to decode format",
+		)
+
+		return nil, errors.Wrap(err, "failed to decode format")
+	}
+
+	return res, nil
 }
+
+// func writeFormat(w http.ResponseWriter, r *http.Request, n *graph.Node) error
+// {
+// 	var f interface{}
+
+// 	format := r.URL.Query().Get("format")
+
+// 	switch format {
+// 	case "html":
+// 		f = n.HTML()
+// 	case "md":
+// 		f = n.Markdown()
+// 	default:
+// 		f = n
+// 	}
+
+// 	err = handler.WriteResponse(w, http.StatusOK, f)
+// 	if err != nil {
+// 		handler.WriteError(
+// 			w,
+// 			http.StatusInternalServerError,
+// 			"failed to write response",
+// 		)
+
+// 		return errors.Wrap(err, "failed to write response")
+// 	}
+
+// 	return nil
+// }
 
 // -------------------------------------------------------------------------- //
 // UPDATE
