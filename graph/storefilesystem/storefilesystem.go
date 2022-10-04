@@ -2,6 +2,7 @@ package storefilesystem
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -202,12 +203,20 @@ func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 	return leafNodes, nil
 }
 
+const newNodeTemplate = //
+`# %s
+		
+<rat graph>
+`
+
 func (fs *FileSystem) Add(
 	parent *graph.Node,
 	name string,
 ) (*graph.Node, error) {
 	newNode := fs.newNode(name, filepath.Join(parent.Path, name))
 	newFullPath := filepath.Join(fs.fullPath(parent.Path), name)
+
+	newNode.Content = fmt.Sprintf(newNodeTemplate, name)
 
 	err := newNode.GenID()
 	if err != nil {

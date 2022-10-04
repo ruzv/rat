@@ -164,9 +164,11 @@ div.markdown-code-block > code {
   overflow: auto;
   white-space: nowrap;
 }
-/* pre {
-  margin: 10px;
-} */
+
+
+pre {
+  margin: 0;
+}
 
 .markdown-code {
   background-color: #474646;
