@@ -108,13 +108,14 @@ func renderHook(
 				// }
 
 				lines[idx] = fmt.Sprintf(
-					"<span style=\"display:flex; flex-wrap: wrap;\">%s</span>",
-					strings.Join(parts, "")+"\n",
+					// "<span style=\"display:flex; flex-wrap: wrap;\">%s</span>",
+					"<span style=\"flex-wrap: wrap;\">%s</span>",
+					strings.Join(parts, "")+"",
 				)
 			}
 
 			parsed = fmt.Sprintf(
-				"<div class=\"markdown-code-block\"><code>%s</code></div>",
+				"<div class=\"markdown-code-block\"><pre><code>%s</code></pre></div>",
 				strings.Join(lines, "\n"),
 			)
 

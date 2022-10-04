@@ -137,16 +137,16 @@ class Leafs {
   }
 
   getContainer() {
-    // id="leafs-container-two"
-    let c;
-    if (this.containerSwitcher == false) {
-      c = document.getElementById("leafs-container-one");
-    } else {
-      c = document.getElementById("leafs-container-two");
+    let c1 = document.getElementById("leafs-container-one");
+    let c2 = document.getElementById("leafs-container-two");
+    console.log(c1.offsetHeight, c2.offsetHeight);
+    if (c1.offsetHeight > c2.offsetHeight) {
+      console.log("two");
+      return c2;
     }
 
-    this.containerSwitcher = !this.containerSwitcher;
-    return c;
+    console.log("one");
+    return c1;
   }
 
   newLeaf(path) {
