@@ -146,6 +146,12 @@ ul {
   list-style-type: square;
 }
 
+hr {
+  background-color: #5a5a5a;
+  border: none;
+  height: 4px;
+}
+
 .markdown-code-block {
   /* width:100%; */
   background-color: #272822;

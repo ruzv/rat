@@ -206,7 +206,10 @@ let leafs;
 getNode(PATH, "html", true, (data) => {
   content = new Content(data.content);
   consoleData = new ConsoleData(data.id, data.name, data.path);
-  leafs = new Leafs(data.leafs);
+
+  if (data.leafs) {
+    leafs = new Leafs(data.leafs);
+  }
 
   document.title = data.name;
 });

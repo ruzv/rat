@@ -13,12 +13,12 @@ import (
 var log = logging.MustGetLogger("statichttp")
 
 func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
+	log.Info("seting up statics serving")
+
 	statics, err := fs.Sub(embeds, "static")
 	if err != nil {
 		return errors.Wrap(err, "failed to get statics sub fs")
 	}
-
-	log.Notice("serving static files")
 
 	err = fs.WalkDir(
 		statics,
@@ -43,6 +43,8 @@ func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 
 	router.PathPrefix("/static/").
 		Handler(http.StripPrefix("/static/", http.FileServer(http.FS(statics))))
+
+	log.Notice("serving statics")
 
 	return nil
 }

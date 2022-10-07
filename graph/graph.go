@@ -354,6 +354,8 @@ func (n *Node) link(name, format string) string {
 	return "unknown format"
 }
 
+// walks to every child node recursively starting from n. callback is called
+// for every child node. callback is not called for n.
 func (n *Node) Walk(callback func(int, *Node) bool) error {
 	return n.walk(0, callback)
 }
@@ -443,6 +445,36 @@ func (n *Node) DeleteSingle() error {
 	}
 
 	return nil
+}
+
+// -------------------------------------------------------------------------- //
+// METRICS
+// -------------------------------------------------------------------------- //
+
+type Metrics struct {
+	Nodes    int
+	MaxDepth int
+}
+
+func (n *Node) Metrics() (*Metrics, error) {
+	var m Metrics
+
+	err := n.Walk(
+		func(depth int, node *Node) bool {
+			m.Nodes++
+
+			if depth > m.MaxDepth {
+				m.MaxDepth = depth
+			}
+
+			return true
+		},
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to walk graph")
+	}
+
+	return &m, nil
 }
 
 // -------------------------------------------------------------------------- //

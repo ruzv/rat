@@ -42,8 +42,6 @@ func New(
 		return nil, errors.Wrap(err, "failed to register static routes")
 	}
 
-	log.Notice("registered routes")
-
 	err = router.Walk(
 		func(
 			route *mux.Route, router *mux.Router, ancestors []*mux.Route,
@@ -55,11 +53,11 @@ func New(
 
 			methods, err := route.GetMethods()
 			if err != nil {
-				log.Noticef("route %-7s %s %s", "", path, err.Error())
+				log.Info("route %-7s %s %s", "", path, err.Error())
 			}
 
 			for _, m := range methods {
-				log.Noticef("route %-7s %s", m, path)
+				log.Info("route %-7s %s", m, path)
 			}
 
 			return nil
@@ -68,6 +66,8 @@ func New(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to walk routes")
 	}
+
+	log.Notice("registered routes")
 
 	return router, nil
 }

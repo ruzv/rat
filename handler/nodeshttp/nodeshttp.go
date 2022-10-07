@@ -28,6 +28,8 @@ type Handler struct {
 
 // creates a new Handler.
 func newHandler(conf *config.Config) (*Handler, error) {
+	log.Info("loading graph")
+
 	store, err := storefilesystem.NewFileSystem(
 		conf.Graph.Name,
 		conf.Graph.Path,
@@ -41,16 +43,15 @@ func newHandler(conf *config.Config) (*Handler, error) {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	log.Notice("loaded graph")
-
-	err = r.Walk(func(i int, n *graph.Node) bool {
-		log.Info(n.Path)
-
-		return true
-	})
+	m, err := r.Metrics()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk")
+		return nil, errors.Wrap(err, "failed to get metrics")
 	}
+
+	log.Info("nodes -", m.Nodes)
+	log.Info("max depth -", m.MaxDepth)
+
+	log.Notice("loaded graph -", conf.Graph.Name)
 
 	return &Handler{store: store}, nil
 }
