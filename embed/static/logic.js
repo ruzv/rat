@@ -130,86 +130,103 @@ class Content {
 
 class Leafs {
   constructor(leafPaths) {
-    this.leafPaths = leafPaths;
+    // this.leafPaths = leafPaths;
     this.containerSwitcher = false;
 
-    this.loadLeafs();
+    this.leftColumnHeight = 0;
+    this.rightColumnHeight = 0;
+
+    this.loadLeafs(leafPaths);
   }
 
   getContainer() {
     let c1 = document.getElementById("leafs-container-one");
     let c2 = document.getElementById("leafs-container-two");
-    console.log(c1.offsetHeight, c2.offsetHeight);
+
     if (c1.offsetHeight > c2.offsetHeight) {
-      console.log("two");
       return c2;
     }
 
-    console.log("one");
+    // console.log(
+    //   "get",
+    //   document.getElementById("leafs-container-one").offsetHeight,
+    //   document.getElementById("leafs-container-two").offsetHeight
+    // );
+
     return c1;
   }
 
-  newLeaf(path) {
+  newLeaf(data) {
     // let leafLink = document.createElement("a");
     // leafLink.href = "/view/?node=" + path;
 
     let leafBox = document.createElement("div");
     leafBox.className = "page-box clickable";
     leafBox.onclick = () => {
-      window.location = "/view/?node=" + path;
+      window.location = "/view/?node=" + data.path;
     };
 
     let leaf = document.createElement("div");
     leaf.className = "page-content-box";
+    leaf.innerHTML = data.content;
 
     leafBox.appendChild(leaf);
-    this.getContainer().appendChild(leafBox);
 
-    return leaf;
+    return leafBox;
   }
 
-  loadLeafs() {
-    this.leafPaths.forEach((path) => {
-      let leaf = this.newLeaf(path);
+  loadLeafs(leafPaths) {
+    let leafs = {};
 
-      getNode(path, "html", "false", (data) => {
-        leaf.innerHTML = data.content;
-      });
+    let all = [];
+
+    for (let i = 0; i < leafPaths.length; i++) {
+      all.push(
+        getNode(leafPaths[i], "html", false).then((data) => {
+          leafs[i] = this.newLeaf(data);
+        })
+      );
+    }
+    Promise.all(all).then(() => {
+      for (let i = 0; i < leafPaths.length; i++) {
+        this.getContainer().appendChild(leafs[i]);
+      }
     });
   }
 }
 
-function getNode(path, format, includeLeafs, callback) {
+function getNode(path, format, includeLeafs) {
   let url = new URL(apiPath(path));
 
   url.searchParams.append("format", format);
   url.searchParams.append("leafs", includeLeafs);
 
-  fetch(url, {
+  return fetch(url, {
     method: "GET",
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
 
-      return response.json();
-    })
-    .then(callback)
-    .catch((error) => console.log(error));
+    return response.json();
+  });
 }
 
 let content;
 let consoleData;
 let leafs;
 
-getNode(PATH, "html", true, (data) => {
-  content = new Content(data.content);
-  consoleData = new ConsoleData(data.id, data.name, data.path);
+getNode(PATH, "html", true)
+  .then((data) => {
+    content = new Content(data.content);
+    consoleData = new ConsoleData(data.id, data.name, data.path);
 
-  if (data.leafs) {
-    leafs = new Leafs(data.leafs);
-  }
+    if (data.leafs) {
+      leafs = new Leafs(data.leafs);
+    }
 
-  document.title = data.name;
-});
+    document.title = data.name;
+  })
+  .then(() => {
+    console.log("loaded");
+  });

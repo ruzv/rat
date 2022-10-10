@@ -11,6 +11,7 @@ import (
 	"private/rat/config"
 
 	"private/rat/graph"
+	"private/rat/graph/render"
 	"private/rat/graph/storefilesystem"
 	"private/rat/handler"
 
@@ -24,6 +25,7 @@ var log = logging.MustGetLogger("nodeshttp")
 
 type Handler struct {
 	store graph.Store
+	rend  *render.NodeRender
 }
 
 // creates a new Handler.
@@ -53,7 +55,10 @@ func newHandler(conf *config.Config) (*Handler, error) {
 
 	log.Notice("loaded graph -", conf.Graph.Name)
 
-	return &Handler{store: store}, nil
+	return &Handler{
+		store: store,
+		rend:  render.NewNodeRender(),
+	}, nil
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -171,7 +176,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	f, err := format(w, r, n)
+	f, err := h.format(w, r, n)
 	if err != nil {
 		return errors.Wrap(err, "failed to format")
 	}
@@ -267,25 +272,25 @@ func (h *Handler) getNode(
 	return n, nil
 }
 
-func format(
+func (h *Handler) format(
 	w http.ResponseWriter, r *http.Request, n *graph.Node,
 ) (map[string]interface{}, error) {
 	format := r.URL.Query().Get("format")
 
-	var f interface{}
+	cn := *n
 
 	switch format {
 	case "html":
-		f = n.HTML()
+		cn.Content = h.rend.HTML(n)
 	case "md":
-		f = n.Markdown()
+		cn.Content = h.rend.Markdown(n)
 	default:
-		f = n
+
 	}
 
 	buff := &bytes.Buffer{}
 
-	err := json.NewEncoder(buff).Encode(f)
+	err := json.NewEncoder(buff).Encode(cn)
 	if err != nil {
 		handler.WriteError(
 			w,

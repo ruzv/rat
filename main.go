@@ -144,7 +144,7 @@ func setupServer(cmdArgs *args.Args) (*http.Server, error) {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	log.Notice("finished server setup")
+	log.Notice("server setup on port", conf.Port)
 
 	return &server, nil
 }
