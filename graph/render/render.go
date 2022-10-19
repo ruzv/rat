@@ -1,12 +1,10 @@
 package render
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/url"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -117,62 +115,23 @@ func renderCodeBlock(n *ast.CodeBlock) string {
 	)
 }
 
-type todo struct {
-	done bool
-	text string
-}
-
-func (td todo) render(rend *NodeRender) string {
-	var checked string
-
-	if td.done {
-		// checked = "checked"
-		checked = "markdown-todo-checkbox-check-checked"
-	}
-
-	return fmt.Sprintf(
-		`<div class="markdown-todo">
-			<div class="markdown-todo-checkbox-border">
-				<div class="markdown-todo-checkbox-check %s">
-				</div>
-			</div>			
-			<div class="markdown-todo-text">%s</div>
-		</div>`,
-		checked,
-		markdown.ToHTML(
-			[]byte(td.text),
-			rend.parser(),
-			rend.hookedRend,
-		),
-		// td.text,
-	)
-}
-
-// func newTodo(marker, text string) *todo {
-// 	return &todo{
-// 		done: marker == "x",
-// 		text: text,
-// 	}
-// }
-
-// type todoList struct{}
-
 func renderTodo(rend *NodeRender, n *ast.CodeBlock) string {
-	todoList := parseTODOs(n.Literal)
-	if len(todoList) == 0 {
+	todoL, err := Parse(string(n.Literal))
+	if err != nil {
+		// log.Debug("failed to parse", err)
+
 		return ""
 	}
 
-	sort.SliceStable(
-		todoList,
-		func(i, j int) bool {
-			return !todoList[i].done && todoList[j].done
-		},
-	)
+	if len(todoL.List) == 0 {
+		return ""
+	}
+
+	list := append(todoL.NotDone().List, todoL.Done().List...)
 
 	var parts []string
 
-	for _, todo := range todoList {
+	for _, todo := range list {
 		parts = append(parts, todo.render(rend))
 	}
 
@@ -182,59 +141,6 @@ func renderTodo(rend *NodeRender, n *ast.CodeBlock) string {
 		</div>`,
 		strings.Join(parts, "\n"),
 	)
-}
-
-func parseTODOs(raw []byte) []todo {
-	buff := bytes.NewBuffer(raw)
-
-	prev, err := buff.ReadByte()
-	if err != nil {
-		return nil
-	}
-
-	var (
-		chunk  = []byte{prev}
-		chunks []string
-	)
-
-	for {
-		b, err := buff.ReadByte()
-		if err != nil {
-			break
-		}
-
-		if prev == '\n' && (b == '-' || b == 'x') {
-			chunks = append(chunks, string(chunk))
-			chunk = []byte{}
-		}
-
-		prev = b
-		chunk = append(chunk, b)
-	}
-
-	chunks = append(chunks, string(chunk))
-
-	todoList := make([]todo, 0, len(chunks))
-
-	for _, c := range chunks {
-		fields := strings.Fields(c)
-		if len(fields) < 2 {
-			continue
-		}
-
-		marker := fields[0]
-		text := strings.Join(fields[1:], " ")
-
-		todoList = append(
-			todoList,
-			todo{
-				done: marker == "x",
-				text: text,
-			},
-		)
-	}
-
-	return todoList
 }
 
 // -------------------------------------------------------------------------- //
@@ -440,7 +346,7 @@ func parseRatTagImg(imgPath string) (string, error) {
 // -------------------------------------------------------------------------- //
 
 var todoRegex = regexp.MustCompile(
-	"```todo\n((?:.+\n)+)```",
+	"```todo\n((?:.*\n)*?)```",
 )
 
 func parseRatTagTodo(n *graph.Node, depth, format string) (string, error) {
@@ -453,13 +359,31 @@ func parseRatTagTodo(n *graph.Node, depth, format string) (string, error) {
 
 	err = p.Walk(
 		func(i int, leaf *graph.Node) bool {
-			matches := todoRegex.FindAllString(leaf.Content, -1)
+			// matches := todoRegex.FindAllString(leaf.Content, -1)
+			matches := todoRegex.FindAllStringSubmatch(leaf.Content, -1)
 			for _, match := range matches {
+				// todos = append(
+				// 	todos,
+				// 	fmt.Sprintf("### `%s`\n%s", leaf.Path, match),
+				// )
+				todoL, err := Parse(match[1])
+				if err != nil {
+					log.Debug("failed to parse todo", err)
+
+					continue
+				}
+
+				notDone := todoL.NotDone()
+				if len(notDone.List) == 0 {
+					continue
+				}
+
 				todos = append(
 					todos,
-					fmt.Sprintf("### `%s`\n%s", leaf.Path, match),
+					fmt.Sprintf(
+						"### `%s`\n%s\n", leaf.Path, notDone.Markdown(),
+					),
 				)
-				log.Debug(match)
 			}
 
 			return true
