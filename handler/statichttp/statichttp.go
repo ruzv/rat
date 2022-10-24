@@ -4,10 +4,9 @@ import (
 	"io/fs"
 	"net/http"
 
-	"private/rat/errors"
-
 	"github.com/gorilla/mux"
 	"github.com/op/go-logging"
+	"github.com/pkg/errors"
 )
 
 var log = logging.MustGetLogger("statichttp")

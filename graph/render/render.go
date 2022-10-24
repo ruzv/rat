@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"private/rat/graph"
+	"private/rat/graph/render/todo"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
@@ -22,10 +24,11 @@ import (
 
 var log = logging.MustGetLogger("render")
 
+type linkFormat string
+
 const (
-	// nodeFormatRAW      = "raw".
-	nodeFormatHTML     = "html"
-	nodeFormatMarkdown = "markdown"
+	linkFormatWeb = "web"
+	linkFormatAPI = "api"
 )
 
 // -------------------------------------------------------------------------- //
@@ -59,7 +62,7 @@ func (nr *NodeRender) parser() *parser.Parser {
 
 func (nr *NodeRender) HTML(n *graph.Node) string {
 	return string(markdown.ToHTML(
-		[]byte(parseContent(n, nodeFormatHTML)),
+		[]byte(parseContent(n, linkFormatWeb)),
 		nr.parser(),
 		nr.hookedRend,
 	))
@@ -76,7 +79,7 @@ func renderHook(
 		switch n := node.(type) {
 		case *ast.CodeBlock:
 			if string(n.Info) == "todo" {
-				parsed = renderTodo(rend, n)
+				parsed = renderTodoList(rend, n)
 			} else {
 				parsed = renderCodeBlock(n)
 			}
@@ -85,7 +88,6 @@ func renderHook(
 			parsed = fmt.Sprintf(
 				"<span class=\"markdown-code\">%s</span>", string(n.Literal),
 			)
-
 		default:
 			return ast.GoToNext, false
 		}
@@ -115,15 +117,15 @@ func renderCodeBlock(n *ast.CodeBlock) string {
 	)
 }
 
-func renderTodo(rend *NodeRender, n *ast.CodeBlock) string {
-	todoL, err := Parse(string(n.Literal))
+func renderTodoList(rend *NodeRender, n *ast.CodeBlock) string {
+	todoL, err := todo.Parse(string(n.Literal))
 	if err != nil {
-		// log.Debug("failed to parse", err)
+		log.Warning("failed to parse todo list", err)
 
-		return ""
+		return renderError(errors.Wrap(err, "failed to parse todo"))
 	}
 
-	if len(todoL.List) == 0 {
+	if todoL.Empty() {
 		return ""
 	}
 
@@ -132,14 +134,96 @@ func renderTodo(rend *NodeRender, n *ast.CodeBlock) string {
 	var parts []string
 
 	for _, todo := range list {
-		parts = append(parts, todo.render(rend))
+		parts = append(parts, renderTodo(rend, todo))
 	}
+
+	var header []string
+	header = append(header, `<div class="markdown-todo-params">`)
+
+	if len(todoL.SourceNodePath) != 0 {
+		header = append(
+			header,
+			fmt.Sprintf(
+				`<span class="markdown-code"><a href="%s">%s</a></span>`,
+				link(todoL.SourceNodePath, linkFormatWeb),
+				todoL.SourceNodePath,
+			),
+		)
+	}
+	if len(todoL.PriorityString()) != 0 {
+		header = append(
+			header,
+			fmt.Sprintf(
+				`<div><span class="markdown-code">%s</span></div>`,
+				todoL.PriorityString(),
+			),
+		)
+	}
+	if len(todoL.DueString()) != 0 {
+		header = append(
+			header,
+			fmt.Sprintf(
+				`<div><span class="markdown-code">%s</span></div>`,
+				todoL.DueString(),
+			),
+		)
+	}
+	if len(todoL.SizeString()) != 0 {
+		header = append(
+			header,
+			fmt.Sprintf(
+				`<div><span class="markdown-code">%s</span></div>`,
+				todoL.SizeString(),
+			),
+		)
+	}
+
+	header = append(header, `</div>`)
 
 	return fmt.Sprintf(
 		`<div class="markdown-todo-list">
+			<div class="markdown-todo-header">
+				%s
+			</div>
 			%s
 		</div>`,
+		strings.Join(header, "\n"),
 		strings.Join(parts, "\n"),
+	)
+}
+
+func renderTodo(rend *NodeRender, td todo.Todo) string {
+	var checked string
+
+	if td.Done {
+		checked = "markdown-todo-checkbox-check-checked"
+	}
+
+	return fmt.Sprintf(
+		`<div class="markdown-todo">
+			<div class="markdown-todo-checkbox-border">
+				<div class="markdown-todo-checkbox-check %s">
+				</div>
+			</div>			
+			<div class="markdown-todo-text">
+				%s
+			</div>
+		</div>`,
+		checked,
+		markdown.ToHTML(
+			[]byte(td.Text),
+			rend.parser(),
+			rend.hookedRend,
+		),
+	)
+}
+
+func renderError(err error) string {
+	return fmt.Sprintf(
+		`<div class="markdown-error">
+			%s
+		</div>`,
+		err.Error(),
 	)
 }
 
@@ -148,22 +232,21 @@ func renderTodo(rend *NodeRender, n *ast.CodeBlock) string {
 // -------------------------------------------------------------------------- //
 
 func (nr *NodeRender) Markdown(n *graph.Node) string {
-	return parseContent(n, nodeFormatMarkdown)
+	return parseContent(n, linkFormatAPI)
 }
 
 var ratTagRegex = regexp.MustCompile(
-	// `<rat( ([[:alnum:]]+)|([[:alnum:]]+)-([[:alnum:]]+))+>`,
 	`<rat(\s([^>]+))>`,
 )
 
-func parseContent(n *graph.Node, format string) string {
+func parseContent(n *graph.Node, lf linkFormat) string {
 	matches := ratTagRegex.FindAllIndex([]byte(n.Content), -1)
 	parsedSource := n.Content
 
 	for _, match := range ReverseSlice(matches) {
 		tag := n.Content[match[0]:match[1]]
 
-		parsed, err := parseRatTag(n, tag, format)
+		parsed, err := parseRatTag(n, tag, lf)
 		if err != nil {
 			log.Warning("failed to parse rat tag", tag, err)
 		}
@@ -195,7 +278,7 @@ const (
 
 // parses a single rat tag
 // <rat keyword arg1 arg2> .
-func parseRatTag(n *graph.Node, tag, format string) (string, error) {
+func parseRatTag(n *graph.Node, tag string, lf linkFormat) (string, error) {
 	pTag := strings.Trim(tag, "<>") // rat keyword arg1 arg2 .
 
 	// keyword arg1 arg2
@@ -210,32 +293,26 @@ func parseRatTag(n *graph.Node, tag, format string) (string, error) {
 	switch keyword {
 	case ratTagKeywordLink:
 		if len(args) == 2 { //nolint:gomnd
-			return parseRatTagLink(n, args[0], args[1], format)
+			return parseRatTagLink(n, args[0], args[1], lf)
 		}
 
 		if len(args) == 1 {
-			return parseRatTagLink(n, args[0], "", format)
+			return parseRatTagLink(n, args[0], "", lf)
 		}
 
 		return "", errors.New("too many arguments")
 
 	case ratTagKeywordGraph:
 		if len(args) == 0 {
-			return parseRatTagGraph(n, "-1", format)
+			return parseRatTagGraph(n, "-1", lf)
 		}
 
-		return parseRatTagGraph(n, args[0], format)
+		return parseRatTagGraph(n, args[0], lf)
 
 	case ratTagKeywordTodo:
 
-		return parseRatTagTodo(n, "", "")
+		return parseRatTagTodo(n, "")
 
-		// case ratTagKeywordImg:
-	// 	if len(args) != 1 {
-	// 		return "", errors.New("invalid argument count")
-	// 	}
-
-	// 	return parseRatTagImg(args[0])
 	default:
 		return "", errors.New("unknown keyword")
 	}
@@ -246,7 +323,7 @@ func parseRatTag(n *graph.Node, tag, format string) (string, error) {
 // -------------------------------------------------------------------------- //
 
 func parseRatTagLink(
-	n *graph.Node, linkID, name, format string,
+	n *graph.Node, linkID, name string, lf linkFormat,
 ) (string, error) {
 	id, err := uuid.FromString(linkID)
 	if err != nil {
@@ -258,21 +335,20 @@ func parseRatTagLink(
 		return "", errors.Wrap(err, "failed to get node by ID")
 	}
 
-	return link(node, name, format), nil
+	return mdLink(node, name, lf), nil
 }
 
-func link(n *graph.Node, name, format string) string {
-	var (
-		path     = n.Path
-		linkName = n.Name
-	)
-
-	if name != "" {
-		linkName = name
+func mdLink(n *graph.Node, name string, lf linkFormat) string {
+	if name == "" {
+		name = n.Name
 	}
 
-	switch format {
-	case nodeFormatHTML:
+	return fmt.Sprintf("[%s](%s)", name, link(n.Path, lf))
+}
+
+func link(path string, lf linkFormat) string {
+	switch lf {
+	case linkFormatWeb:
 		var (
 			u url.URL
 			q = make(url.Values)
@@ -284,19 +360,28 @@ func link(n *graph.Node, name, format string) string {
 
 		u.RawQuery = q.Encode()
 
-		return fmt.Sprintf("[%s](%s)", linkName, u.String())
-	case nodeFormatMarkdown:
-		return fmt.Sprintf("[%s](/nodes/%s)", linkName, path)
-	}
+		return u.String()
+	case linkFormatAPI:
+		l, err := url.JoinPath("/nodes/", path)
+		if err != nil {
+			log.Error("failed to join url path", err)
+		}
 
-	return "unknown format"
+		return l
+	default:
+		log.Error("unknown link format", lf)
+
+		return ""
+	}
 }
 
 // -------------------------------------------------------------------------- //
 // graph
 // -------------------------------------------------------------------------- //
 
-func parseRatTagGraph(n *graph.Node, depth, format string) (string, error) {
+func parseRatTagGraph(
+	n *graph.Node, depth string, lf linkFormat,
+) (string, error) {
 	d, err := strconv.Atoi(depth)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse depth")
@@ -314,7 +399,7 @@ func parseRatTagGraph(n *graph.Node, depth, format string) (string, error) {
 				links,
 				fmt.Sprintf(
 					"%s- %s",
-					strings.Repeat("\t", depth), link(node, "", format),
+					strings.Repeat("\t", depth), mdLink(node, "", lf),
 				),
 			)
 
@@ -349,41 +434,36 @@ var todoRegex = regexp.MustCompile(
 	"```todo\n((?:.*\n)*?)```",
 )
 
-func parseRatTagTodo(n *graph.Node, depth, format string) (string, error) {
+func parseRatTagTodo(n *graph.Node, depth string) (string, error) {
 	p, err := n.Parent()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get parent")
 	}
 
-	var todos []string
+	var (
+		todoLists []*todo.TodoList
+		derr      error
+	)
 
 	err = p.Walk(
 		func(i int, leaf *graph.Node) bool {
-			// matches := todoRegex.FindAllString(leaf.Content, -1)
 			matches := todoRegex.FindAllStringSubmatch(leaf.Content, -1)
 			for _, match := range matches {
-				// todos = append(
-				// 	todos,
-				// 	fmt.Sprintf("### `%s`\n%s", leaf.Path, match),
-				// )
-				todoL, err := Parse(match[1])
+				todoL, err := todo.Parse(match[1])
 				if err != nil {
-					log.Debug("failed to parse todo", err)
+					log.Warning("failed to parse todo", err)
+					derr = errors.Wrap(err, "failed to parse todo")
 
-					continue
+					return false
 				}
 
 				notDone := todoL.NotDone()
-				if len(notDone.List) == 0 {
+				if notDone.Empty() {
 					continue
 				}
 
-				todos = append(
-					todos,
-					fmt.Sprintf(
-						"### `%s`\n%s\n", leaf.Path, notDone.Markdown(),
-					),
-				)
+				notDone.SourceNodePath = leaf.Path
+				todoLists = append(todoLists, notDone)
 			}
 
 			return true
@@ -393,6 +473,40 @@ func parseRatTagTodo(n *graph.Node, depth, format string) (string, error) {
 		return "", errors.Wrap(err, "failed to walk graph")
 	}
 
-	// return fmt.Sprintf("```todo\n%s\n```", strings.Join(todos, "")), nil
-	return strings.Join(todos, "\n"), nil
+	if derr != nil {
+		return derr.Error(), derr
+	}
+
+	sort.SliceStable(
+		todoLists,
+		func(iIdx, jIdx int) bool {
+			i := todoLists[iIdx]
+			j := todoLists[jIdx]
+
+			if !i.HasPriority() && !j.HasPriority() {
+				return false
+			}
+
+			if i.HasPriority() && !j.HasPriority() {
+				return true
+			}
+
+			if !i.HasPriority() && j.HasPriority() {
+				return false
+			}
+
+			return i.Priority() > j.Priority()
+		},
+	)
+
+	var rawTodoLists []string
+
+	for _, todoList := range todoLists {
+		rawTodoLists = append(
+			rawTodoLists,
+			todoList.Markdown(),
+		)
+	}
+
+	return strings.Join(rawTodoLists, "\n"), nil
 }

@@ -3,11 +3,10 @@ package storecache
 import (
 	"path/filepath"
 
-	"private/rat/errors"
-
 	"private/rat/graph"
 
 	"github.com/gofrs/uuid"
+	"github.com/pkg/errors"
 )
 
 var _ graph.Store = (*Cache)(nil)
