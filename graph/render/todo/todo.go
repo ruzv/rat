@@ -6,15 +6,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("render.todo")
+// var log = logging.MustGetLogger("render.todo")
 
+// Parse parses a todo list from a markdown string.
+//
+//nolint:gocognit,gocyclo,cyclop
 func Parse(raw string) (*TodoList, error) {
 	lines := strings.Split(raw, "\n")
 
+	//nolint:prealloc
 	var (
 		first          = true
 		todoLines      []string
@@ -139,6 +142,7 @@ func parseTime(raw string) (time.Time, error) {
 	return time.Time{}, errors.New("failed to parse time in any format")
 }
 
+// TodoList describes a single todo list.
 type TodoList struct {
 	List           []Todo
 	Due            time.Time
@@ -146,6 +150,7 @@ type TodoList struct {
 	SourceNodePath string
 }
 
+// CopyMeta returns a new todo list with the same meta data as the current one.
 func (tl *TodoList) CopyMeta() *TodoList {
 	return &TodoList{
 		Due:            tl.Due,
@@ -154,6 +159,7 @@ func (tl *TodoList) CopyMeta() *TodoList {
 	}
 }
 
+// Done returns a net todo list with only the done todos.
 func (tl *TodoList) Done() *TodoList {
 	var done []Todo
 
@@ -169,6 +175,7 @@ func (tl *TodoList) Done() *TodoList {
 	return ret
 }
 
+// NotDone returns a new todo list with only the not done todos.
 func (tl *TodoList) NotDone() *TodoList {
 	var notDone []Todo
 
@@ -184,6 +191,7 @@ func (tl *TodoList) NotDone() *TodoList {
 	return ret
 }
 
+// Markdown returns the todo list as a markdown string.
 func (tl *TodoList) Markdown() string {
 	lines := make([]string, 0, len(tl.List)+5)
 
@@ -204,6 +212,7 @@ func (tl *TodoList) Markdown() string {
 	return strings.Join(lines, "\n")
 }
 
+// DueString returns the due date as a string in the format "due=02.01.2006".
 func (tl *TodoList) DueString() string {
 	if !tl.HasDue() {
 		return ""
@@ -212,6 +221,7 @@ func (tl *TodoList) DueString() string {
 	return fmt.Sprintf("due=%s", tl.Due.Format("02.01.2006"))
 }
 
+// SizeString returns the size as a string in the format "size=1h30m".
 func (tl *TodoList) SizeString() string {
 	if !tl.HasSize() {
 		return ""
@@ -220,6 +230,7 @@ func (tl *TodoList) SizeString() string {
 	return fmt.Sprintf("size=%s", tl.Size.String())
 }
 
+// PriorityString returns the priority as a string in the format "priority=1".
 func (tl *TodoList) PriorityString() string {
 	if !tl.HasPriority() {
 		return ""
@@ -228,24 +239,28 @@ func (tl *TodoList) PriorityString() string {
 	return fmt.Sprintf("priority=%.2f", tl.Priority())
 }
 
+// Empty returns true if the todo list is empty.
 func (tl *TodoList) Empty() bool {
 	return len(tl.List) == 0
 }
 
+// HasDue returns true if the todo list has a due date.
 func (tl *TodoList) HasDue() bool {
 	return !tl.Due.IsZero()
 }
 
+// HasSize returns true if the todo list has a size.
 func (tl *TodoList) HasSize() bool {
 	return tl.Size != 0
 }
 
+// HasPriority returns true if the todo list has a priority.
 func (tl *TodoList) HasPriority() bool {
 	return tl.HasDue() && tl.HasSize()
 }
 
-// calculates the todo lists priority, the higher the value the higher the
-// priority
+// Priority calculates the todo lists priority, the higher the value the higher
+// the priority.
 func (tl *TodoList) Priority() float64 {
 	x := time.Now().Unix()
 	d := tl.Due.Unix()
@@ -261,11 +276,13 @@ func (tl *TodoList) Priority() float64 {
 	return s / diff
 }
 
+// Todo describes a single todo. Multiple todos can be grouped in a todo list.
 type Todo struct {
 	Done bool
 	Text string
 }
 
+// Markdown returns the todo as a markdown string.
 func (td Todo) Markdown() string {
 	i := "-"
 	if td.Done {

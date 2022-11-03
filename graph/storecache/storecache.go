@@ -11,6 +11,7 @@ import (
 
 var _ graph.Store = (*Cache)(nil)
 
+// Cache in memory graph.Store implementation.
 type Cache struct {
 	root  uuid.UUID
 	nodes map[uuid.UUID]*graph.Node // node storage
@@ -19,6 +20,7 @@ type Cache struct {
 	leafs map[uuid.UUID][]uuid.UUID // leaf storage
 }
 
+// GetByID returns node by id.
 func (c *Cache) GetByID(id uuid.UUID) (*graph.Node, error) {
 	node, ok := c.nodes[id]
 	if !ok {
@@ -28,6 +30,7 @@ func (c *Cache) GetByID(id uuid.UUID) (*graph.Node, error) {
 	return node, nil
 }
 
+// GetByPath returns node by path.
 func (c *Cache) GetByPath(path string) (*graph.Node, error) {
 	id, ok := c.ids[path]
 	if !ok {
@@ -37,6 +40,7 @@ func (c *Cache) GetByPath(path string) (*graph.Node, error) {
 	return c.GetByID(id)
 }
 
+// Leafs returns leafs of node.
 func (c *Cache) Leafs(path string) ([]*graph.Node, error) {
 	node, err := c.GetByPath(path)
 	if err != nil {
@@ -62,6 +66,7 @@ func (c *Cache) Leafs(path string) ([]*graph.Node, error) {
 	return nodes, nil
 }
 
+// Add adds node to cache.
 func (c *Cache) Add(parent *graph.Node, name string) (*graph.Node, error) {
 	newNode := c.newNode(name, filepath.Join(parent.Path, name))
 
@@ -85,6 +90,7 @@ func (c *Cache) Add(parent *graph.Node, name string) (*graph.Node, error) {
 	return newNode, nil
 }
 
+// Root returns root node.
 func (c *Cache) Root() (*graph.Node, error) {
 	return c.GetByID(c.root)
 }
@@ -97,6 +103,7 @@ func (c *Cache) newNode(name, path string) *graph.Node {
 	}
 }
 
+// Update updates node.
 func (c *Cache) Update(node *graph.Node) error {
 	n := c.nodes[node.ID]
 
@@ -107,6 +114,7 @@ func (c *Cache) Update(node *graph.Node) error {
 	return nil
 }
 
+// Move moves node to new parent.
 func (c *Cache) Move(node *graph.Node, path string) error {
 	if c.root == node.ID {
 		if graph.PathDepth(path) != 1 {
@@ -162,6 +170,7 @@ func removeFromLeafs(leafs []uuid.UUID, id uuid.UUID) []uuid.UUID {
 	return removed
 }
 
-func (c *Cache) Delete(_ *graph.Node) error {
+// Delete not implemented.
+func (*Cache) Delete(_ *graph.Node) error {
 	return errors.New("not implemented")
 }

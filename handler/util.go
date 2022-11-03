@@ -11,10 +11,13 @@ import (
 var log = logging.MustGetLogger("handler-utils")
 
 type (
+	// MuxHandlerFunc is a handler function for mux.
 	MuxHandlerFunc func(http.ResponseWriter, *http.Request)
+	// RatHandlerFunc is a handler function.
 	RatHandlerFunc func(http.ResponseWriter, *http.Request) error
 )
 
+// Wrap wraps a RatHandlerFunc to be used with mux.
 func Wrap(f RatHandlerFunc) MuxHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := f(w, r)
@@ -24,6 +27,7 @@ func Wrap(f RatHandlerFunc) MuxHandlerFunc {
 	}
 }
 
+// WriteResponse writes a response to the response writer.
 func WriteResponse(w http.ResponseWriter, code int, body interface{}) error {
 	w.WriteHeader(code)
 
@@ -35,6 +39,7 @@ func WriteResponse(w http.ResponseWriter, code int, body interface{}) error {
 	return nil
 }
 
+// WriteError writes an error to the response.
 func WriteError(w http.ResponseWriter, code int, message string) {
 	WriteResponse( //nolint:errcheck
 		w,
@@ -49,6 +54,7 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 	)
 }
 
+// Body reads the requests body as a specified struct.
 func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) { //nolint:ireturn,lll
 	defer r.Body.Close()
 

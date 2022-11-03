@@ -13,14 +13,13 @@ import (
 	"private/rat/graph"
 	"private/rat/graph/render/todo"
 
+	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
-
-	"github.com/gofrs/uuid"
 )
 
 var log = logging.MustGetLogger("render")
@@ -36,11 +35,13 @@ const (
 // NODE RENDER
 // -------------------------------------------------------------------------- //
 
+// NodeRender groups renderers used to render nodes from markdown to html.
 type NodeRender struct {
 	hookedRend *html.Renderer
 	cleanRend  *html.Renderer
 }
 
+// NewNodeRender creates a new NodeRender.
 func NewNodeRender() *NodeRender {
 	nr := &NodeRender{
 		cleanRend: html.NewRenderer(html.RendererOptions{}),
@@ -53,7 +54,7 @@ func NewNodeRender() *NodeRender {
 	return nr
 }
 
-func (nr *NodeRender) parser() *parser.Parser {
+func (*NodeRender) parser() *parser.Parser {
 	return parser.NewWithExtensions(parser.CommonExtensions)
 }
 
@@ -61,6 +62,7 @@ func (nr *NodeRender) parser() *parser.Parser {
 // HTML
 // -------------------------------------------------------------------------- //
 
+// HTML renders the node as HTML string.
 func (nr *NodeRender) HTML(n *graph.Node) string {
 	return string(markdown.ToHTML(
 		[]byte(parseContent(n, linkFormatWeb)),
@@ -130,9 +132,8 @@ func renderTodoList(rend *NodeRender, n *ast.CodeBlock) string {
 		return ""
 	}
 
-	list := append(todoL.NotDone().List, todoL.Done().List...)
-
-	var parts []string
+	list := append(todoL.NotDone().List, todoL.Done().List...) //nolint:gocritic
+	parts := make([]string, 0, len(list))
 
 	for _, todo := range list {
 		parts = append(parts, renderTodo(rend, todo))
@@ -151,6 +152,7 @@ func renderTodoList(rend *NodeRender, n *ast.CodeBlock) string {
 			),
 		)
 	}
+
 	if len(todoL.PriorityString()) != 0 {
 		header = append(
 			header,
@@ -160,6 +162,7 @@ func renderTodoList(rend *NodeRender, n *ast.CodeBlock) string {
 			),
 		)
 	}
+
 	if len(todoL.DueString()) != 0 {
 		header = append(
 			header,
@@ -169,6 +172,7 @@ func renderTodoList(rend *NodeRender, n *ast.CodeBlock) string {
 			),
 		)
 	}
+
 	if len(todoL.SizeString()) != 0 {
 		header = append(
 			header,
@@ -232,7 +236,8 @@ func renderError(err error) string {
 // MARKDOWN
 // -------------------------------------------------------------------------- //
 
-func (nr *NodeRender) Markdown(n *graph.Node) string {
+// Markdown renders the node as markdown string.
+func (*NodeRender) Markdown(n *graph.Node) string {
 	return parseContent(n, linkFormatAPI)
 }
 
@@ -261,6 +266,7 @@ func parseContent(n *graph.Node, lf linkFormat) string {
 	return parsedSource
 }
 
+// ReverseSlice reverses a slice.
 func ReverseSlice[T any](a []T) []T {
 	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 { //nolint:lll
 		a[left], a[right] = a[right], a[left]
@@ -414,19 +420,6 @@ func parseRatTagGraph(
 }
 
 // -------------------------------------------------------------------------- //
-// img
-// -------------------------------------------------------------------------- //
-
-func parseRatTagImg(imgPath string) (string, error) {
-	imgURL, err := url.JoinPath("/img", imgPath)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to join img path")
-	}
-
-	return fmt.Sprintf("\n<img src=\"%s\">\n", imgURL), nil
-}
-
-// -------------------------------------------------------------------------- //
 // todo
 // -------------------------------------------------------------------------- //
 
@@ -434,18 +427,17 @@ var todoRegex = regexp.MustCompile(
 	"```todo\n((?:.*\n)*?)```",
 )
 
+//nolint:gocognit,gocyclo,cyclop
 func parseRatTagTodo(
 	n *graph.Node, args []string,
 ) (string, error) {
 	var (
 		err            error
 		parent         *graph.Node
-		depth          int = math.MaxInt
+		depth          = math.MaxInt
 		filterPriority bool
 		argIdx         int
 	)
-
-	log.Debug("todo args", args)
 
 	for argIdx < len(args) {
 		err := func() error {
@@ -455,7 +447,6 @@ func parseRatTagTodo(
 			arg := args[argIdx]
 
 			if arg == "filter" {
-				log.Debug("filtering by priority")
 				filterPriority = true
 
 				return nil
@@ -573,7 +564,7 @@ func parseRatTagTodo(
 		},
 	)
 
-	var rawTodoLists []string
+	rawTodoLists := make([]string, 0, len(todoLists))
 
 	for _, todoList := range todoLists {
 		rawTodoLists = append(

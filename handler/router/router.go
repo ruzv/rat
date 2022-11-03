@@ -1,7 +1,6 @@
 package router
 
 import (
-	"bytes"
 	"io/fs"
 	"net/http"
 	"time"
@@ -72,42 +71,37 @@ func New(
 	return router, nil
 }
 
+// BufferResponseWriter is a wrapper around http.ResponseWriter that proxies
+// the data ans stores the status code.
 type BufferResponseWriter struct {
 	Code int
-	Body bytes.Buffer
+	w    http.ResponseWriter
 }
-
-// MINUS25
 
 var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
 
+// Header .
 func (w *BufferResponseWriter) Header() http.Header {
-	return http.Header{}
+	return w.w.Header()
 }
 
+// Write .
 func (w *BufferResponseWriter) Write(b []byte) (int, error) {
-	n, err := w.Body.Write(b)
+	n, err := w.w.Write(b)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to write to buffer")
+		return 0, errors.Wrap(err, "failed to write")
 	}
 
 	return n, nil
 }
 
+// WriteHeader .
 func (w *BufferResponseWriter) WriteHeader(code int) {
 	w.Code = code
+	w.w.WriteHeader(code)
 }
 
-func (w *BufferResponseWriter) Flush(out http.ResponseWriter) error {
-	if w.Code != 0 {
-		out.WriteHeader(w.Code)
-	}
-
-	_, err := w.Body.WriteTo(out)
-
-	return errors.Wrap(err, "failed to write body")
-}
-
+// GetAccessLoggerMW returns a middleware that logs the access.
 func GetAccessLoggerMW() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -121,14 +115,9 @@ func GetAccessLoggerMW() mux.MiddlewareFunc {
 				r.Method,
 				b.Code,
 				time.Since(startT).Seconds(),
-				b.Body.Len(),
+				0,
 				r.URL.Path,
 			)
-
-			err := b.Flush(w)
-			if err != nil {
-				log.Error("failure to flush response", err)
-			}
 		})
 	}
 }

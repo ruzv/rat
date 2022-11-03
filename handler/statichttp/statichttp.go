@@ -11,6 +11,7 @@ import (
 
 var log = logging.MustGetLogger("statichttp")
 
+// RegisterRoutes registers the routes for the static http handler.
 func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 	log.Info("seting up statics serving")
 

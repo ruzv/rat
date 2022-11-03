@@ -1,12 +1,12 @@
 {
     "gopls": {
-        "gofumpt": true,
+        // "gofumpt": true,
         "analyses": {
             "nilness": true,
             "unusedwrite": true
             // "fieldalignment": true
-        }
-        // "formatting.gofumpt": true,
+        },
+        "formatting.gofumpt": true,
     },
 
     "emeraldwalk.runonsave": {

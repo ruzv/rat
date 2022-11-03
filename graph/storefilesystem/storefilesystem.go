@@ -6,28 +6,36 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/op/go-logging"
-	"github.com/pkg/errors"
-
 	"private/rat/graph"
 
 	"github.com/gofrs/uuid"
+	"github.com/op/go-logging"
+	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("storefilesystem")
-
-var _ graph.Store = (*FileSystem)(nil)
+var (
+	log             = logging.MustGetLogger("storefilesystem")
+	_   graph.Store = (*FileSystem)(nil)
+)
 
 const (
 	metadataFilename = ".metadata.json"
 	contentFilename  = "content.md"
+	newNodeTemplate  = //
+	`# %s
+		
+<rat graph>
+`
 )
 
+// FileSystem implements graph.Store reading and writing to the filesystem. for
+// every operation.
 type FileSystem struct {
 	root string // node path, not full path
 	path string // path to a directory containing the graph
 }
 
+// NewFileSystem returns a new FileSystem.
 func NewFileSystem(root, path string) (*FileSystem, error) {
 	fs := &FileSystem{
 		root: root,
@@ -71,6 +79,7 @@ func NewFileSystem(root, path string) (*FileSystem, error) {
 	return fs, nil
 }
 
+// GetByID returns a node by ID.
 func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 	root, err := fs.Root()
 	if err != nil {
@@ -103,6 +112,7 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 	return n, nil
 }
 
+// GetByPath returns a node by path.
 func (fs *FileSystem) GetByPath(path string) (*graph.Node, error) {
 	fullpath := fs.fullPath(path)
 
@@ -176,6 +186,7 @@ func (fs *FileSystem) fullPath(path string) string {
 	return filepath.Join(fs.path, path)
 }
 
+// Leafs returns leaf nodes.
 func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 	fullPath := fs.fullPath(path)
 
@@ -203,12 +214,7 @@ func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 	return leafNodes, nil
 }
 
-const newNodeTemplate = //
-`# %s
-		
-<rat graph>
-`
-
+// Add adds a new node to the graph.
 func (fs *FileSystem) Add(
 	parent *graph.Node,
 	name string,
@@ -287,14 +293,17 @@ func setCont(node *graph.Node, path string) error {
 	return nil
 }
 
+// Root returns the root node of the graph.
 func (fs *FileSystem) Root() (*graph.Node, error) {
 	return fs.GetByPath(fs.root)
 }
 
+// Update updates the content of the node.
 func (fs *FileSystem) Update(node *graph.Node) error {
 	return setCont(node, fs.fullPath(node.Path))
 }
 
+// Move moves a node from one parent to another.
 func (fs *FileSystem) Move(node *graph.Node, path string) error {
 	err := os.Rename(fs.fullPath(node.Path), fs.fullPath(path))
 	if err != nil {
@@ -307,6 +316,7 @@ func (fs *FileSystem) Move(node *graph.Node, path string) error {
 	return nil
 }
 
+// Delete removes node from the filesystem.
 func (fs *FileSystem) Delete(node *graph.Node) error {
 	err := os.RemoveAll(fs.fullPath(node.Path))
 	if err != nil {

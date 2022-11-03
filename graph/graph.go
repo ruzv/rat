@@ -4,14 +4,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/op/go-logging"
-	"github.com/pkg/errors"
-
 	"github.com/gofrs/uuid"
+	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("graph")
+// var log = logging.MustGetLogger("graph")
 
+// Store describes a graph store.
 type Store interface {
 	GetByID(id uuid.UUID) (*Node, error)
 	GetByPath(path string) (*Node, error)
@@ -23,6 +22,7 @@ type Store interface {
 	Delete(node *Node) error
 }
 
+// Node describes a single node.
 type Node struct {
 	ID      uuid.UUID `json:"id"`
 	Name    string    `json:"name"`
@@ -35,6 +35,7 @@ type Node struct {
 // LEAFS
 // -------------------------------------------------------------------------- //
 
+// Leafs returns all leafs of node.
 func (n *Node) Leafs() ([]*Node, error) {
 	leafs, err := n.Store.Leafs(n.Path)
 	if err != nil {
@@ -44,6 +45,7 @@ func (n *Node) Leafs() ([]*Node, error) {
 	return leafs, nil
 }
 
+// GenID enerates an sets a new ID for node.
 func (n *Node) GenID() error {
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -55,6 +57,7 @@ func (n *Node) GenID() error {
 	return nil
 }
 
+// Add new node as child with name.
 func (n *Node) Add(name string) (*Node, error) {
 	node, err := n.Store.Add(n, name)
 	if err != nil {
@@ -64,7 +67,7 @@ func (n *Node) Add(name string) (*Node, error) {
 	return node, nil
 }
 
-// walks to every child node recursively starting from n. callback is called
+// Walk to every child node recursively starting from n. callback is called
 // for every child node. callback is not called for n.
 func (n *Node) Walk(callback func(int, *Node) bool) error {
 	return n.walk(0, callback)
@@ -94,6 +97,7 @@ func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
 // UPDATE
 // -------------------------------------------------------------------------- //
 
+// Update updates node.
 func (n *Node) Update() error {
 	err := n.Store.Update(n)
 	if err != nil {
@@ -103,6 +107,7 @@ func (n *Node) Update() error {
 	return nil
 }
 
+// Rename renames a node.
 func (n *Node) Rename(name string) error {
 	err := n.Store.Move(n, filepath.Join(ParentPath(n.Path), name))
 	if err != nil {
@@ -112,6 +117,7 @@ func (n *Node) Rename(name string) error {
 	return nil
 }
 
+// Move node to new path.
 func (n *Node) Move(path string) error {
 	err := n.Store.Move(n, path)
 	if err != nil {
@@ -125,6 +131,7 @@ func (n *Node) Move(path string) error {
 // DELETE
 // -------------------------------------------------------------------------- //
 
+// DeleteAll deletes a node and all its children.
 func (n *Node) DeleteAll() error {
 	err := n.Store.Delete(n)
 	if err != nil {
@@ -134,6 +141,7 @@ func (n *Node) DeleteAll() error {
 	return nil
 }
 
+// DeleteSingle deletes only a single node, moving all children to parent.
 func (n *Node) DeleteSingle() error {
 	leafs, err := n.Leafs()
 	if err != nil {
@@ -161,11 +169,13 @@ func (n *Node) DeleteSingle() error {
 // METRICS
 // -------------------------------------------------------------------------- //
 
+// Metrics groups all nodes metrics.
 type Metrics struct {
 	Nodes    int
 	MaxDepth int
 }
 
+// Metrics calculates metrics for node.
 func (n *Node) Metrics() (*Metrics, error) {
 	var m Metrics
 
@@ -206,14 +216,16 @@ func NameFromPath(path string) string {
 	return parts[len(parts)-1]
 }
 
+// PathDepth returns depth.
 func PathDepth(path string) int {
 	return len(PathParts(path))
 }
 
+// PathParts returns path parts.
 func PathParts(path string) []string {
 	split := strings.Split(path, "/")
+	parts := make([]string, 0, len(split))
 
-	var parts []string
 	for _, part := range split {
 		if part == "" {
 			continue
@@ -225,6 +237,7 @@ func PathParts(path string) []string {
 	return parts
 }
 
+// ParentPath returns parent path of node. Returns root path for root path.
 func ParentPath(path string) string {
 	parts := PathParts(path)
 
@@ -239,6 +252,7 @@ func ParentPath(path string) string {
 // PARENT
 // -------------------------------------------------------------------------- //
 
+// Parent .
 func (n *Node) Parent() (*Node, error) {
 	parentPath := ParentPath(n.Path)
 

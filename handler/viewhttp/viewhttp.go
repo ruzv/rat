@@ -5,24 +5,24 @@ import (
 	"io/fs"
 	"net/http"
 
-	"private/rat/handler"
+	hUtil "private/rat/handler"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
-type Handler struct {
+type handler struct {
 	viewTemplate *template.Template
 }
 
 // creates a new Handler.
-func newHandler(embeds fs.FS) (*Handler, error) {
+func newHandler(embeds fs.FS) (*handler, error) {
 	t, err := template.ParseFS(embeds, "index.html")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse index.html")
 	}
 
-	return &Handler{
+	return &handler{
 		viewTemplate: t,
 	}, nil
 }
@@ -38,7 +38,7 @@ func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 		Subrouter().
 		StrictSlash(true)
 
-	viewRouter.HandleFunc("/", handler.Wrap(h.read)).Methods(http.MethodGet)
+	viewRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
 
 	return nil
 }
@@ -47,7 +47,7 @@ func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 // READ
 // -------------------------------------------------------------------------- //
 
-func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	path := r.URL.Query().Get("node")
 
 	// w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -59,7 +59,7 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 		map[string]string{"path": path, "api_base": ""},
 	)
 	if err != nil {
-		handler.WriteError(
+		hUtil.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"failed to execute template",

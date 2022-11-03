@@ -2,12 +2,10 @@ run:
   deadline: 2m
   allow-parallel-runners: true
 
+severity:
+  default-severity: critical # info, minor, major, critical, blocker
+
 linters-settings:
-  lll:
-    line-length: 80
-    tab-width: 4
-  gocyclo:
-    min-complexity: 10
   depguard:
     list-type: blacklist
     include-go-root: true
@@ -16,28 +14,107 @@ linters-settings:
       - github.com/aws/aws-sdk-go/*
       - github.com/satori/go.uuid
       - github.com/satori/uuid
+  gocyclo:
+    min-complexity: 10
   grouper:
     const-require-single-const: true
     import-require-single-import: true
+  lll:
+    line-length: 80
+    tab-width: 4
+  revive:
+    enable-all-rules: true
+    severity: error
+    rules:
+      # settings
+      - name: exported
+        arguments:
+          - checkPrivateReceivers
+          - disableStutteringCheck
+      # disabled
+      - name: argument-limit
+        disabled: true
+      - name: cognitive-complexity
+        disabled: true
+      - name: function-result-limit
+        disabled: true
+      - name: function-length
+        disabled: true
+      - name: cyclomatic
+        disabled: true
+      - name: max-public-structs
+        disabled: true
+      - name: file-header
+        disabled: true
+      - name: banned-characters
+        disabled: true
+      - name: line-length-limit
+        disabled: true
+      - name: unhandled-error
+        disabled: true
+      - name: add-constant
+        disabled: true
+      - name: confusing-naming
+        disabled: true
+      - name: confusing-results
+        disabled: true
+      - name: nested-structs
+        disabled: true
+      - name: flag-parameter
+        disabled: true
+      - name: import-shadowing
+        disabled: true
+  tagliatelle:
+    case:
+      rules:
+        json: snake
+
 
 linters:
   enable-all: true
   disable:
-    - varnamelen
-    - ifshort
-    - exhaustivestruct
-    - exhaustruct
-    - gofumpt
-    - gci
-    - funlen
-    - gochecknoglobals
     - gomnd
-    - nosnakecase
-    - golint
+    - gomoddirectives
+    # default disabled linters
+    - dupl
+    - exhaustive
+    - exhaustruct
+    - exhaustivestruct
+    - funlen
+    - gci
+    - gofumpt
+    - gochecknoglobals
+    - gochecknoinits
+    - godox
+    - ifshort
+    - ireturn
+    - varnamelen
+    # deprecated linters
     - deadcode
-    - varcheck
-    - structcheck
-    - maligned
+    - golint
     - interfacer
+    - maligned
+    - nosnakecase
     - scopelint
+    - structcheck
+    - varcheck
   fast: false
+
+issues:
+  include:
+    - EXC0012
+    - EXC0014
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gofmt
+        # default unit test disabled linters
+        - containedctx
+        - cyclop
+        - errcheck
+        - forcetypeassert
+        - gocognit
+        - gocyclo
+        - gosec
+        - maintidx
+        - testpackage
