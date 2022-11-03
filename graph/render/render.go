@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"regexp"
 	"sort"
@@ -310,8 +311,7 @@ func parseRatTag(n *graph.Node, tag string, lf linkFormat) (string, error) {
 		return parseRatTagGraph(n, args[0], lf)
 
 	case ratTagKeywordTodo:
-
-		return parseRatTagTodo(n, "")
+		return parseRatTagTodo(n, args)
 
 	default:
 		return "", errors.New("unknown keyword")
@@ -434,10 +434,76 @@ var todoRegex = regexp.MustCompile(
 	"```todo\n((?:.*\n)*?)```",
 )
 
-func parseRatTagTodo(n *graph.Node, depth string) (string, error) {
-	p, err := n.Parent()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get parent")
+func parseRatTagTodo(
+	n *graph.Node, args []string,
+) (string, error) {
+	var (
+		err            error
+		parent         *graph.Node
+		depth          int = math.MaxInt
+		filterPriority bool
+		argIdx         int
+	)
+
+	log.Debug("todo args", args)
+
+	for argIdx < len(args) {
+		err := func() error {
+			// consumes one
+			defer func() { argIdx++ }()
+
+			arg := args[argIdx]
+
+			if arg == "filter" {
+				log.Debug("filtering by priority")
+				filterPriority = true
+
+				return nil
+			}
+
+			// can consume two
+			if argIdx+1 >= len(args) {
+				return nil
+			}
+
+			// consumes two
+			defer func() { argIdx++ }()
+
+			if arg == "parent" {
+				parentID, err := uuid.FromString(args[argIdx+1])
+				if err != nil {
+					return errors.Wrap(err, "failed to parse parent id")
+				}
+
+				parent, err = n.Store.GetByID(parentID)
+				if err != nil {
+					return errors.Wrap(err, "failed to get parent node")
+				}
+
+				return nil
+			}
+
+			if arg == "depth" {
+				depth, err = strconv.Atoi(args[argIdx+1])
+				if err != nil {
+					return errors.Wrap(err, "failed to parse depth")
+				}
+
+				return nil
+			}
+
+			return nil
+		}()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if parent == nil {
+		parent, err = n.Parent()
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get parent")
+		}
 	}
 
 	var (
@@ -445,8 +511,12 @@ func parseRatTagTodo(n *graph.Node, depth string) (string, error) {
 		derr      error
 	)
 
-	err = p.Walk(
+	err = parent.Walk(
 		func(i int, leaf *graph.Node) bool {
+			if i == depth {
+				return false
+			}
+
 			matches := todoRegex.FindAllStringSubmatch(leaf.Content, -1)
 			for _, match := range matches {
 				todoL, err := todo.Parse(match[1])
@@ -459,6 +529,10 @@ func parseRatTagTodo(n *graph.Node, depth string) (string, error) {
 
 				notDone := todoL.NotDone()
 				if notDone.Empty() {
+					continue
+				}
+
+				if filterPriority && !notDone.HasPriority() {
 					continue
 				}
 

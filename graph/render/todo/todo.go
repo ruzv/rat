@@ -2,6 +2,7 @@ package todo
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -81,6 +82,10 @@ func Parse(raw string) (*TodoList, error) {
 		var done bool
 
 		rawTodo = strings.TrimSpace(rawTodo)
+
+		if len(rawTodo) == 0 {
+			continue
+		}
 
 		if strings.HasPrefix(rawTodo, "x ") {
 			done = true
@@ -247,7 +252,13 @@ func (tl *TodoList) Priority() float64 {
 	diff := float64(d-x) / (60 * 60 * 24)
 	s := tl.Size.Seconds() / (60 * 60 * 24)
 
-	return -s * diff
+	if diff <= 0 {
+		return math.Inf(+1)
+	}
+
+	// s / diff - as long as diff is not 0
+
+	return s / diff
 }
 
 type Todo struct {
