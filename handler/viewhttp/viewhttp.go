@@ -1,9 +1,9 @@
 package viewhttp
 
 import (
-	"html/template"
 	"io/fs"
 	"net/http"
+	"text/template"
 
 	hUtil "private/rat/handler"
 
@@ -12,18 +12,15 @@ import (
 )
 
 type handler struct {
-	viewTemplate *template.Template
+	// viewTemplate *template.Template
+	embeds fs.FS
 }
 
 // creates a new Handler.
 func newHandler(embeds fs.FS) (*handler, error) {
-	t, err := template.ParseFS(embeds, "index.html")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse index.html")
-	}
-
 	return &handler{
-		viewTemplate: t,
+		embeds: embeds,
+		// viewTemplate: t,
 	}, nil
 }
 
@@ -52,9 +49,14 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 
 	// w.Header().Add("Access-Control-Allow-Origin", "*")
 
+	t, err := h.template(w)
+	if err != nil {
+		return errors.Wrap(err, "failed to get template")
+	}
+
 	w.WriteHeader(http.StatusOK)
 
-	err := h.viewTemplate.Execute(
+	err = t.Execute(
 		w,
 		map[string]string{"path": path, "api_base": ""},
 	)
@@ -69,4 +71,13 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return nil
+}
+
+func (h *handler) template(w http.ResponseWriter) (*template.Template, error) {
+	t, err := template.ParseFS(h.embeds, "index.html")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse index.html")
+	}
+
+	return t, nil
 }

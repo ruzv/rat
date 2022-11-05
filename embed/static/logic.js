@@ -14,88 +14,85 @@ function apiPath(path) {
 // console
 // -------------------------------------------------------------------------- //
 
-function consoleControlsGetInput() {
-  return document.getElementById("console-controls-input");
-}
+function consolePromptSubmit(event) {
+  let p = document.getElementById("console-prompt");
 
-function consoleControlsAdd() {
-  let input = consoleControlsGetInput();
-  let v = input.value;
-  input.value = "";
-
-  if (v === "") {
+  if (p.value === "") {
     return;
   }
 
   fetch(apiPath(PATH), {
     method: "POST",
     body: JSON.stringify({
-      name: v,
+      name: p.value,
     }),
     headers: {
       "Content-Type": "application/json",
     },
   })
     .then((response) => {
-      // indicates whether the response is successful (status code 200-299) or not
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
-
-      return response.json();
     })
-    .then((data) => {
-      window.location = "/edit/" + data.path;
+    .then(() => {
+      p.value = "";
     })
     .catch((error) => console.log(error));
 }
 
-let deleteConfirmed = false;
+function consoleSetDataFields(fields) {
+  let console = document.getElementById("console-data-fields");
+  console.innerHTML = "";
 
-function consoleControlsGetDelete() {
-  return document.getElementById("console-controls-delete");
+  fields.forEach((field) => {
+    let div = document.createElement("div");
+    div.classList.add("console-data-field");
+
+    let span = document.createElement("span");
+    span.className = "markdown-code";
+    span.innerHTML = field;
+    span.onclick = () => {
+      navigator.clipboard.writeText(span.innerHTML);
+
+      let prevBorder = span.style.border;
+      span.style.border = "2px solid #ffffff";
+
+      setTimeout(() => {
+        span.style.border = prevBorder;
+      }, 70);
+    };
+
+    div.appendChild(span);
+    console.appendChild(div);
+  });
 }
 
-function consoleControlsDelete() {
-  if (deleteConfirmed === false) {
-    let d = consoleControlsGetDelete();
-    d.innerHTML = "confirm";
-    deleteConfirmed = true;
+function consoleSetNavigator(path) {
+  let nav = document.getElementById("console-navigator");
+  nav.innerHTML = "";
 
-    return;
-  }
+  let parts = path.split("/");
 
-  if (deleteConfirmed === true) {
-    deleteConfirmed = false;
-    fetch(apiPath(), {
-      method: "DELETE",
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-      })
-      .catch((error) => console.log(error));
-  }
-}
+  for (let i = 0; i < parts.length; i++) {
+    let span = document.createElement("span");
+    span.className = "markdown-code console-navigator-field";
+    span.innerHTML = parts[i];
+    span.style.marginRight = "5px";
+    span.onclick = () => {
+      navigator.clipboard.writeText(span.innerHTML);
 
-class ConsoleData {
-  constructor(id, name, path) {
-    this.getIDField().innerHTML = id;
-    this.getNameField().innerHTML = name;
-    this.getPathField().innerHTML = path;
-  }
+      let prevBorder = span.style.border;
+      span.style.border = "2px solid #ffffff";
 
-  getIDField() {
-    return document.getElementById("console-data-field-id");
-  }
+      setTimeout(() => {
+        span.style.border = prevBorder;
+      }, 70);
 
-  getNameField() {
-    return document.getElementById("console-data-field-name");
-  }
+      setNode(parts.slice(0, i + 1).join("/"));
+    };
 
-  getPathField() {
-    return document.getElementById("console-data-field-path");
+    nav.appendChild(span);
   }
 }
 
@@ -114,32 +111,20 @@ function copyConsoleDataField(element) {
 // content
 // -------------------------------------------------------------------------- //
 
-class Content {
-  constructor(html) {
-    this.getElement().innerHTML = html;
-  }
-
-  getElement() {
-    return document.getElementById("page-content");
-  }
+function contentSet(content) {
+  let c = document.getElementById("page-content");
+  c.innerHTML = content;
 }
 
 // -------------------------------------------------------------------------- //
 // leafs
 // -------------------------------------------------------------------------- //
 
-class Leafs {
-  constructor(leafPaths) {
-    // this.leafPaths = leafPaths;
-    this.containerSwitcher = false;
+function setLeafs(leafPaths) {
+  document.getElementById("leafs-container-one").innerHTML = "";
+  document.getElementById("leafs-container-two").innerHTML = "";
 
-    this.leftColumnHeight = 0;
-    this.rightColumnHeight = 0;
-
-    this.loadLeafs(leafPaths);
-  }
-
-  getContainer() {
+  let getContainer = () => {
     let c1 = document.getElementById("leafs-container-one");
     let c2 = document.getElementById("leafs-container-two");
 
@@ -147,23 +132,14 @@ class Leafs {
       return c2;
     }
 
-    // console.log(
-    //   "get",
-    //   document.getElementById("leafs-container-one").offsetHeight,
-    //   document.getElementById("leafs-container-two").offsetHeight
-    // );
-
     return c1;
-  }
+  };
 
-  newLeaf(data) {
-    // let leafLink = document.createElement("a");
-    // leafLink.href = "/view/?node=" + path;
-
+  let newLeaf = (data) => {
     let leafBox = document.createElement("div");
     leafBox.className = "page-box clickable";
     leafBox.onclick = () => {
-      window.location = "/view/?node=" + data.path;
+      setNode(data.path);
     };
 
     let leaf = document.createElement("div");
@@ -173,26 +149,23 @@ class Leafs {
     leafBox.appendChild(leaf);
 
     return leafBox;
-  }
+  };
 
-  loadLeafs(leafPaths) {
-    let leafs = {};
+  let leafs = {};
+  let all = [];
 
-    let all = [];
-
+  leafPaths.forEach((path) => {
+    all.push(
+      getNode(path, "html", false).then((data) => {
+        leafs[path] = newLeaf(data);
+      })
+    );
+  });
+  Promise.all(all).then(() => {
     for (let i = 0; i < leafPaths.length; i++) {
-      all.push(
-        getNode(leafPaths[i], "html", false).then((data) => {
-          leafs[i] = this.newLeaf(data);
-        })
-      );
+      getContainer().appendChild(leafs[leafPaths[i]]);
     }
-    Promise.all(all).then(() => {
-      for (let i = 0; i < leafPaths.length; i++) {
-        this.getContainer().appendChild(leafs[i]);
-      }
-    });
-  }
+  });
 }
 
 function getNode(path, format, includeLeafs) {
@@ -212,21 +185,21 @@ function getNode(path, format, includeLeafs) {
   });
 }
 
-let content;
-let consoleData;
 let leafs;
 
-getNode(PATH, "html", true)
-  .then((data) => {
-    content = new Content(data.content);
-    consoleData = new ConsoleData(data.id, data.name, data.path);
+function setNode(path) {
+  getNode(path, "html", true)
+    .then((data) => {
+      contentSet(data.content);
+      consoleSetDataFields([data.id, data.name, data.path]);
+      consoleSetNavigator(data.path);
+      setLeafs(data.leafs);
 
-    if (data.leafs) {
-      leafs = new Leafs(data.leafs);
-    }
+      document.title = data.name;
+    })
+    .then(() => {
+      console.log("loaded");
+    });
+}
 
-    document.title = data.name;
-  })
-  .then(() => {
-    console.log("loaded");
-  });
+setNode(PATH);

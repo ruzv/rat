@@ -18,68 +18,15 @@
   <body>
     <div class="page">
       <div class="page-box">
-        <div class="container">
-          <div class="container-column-three">
-            <div class="console-column-padded">
-              <a href="/view/">
-                <img
-                  src="/static/logo/rat_transparent.png"
-                  class="console-logo clickable"
-                />
-              </a>
-            </div>
-          </div>
-
-          <div class="container-column-three">
-            <div class="console-column-padded">
-              <input
-                id="console-controls-input"
-                class="console-controls-input"
-                type="text"
-              />
-
-              <button
-                class="console-controls-button"
-                onclick="consoleControlsAdd()"
-              >
-                add
-              </button>
-
-              <button class="console-controls-button" hidden="true">mv</button>
-
-              <button
-                id="console-controls-delete"
-                class="console-controls-button"
-                onclick="consoleControlsDelete()"
-                hidden="true"
-              >
-                delete
-              </button>
-            </div>
-          </div>
-
-          <div class="container-column-three">
-            <div class="console-column-padded">
-              <p class="console-data-label">ID</p>
-              <p
-                id="console-data-field-id"
-                class="console-data-field"
-                onclick="copyConsoleDataField(this)"
-              ></p>
-              <p class="console-data-label">Name</p>
-              <p
-                id="console-data-field-name"
-                class="console-data-field"
-                onclick="copyConsoleDataField(this)"
-              ></p>
-              <p class="console-data-label">Path</p>
-              <p
-                id="console-data-field-path"
-                class="console-data-field"
-                onclick="copyConsoleDataField(this)"
-              ></p>
-            </div>
-          </div>
+        <div class="console">
+          <form
+            class="console-prompt-form"
+            onsubmit="consolePromptSubmit(event); return false;"
+          >
+            <input id="console-prompt" class="console-prompt" type="text" />
+          </form>
+          <div id="console-data-fields"></div>
+          <div id="console-navigator"></div>
         </div>
       </div>
 

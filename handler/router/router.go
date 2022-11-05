@@ -106,7 +106,9 @@ func GetAccessLoggerMW() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			startT := time.Now()
-			b := &BufferResponseWriter{}
+			b := &BufferResponseWriter{
+				w: w,
+			}
 
 			next.ServeHTTP(b, r)
 

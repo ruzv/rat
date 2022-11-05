@@ -68,54 +68,41 @@ a:visited {
 /* -------------------------------------------------------------------------- */
 /* console */
 /* -------------------------------------------------------------------------- */
-
-.console-column-padded {
-  padding: 15px;
+.console {
+  padding: 10px;
 }
 
-.console-logo {
-  border: 3px solid #ffffff00;
-  border-radius: 8px;
-}
-
-.console-controls-input {
-  /* height: 100%; */
+.console-prompt{
   width: 100%;
-  font-size: 20px;
-  /* color: #5d5d5d; */
   background-color: #7f7f7f;
-}
-
-/* input.console-controls-input:focus{
-  border: 10px solid red;
-} */
-
-.console-controls-button {
-  width: 100%;
-  /* height: 100%; */
   font-size: 20px;
-
-  background-color: #5d5d5d;
-
-  margin-top: 10px;
+  font-family: "Roboto Mono", monospace;
+  border-radius: 8px;
+  border: 4px solid #363636;
 }
 
-.console-data-label {
-  font-weight: bold;
+.console-prompt-form {
   margin: 0;
 }
+
 
 .console-data-field {
-  color: #5d5d5d;
-  /* font-weight: bold; */
-  margin: 0;
-  margin-bottom: 10px;
-  border: 2px solid #282828;
+  margin-top: 4px;
 }
 
-.console-data-field:hover {
-  border: 2px solid #7a7a7a;
+.console-data-field > span:hover {
+  border: 2px solid #841a84;
 }
+
+.console-navigator-field:hover {
+  border: 2px solid #841a84;
+}
+
+#console-navigator {
+  margin-top: 4px;
+}
+
+
 
 /* -------------------------------------------------------------------------- */
 /* leafs                                                                      */
