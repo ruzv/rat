@@ -15,7 +15,7 @@ type Store interface {
 	GetByID(id uuid.UUID) (*Node, error)
 	GetByPath(path string) (*Node, error)
 	Leafs(path string) ([]*Node, error)
-	Add(parent *Node, name string) (*Node, error)
+	Add(parent *Node, name, template string) (*Node, error)
 	Root() (*Node, error)
 	Update(node *Node) error
 	Move(node *Node, path string) error
@@ -24,11 +24,12 @@ type Store interface {
 
 // Node describes a single node.
 type Node struct {
-	ID      uuid.UUID `json:"id"`
-	Name    string    `json:"name"`
-	Path    string    `json:"path"`
-	Content string    `json:"content"`
-	Store   Store     `json:"-"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Path     string    `json:"path"`
+	Content  string    `json:"content"`
+	Template string    `json:"template"`
+	Store    Store     `json:"-"`
 }
 
 // -------------------------------------------------------------------------- //
@@ -59,12 +60,41 @@ func (n *Node) GenID() error {
 
 // Add new node as child with name.
 func (n *Node) Add(name string) (*Node, error) {
-	node, err := n.Store.Add(n, name)
+	template, err := n.getTemplate()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get template")
+	}
+
+	node, err := n.Store.Add(n, name, template)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to add node")
 	}
 
 	return node, nil
+}
+
+func (n *Node) getTemplate() (string, error) {
+	root, err := n.Store.Root()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get root")
+	}
+
+	return func() (string, error) {
+		if n.Template != "" {
+			return n.Template, nil
+		}
+
+		p, err := n.Parent()
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get parent")
+		}
+
+		if p.ID == root.ID {
+			return n.Template, nil
+		}
+
+		return p.getTemplate()
+	}()
 }
 
 // Walk to every child node recursively starting from n. callback is called

@@ -1,10 +1,11 @@
 package storefilesystem
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"private/rat/graph"
 
@@ -21,8 +22,9 @@ var (
 const (
 	metadataFilename = ".metadata.json"
 	contentFilename  = "content.md"
-	newNodeTemplate  = //
-	`# %s
+	templateFilename = ".template.md"
+	newNodeTemplate  = `
+# %s
 		
 <rat graph>
 `
@@ -128,6 +130,11 @@ func (fs *FileSystem) GetByPath(path string) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to get cont")
 	}
 
+	err = getTemplate(node, fullpath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get template")
+	}
+
 	return node, nil
 }
 
@@ -166,6 +173,19 @@ func getCont(node *graph.Node, path string) error {
 	}
 
 	node.Content = string(data)
+
+	return nil
+}
+
+func getTemplate(node *graph.Node, path string) error {
+	p := filepath.Join(path, templateFilename)
+
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
+
+	node.Template = string(data)
 
 	return nil
 }
@@ -213,14 +233,30 @@ func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 // Add adds a new node to the graph.
 func (fs *FileSystem) Add(
 	parent *graph.Node,
-	name string,
+	name, templ string,
 ) (*graph.Node, error) {
 	newNode := fs.newNode(name, filepath.Join(parent.Path, name))
 	newFullPath := filepath.Join(fs.fullPath(parent.Path), name)
 
-	newNode.Content = fmt.Sprintf(newNodeTemplate, name)
+	t, err := template.New("newNode").Parse(templ)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse template")
+	}
 
-	err := newNode.GenID()
+	buff := &bytes.Buffer{}
+
+	err = t.Execute(buff, struct {
+		Name string
+	}{
+		Name: name,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to execute template")
+	}
+
+	newNode.Content = buff.String()
+
+	err = newNode.GenID()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate id")
 	}

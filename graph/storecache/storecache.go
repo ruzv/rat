@@ -67,7 +67,7 @@ func (c *Cache) Leafs(path string) ([]*graph.Node, error) {
 }
 
 // Add adds node to cache.
-func (c *Cache) Add(parent *graph.Node, name string) (*graph.Node, error) {
+func (c *Cache) Add(parent *graph.Node, name, _ string) (*graph.Node, error) {
 	newNode := c.newNode(name, filepath.Join(parent.Path, name))
 
 	err := newNode.GenID()
