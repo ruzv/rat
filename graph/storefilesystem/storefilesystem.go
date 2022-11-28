@@ -165,10 +165,6 @@ func getCont(node *graph.Node, path string) error {
 		return errors.Wrap(err, "failed to read content file")
 	}
 
-	if len(data) == 0 {
-		log.Debugf("zero length read")
-	}
-
 	node.Content = string(data)
 
 	return nil

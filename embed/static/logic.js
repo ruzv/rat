@@ -10,11 +10,35 @@ function apiPath(path) {
   return window.location.origin + "/nodes/" + path + "/";
 }
 
+function viewPath(path) {
+  let url = new URL(window.location.origin);
+  url.pathname = "/view/";
+
+  url.searchParams.append("node", path);
+
+  return url.toString();
+}
+
+let prevT = null;
+
+function log(msg) {
+  let t = Date.now();
+  let dt = 0;
+
+  if (prevT !== null) {
+    dt = t - prevT;
+  }
+
+  console.log(dt, msg);
+
+  prevT = t;
+}
+
 // -------------------------------------------------------------------------- //
 // console
 // -------------------------------------------------------------------------- //
 
-function consolePromptSubmit(event) {
+function consolePromptSubmit() {
   let p = document.getElementById("console-prompt");
 
   if (p.value === "") {
@@ -37,6 +61,7 @@ function consolePromptSubmit(event) {
     })
     .then(() => {
       p.value = "";
+      setNode(CURRENT_NODE_PATH);
     })
     .catch((error) => console.log(error));
 }
@@ -89,7 +114,7 @@ function consoleSetNavigator(path) {
         span.style.border = prevBorder;
       }, 70);
 
-      setNode(parts.slice(0, i + 1).join("/"));
+      window.location.href = viewPath(parts.slice(0, i + 1).join("/"));
     };
 
     nav.appendChild(span);
@@ -139,7 +164,8 @@ function setLeafs(leafPaths) {
     let leafBox = document.createElement("div");
     leafBox.className = "page-box clickable";
     leafBox.onclick = () => {
-      setNode(data.path);
+      // setNode(data.path);
+      window.location.href = viewPath(data.path);
     };
 
     let leaf = document.createElement("div");
@@ -168,21 +194,22 @@ function setLeafs(leafPaths) {
   });
 }
 
-function getNode(path, format, includeLeafs) {
+async function getNode(path, format, includeLeafs) {
   let url = new URL(apiPath(path));
 
   url.searchParams.append("format", format);
   url.searchParams.append("leafs", includeLeafs);
 
-  return fetch(url, {
+  const response = await fetch(url, {
     method: "GET",
-  }).then((response) => {
-    if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
-    }
-
-    return response.json();
   });
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  return data;
 }
 
 function setNode(path) {
@@ -198,8 +225,9 @@ function setNode(path) {
       document.title = data.name;
     })
     .then(() => {
-      console.log("loaded");
+      log("loaded");
     });
 }
 
+log("starting loading");
 setNode(CURRENT_NODE_PATH);

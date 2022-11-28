@@ -105,11 +105,11 @@ func (w *BufferResponseWriter) WriteHeader(code int) {
 func GetAccessLoggerMW() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			startT := time.Now()
 			b := &BufferResponseWriter{
 				w: w,
 			}
 
+			startT := time.Now()
 			next.ServeHTTP(b, r)
 
 			if b.Code/100 == 2 {
@@ -117,7 +117,7 @@ func GetAccessLoggerMW() mux.MiddlewareFunc {
 			}
 
 			log.Errorf(
-				"rat access %-7s %d %.5fs %s",
+				"rat access %-7s %d %-7fs %s",
 				r.Method,
 				b.Code,
 				time.Since(startT).Seconds(),
