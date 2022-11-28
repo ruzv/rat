@@ -259,13 +259,16 @@ func (tl *TodoList) HasPriority() bool {
 	return tl.HasDue() && tl.HasSize()
 }
 
+var timeNow = time.Now
+
 // Priority calculates the todo lists priority, the higher the value the higher
 // the priority.
 func (tl *TodoList) Priority() float64 {
-	x := time.Now().Unix()
+	x := timeNow().Unix()
 	d := tl.Due.Unix()
-	diff := float64(d-x) / (60 * 60 * 24)
-	s := tl.Size.Seconds() / (60 * 60 * 24)
+
+	diff := float64(d - x) // (60 * 60 * 24)
+	s := tl.Size.Seconds() // (60 * 60 * 24)
 
 	if diff <= 0 {
 		return math.Inf(+1)

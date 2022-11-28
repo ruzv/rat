@@ -50,8 +50,10 @@ func newHandler(conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
 
-	log.Info("nodes -", m.Nodes)
+	log.Info("nodes     -", m.Nodes)
 	log.Info("max depth -", m.MaxDepth)
+	log.Info("max leafs -", m.MaxLeafs)
+	log.Infof("avg leafs - %.2f", m.AvgLeafs)
 
 	log.Notice("loaded graph -", conf.Graph.Name)
 
@@ -131,12 +133,6 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	n, err := h.getNode(w, r)
 	if err != nil {
-		hUtil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to get node",
-		)
-
 		return errors.Wrap(err, "failed to get node")
 	}
 

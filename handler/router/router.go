@@ -52,11 +52,11 @@ func New(
 
 			methods, err := route.GetMethods()
 			if err != nil {
-				log.Info("route %-7s %s %s", "", path, err.Error())
+				log.Infof("route %-7s %s %s", "", path, err.Error())
 			}
 
 			for _, m := range methods {
-				log.Info("route %-7s %s", m, path)
+				log.Infof("route %-7s %s", m, path)
 			}
 
 			return nil
@@ -112,12 +112,15 @@ func GetAccessLoggerMW() mux.MiddlewareFunc {
 
 			next.ServeHTTP(b, r)
 
-			log.Infof(
-				"rat access %s %d %.5fs %-6d %s",
+			if b.Code/100 == 2 {
+				return
+			}
+
+			log.Errorf(
+				"rat access %-7s %d %.5fs %s",
 				r.Method,
 				b.Code,
 				time.Since(startT).Seconds(),
-				0,
 				r.URL.Path,
 			)
 		})

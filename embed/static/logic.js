@@ -21,7 +21,7 @@ function consolePromptSubmit(event) {
     return;
   }
 
-  fetch(apiPath(PATH), {
+  fetch(apiPath(CURRENT_NODE_PATH), {
     method: "POST",
     body: JSON.stringify({
       name: p.value,
@@ -185,8 +185,6 @@ function getNode(path, format, includeLeafs) {
   });
 }
 
-let leafs;
-
 function setNode(path) {
   getNode(path, "html", true)
     .then((data) => {
@@ -195,6 +193,8 @@ function setNode(path) {
       consoleSetNavigator(data.path);
       setLeafs(data.leafs);
 
+      CURRENT_NODE_PATH = data.path;
+      console.log(CURRENT_NODE_PATH);
       document.title = data.name;
     })
     .then(() => {
@@ -202,4 +202,4 @@ function setNode(path) {
     });
 }
 
-setNode(PATH);
+setNode(CURRENT_NODE_PATH);

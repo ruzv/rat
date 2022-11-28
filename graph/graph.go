@@ -173,11 +173,16 @@ func (n *Node) DeleteSingle() error {
 type Metrics struct {
 	Nodes    int
 	MaxDepth int
+	MaxLeafs int
+	AvgLeafs float64
 }
 
 // Metrics calculates metrics for node.
 func (n *Node) Metrics() (*Metrics, error) {
-	var m Metrics
+	var (
+		m        Metrics
+		hasLeafs int
+	)
 
 	err := n.Walk(
 		func(depth int, node *Node) bool {
@@ -187,12 +192,30 @@ func (n *Node) Metrics() (*Metrics, error) {
 				m.MaxDepth = depth
 			}
 
+			leafs, err := node.Leafs()
+			if err != nil {
+				return true
+			}
+
+			if len(leafs) == 0 {
+				return true
+			}
+
+			if len(leafs) > m.MaxLeafs {
+				m.MaxLeafs = len(leafs)
+			}
+
+			m.AvgLeafs += float64(len(leafs))
+			hasLeafs++
+
 			return true
 		},
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to walk graph")
 	}
+
+	m.AvgLeafs /= float64(hasLeafs)
 
 	return &m, nil
 }
