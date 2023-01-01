@@ -201,13 +201,13 @@ func renderTodo(rend *NodeRender, td todo.Todo) string {
 	var checked string
 
 	if td.Done {
-		checked = "markdown-todo-checkbox-check-checked"
+		checked = " markdown-todo-checkbox-check-checked"
 	}
 
 	return fmt.Sprintf(
 		`<div class="markdown-todo">
-			<div class="markdown-todo-checkbox-border">
-				<div class="markdown-todo-checkbox-check %s">
+			<div class="markdown-todo-checkbox-border" onclick="todoDone(event)">
+				<div class="markdown-todo-checkbox-check%s">
 				</div>
 			</div>			
 			<div class="markdown-todo-text">

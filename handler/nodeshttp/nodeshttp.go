@@ -85,6 +85,7 @@ func RegisterRoutes(conf *config.Config, router *mux.Router) error {
 
 	nodeRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
 	nodeRouter.HandleFunc("/", hUtil.Wrap(h.create)).Methods(http.MethodPost)
+	nodeRouter.HandleFunc("/", hUtil.Wrap(h.update)).Methods(http.MethodPatch)
 
 	return nil
 }
@@ -154,6 +155,43 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------------- //
+// UPDATE
+// -------------------------------------------------------------------------- //
+
+func (h *handler) update(w http.ResponseWriter, r *http.Request) error {
+	body, err := hUtil.Body[struct {
+		Todos []string `json:"todos" binding:"required"`
+	}](w, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get body")
+	}
+
+	n, err := h.getNode(w, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node")
+	}
+
+	err = n.Update(
+		&graph.NodeUpdate{
+			Todos: body.Todos,
+		},
+	)
+	if err != nil {
+		hUtil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to update node",
+		)
+
+		return errors.Wrap(err, "failed to update node")
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 
 	return nil
 }

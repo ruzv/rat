@@ -141,6 +141,47 @@ function contentSet(content) {
   c.innerHTML = content;
 }
 
+function todoDone(event) {
+  let e = event.path[1];
+  if (e.className == "markdown-todo-checkbox-border") {
+    e = event.path[2];
+  }
+
+  childNodes = e.childNodes;
+
+  for (let i = 0; i < childNodes.length; i++) {
+    if (childNodes[i].className == "markdown-todo-text") {
+      childNodes = e.childNodes[i].childNodes;
+      break;
+    }
+  }
+
+  for (let i = 0; i < childNodes.length; i++) {
+    if (childNodes[i].nodeName == "P") {
+      e = childNodes[i];
+      break;
+    }
+  }
+
+  console.log(e);
+  console.log(e.innerHTML);
+
+  fetch(apiPath(CURRENT_NODE_PATH), {
+    method: "PATCH",
+    body: JSON.stringify({
+      Todos: [e.innerHTML],
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      setNode(CURRENT_NODE_PATH);
+    })
+    .catch((error) => console.log(error));
+}
+
 // -------------------------------------------------------------------------- //
 // leafs
 // -------------------------------------------------------------------------- //

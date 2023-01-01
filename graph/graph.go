@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -30,6 +31,10 @@ type Node struct {
 	Content  string    `json:"content"`
 	Template string    `json:"template"`
 	Store    Store     `json:"-"`
+}
+
+type NodeUpdate struct {
+	Todos []string
 }
 
 // -------------------------------------------------------------------------- //
@@ -128,7 +133,25 @@ func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
 // -------------------------------------------------------------------------- //
 
 // Update updates node.
-func (n *Node) Update() error {
+func (n *Node) Update(nu *NodeUpdate) error {
+	for _, todo := range nu.Todos {
+		n.Content = strings.Replace(
+			n.Content,
+			fmt.Sprintf("- %s", todo),
+			fmt.Sprintf("x %s", todo),
+			1,
+		)
+	}
+
+	for _, todo := range nu.Todos {
+		n.Content = strings.Replace(
+			n.Content,
+			fmt.Sprintf("- %s", todo),
+			fmt.Sprintf("x %s", todo),
+			1,
+		)
+	}
+
 	err := n.Store.Update(n)
 	if err != nil {
 		return errors.Wrap(err, "failed to update")
