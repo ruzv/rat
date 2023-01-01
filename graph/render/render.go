@@ -107,15 +107,24 @@ func renderHook(
 func renderCodeBlock(n *ast.CodeBlock) string {
 	lines := strings.Split(string(n.Literal), "\n")
 
-	for idx, line := range lines {
-		lines[idx] = fmt.Sprintf(
-			"<span style=\"flex-wrap: wrap;\">%s</span>",
-			line,
-		)
-	}
+	// for idx, line := range lines {
+	// 	lines[idx] = fmt.Sprintf(
+	// 		"<span style=\"flex-wrap: wrap;\">%s</span>",
+	// 		line,
+	// 	)
+	// }
+
+	// 	`<div class="markdown-code-block">
+	// 	<pre class="prettyprint">
+	// 		<code>%s</code>
+	// 	</pre>
+	// </div>`,
 
 	return fmt.Sprintf(
-		"<div class=\"markdown-code-block\"><pre><code>%s</code></pre></div>",
+		`<div class="markdown-code-block">
+			<pre class="prettyprint">%s</pre>
+		</div>`,
+
 		strings.Join(lines, "\n"),
 	)
 }

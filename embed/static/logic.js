@@ -267,6 +267,7 @@ function setNode(path) {
     })
     .then(() => {
       log("loaded");
+      PR.prettyPrint();
     });
 }
 
