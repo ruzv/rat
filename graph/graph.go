@@ -23,6 +23,24 @@ type Store interface {
 	Delete(node *Node) error
 }
 
+// NodePath filesystem like path that describes where a node is located in the
+// graph.
+type NodePath string
+
+// GraphProvider describes read and write opetations on a graph.
+type GraphProvider interface {
+	// GetNodeByID returns a node by id.
+	GetNodeByID(id uuid.UUID) (*Node, error)
+	// GetNodeByPath returns a node by path.
+	GetNodeByPath(path NodePath) (*Node, error)
+	// GetLeafNodes returns all leaf nodes of a node specified by id.
+	GetLeafNodes(id uuid.UUID) ([]*Node, error)
+	// GetRoot returns the root node of graph.
+	GetRoot() (*Node, error)
+	// AddLeafNode adds a new node to the graph.
+	AddLeafNode(parentID uuid.UUID, leaf *Node) (*Node, error)
+}
+
 // Node describes a single node.
 type Node struct {
 	ID       uuid.UUID `json:"id"`

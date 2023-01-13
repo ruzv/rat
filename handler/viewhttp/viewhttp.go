@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const viewNodeTemplatePath = "view-node-tmpl.html"
+
 type handler struct {
 	// viewTemplate *template.Template
 	embeds fs.FS
@@ -35,7 +37,42 @@ func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
 		Subrouter().
 		StrictSlash(true)
 
+	// TODO: REDIRECT TO ROOT NODE VIEW PATH
 	viewRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
+
+	viewRouter.HandleFunc("/{path:.+}", hUtil.Wrap(h.view)).
+		Methods(http.MethodGet)
+
+	return nil
+}
+
+func (h *handler) view(w http.ResponseWriter, r *http.Request) error {
+	path := mux.Vars(r)["path"]
+
+	tmpl, err := template.ParseFS(h.embeds, viewNodeTemplatePath)
+	if err != nil {
+		hUtil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to parse template",
+		)
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	err = tmpl.Execute(
+		w,
+		map[string]string{
+			"path": path,
+		},
+	)
+	if err != nil {
+		hUtil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to execute template",
+		)
+	}
 
 	return nil
 }
