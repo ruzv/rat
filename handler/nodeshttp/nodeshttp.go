@@ -1,7 +1,6 @@
 package nodeshttp
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"private/rat/graph/storefilesystem"
 	hUtil "private/rat/handler"
 
+	"github.com/gofrs/uuid"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 
@@ -24,15 +24,15 @@ import (
 var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
-	store graph.Store
-	rend  *render.NodeRender
+	gp   graph.Provider
+	rend *render.NodeRender
 }
 
 // creates a new Handler.
 func newHandler(conf *config.Config) (*handler, error) {
 	log.Info("loading graph")
 
-	store, err := storefilesystem.NewFileSystem(
+	gp, err := storefilesystem.NewFileSystem(
 		conf.Graph.Name,
 		conf.Graph.Path,
 	)
@@ -40,26 +40,27 @@ func newHandler(conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to create net fs")
 	}
 
-	r, err := store.Root()
+	r, err := gp.Root()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	m, err := r.Metrics()
+	m, err := r.Metrics(gp)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
 
-	log.Info("nodes     -", m.Nodes)
-	log.Info("max depth -", m.MaxDepth)
-	log.Info("max leafs -", m.MaxLeafs)
-	log.Infof("avg leafs - %.2f", m.AvgLeafs)
+	b, err := json.MarshalIndent(m, "", "    ")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal metrics")
+	}
 
+	log.Infof("metrics: \f %s", string(b))
 	log.Notice("loaded graph -", conf.Graph.Name)
 
 	return &handler{
-		store: store,
-		rend:  render.NewNodeRender(),
+		gp:   gp,
+		rend: render.NewNodeRender(),
 	}, nil
 }
 
@@ -85,7 +86,8 @@ func RegisterRoutes(conf *config.Config, router *mux.Router) error {
 
 	nodeRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
 	nodeRouter.HandleFunc("/", hUtil.Wrap(h.create)).Methods(http.MethodPost)
-	nodeRouter.HandleFunc("/", hUtil.Wrap(h.update)).Methods(http.MethodPatch)
+	// nodeRouter.HandleFunc("/",
+	// hUtil.Wrap(h.update)).Methods(http.MethodPatch)
 
 	return nil
 }
@@ -113,7 +115,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	_, err = n.Add(body.Name)
+	_, err = n.AddLeaf(h.gp, body.Name)
 	if err != nil {
 		hUtil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
@@ -132,26 +134,29 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 // -------------------------------------------------------------------------- //
 
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
+	resp := struct {
+		graph.Node
+		Leafs []string `json:"leafs,omitempty"`
+	}{}
+
 	n, err := h.getNode(w, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to get node")
 	}
 
-	f, err := h.format(w, r, n)
-	if err != nil {
-		return errors.Wrap(err, "failed to format")
-	}
+	resp.Node = *n
+	resp.Node.Content = h.rend.HTML(n)
 
 	if includeLeafs(r) {
-		leafs, err := getLeafPaths(w, n)
+		leafs, err := h.getLeafPaths(w, n.ID)
 		if err != nil {
 			return errors.Wrap(err, "failed to get leaf paths")
 		}
 
-		f["leafs"] = leafs
+		resp.Leafs = leafs
 	}
 
-	err = hUtil.WriteResponse(w, http.StatusOK, f)
+	err = hUtil.WriteResponse(w, http.StatusOK, resp)
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
@@ -159,45 +164,11 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// -------------------------------------------------------------------------- //
-// UPDATE
-// -------------------------------------------------------------------------- //
-
-func (h *handler) update(w http.ResponseWriter, r *http.Request) error {
-	body, err := hUtil.Body[struct {
-		Todos []string `json:"todos" binding:"required"`
-	}](w, r)
-	if err != nil {
-		return errors.Wrap(err, "failed to get body")
-	}
-
-	n, err := h.getNode(w, r)
-	if err != nil {
-		return errors.Wrap(err, "failed to get node")
-	}
-
-	err = n.Update(
-		&graph.NodeUpdate{
-			Todos: body.Todos,
-		},
-	)
-	if err != nil {
-		hUtil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to update node",
-		)
-
-		return errors.Wrap(err, "failed to update node")
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-
-	return nil
-}
-
-func getLeafPaths(w http.ResponseWriter, n *graph.Node) ([]string, error) {
-	leafNodes, err := n.Leafs()
+func (h *handler) getLeafPaths(
+	w http.ResponseWriter,
+	id uuid.UUID,
+) ([]string, error) {
+	leafNodes, err := h.gp.GetLeafs(id)
 	if err != nil {
 		hUtil.WriteError(
 			w,
@@ -245,7 +216,7 @@ func (h *handler) getNode(
 	)
 
 	if path == "" {
-		n, err = h.store.Root()
+		n, err = h.gp.Root()
 		if err != nil {
 			hUtil.WriteError(
 				w,
@@ -256,7 +227,7 @@ func (h *handler) getNode(
 			return nil, errors.Wrap(err, "failed to write error")
 		}
 	} else {
-		n, err = h.store.GetByPath(path)
+		n, err = h.gp.GetByPath(path)
 		if err != nil {
 			hUtil.WriteError(
 				w,
@@ -269,48 +240,4 @@ func (h *handler) getNode(
 	}
 
 	return n, nil
-}
-
-func (h *handler) format(
-	w http.ResponseWriter, r *http.Request, n *graph.Node,
-) (map[string]interface{}, error) {
-	format := r.URL.Query().Get("format")
-
-	cn := *n
-
-	switch format {
-	case "html":
-		cn.Content = h.rend.HTML(n)
-	case "md":
-		cn.Content = h.rend.Markdown(n)
-	default:
-	}
-
-	buff := &bytes.Buffer{}
-
-	err := json.NewEncoder(buff).Encode(cn)
-	if err != nil {
-		hUtil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to encode format",
-		)
-
-		return nil, errors.Wrap(err, "failed to encode format")
-	}
-
-	res := make(map[string]interface{})
-
-	err = json.NewDecoder(buff).Decode(&res)
-	if err != nil {
-		hUtil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to decode format",
-		)
-
-		return nil, errors.Wrap(err, "failed to decode format")
-	}
-
-	return res, nil
 }

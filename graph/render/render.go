@@ -54,10 +54,6 @@ func NewNodeRender() *NodeRender {
 	return nr
 }
 
-func (*NodeRender) parser() *parser.Parser {
-	return parser.NewWithExtensions(parser.CommonExtensions)
-}
-
 // -------------------------------------------------------------------------- //
 // HTML
 // -------------------------------------------------------------------------- //
@@ -66,7 +62,7 @@ func (*NodeRender) parser() *parser.Parser {
 func (nr *NodeRender) HTML(n *graph.Node) string {
 	return string(markdown.ToHTML(
 		[]byte(parseContent(n, linkFormatWeb)),
-		nr.parser(),
+		parser.NewWithExtensions(parser.CommonExtensions),
 		nr.hookedRend,
 	))
 }
@@ -217,7 +213,7 @@ func renderTodo(rend *NodeRender, td todo.Todo) string {
 		checked,
 		markdown.ToHTML(
 			[]byte(td.Text),
-			rend.parser(),
+			parser.NewWithExtensions(parser.CommonExtensions),
 			rend.hookedRend,
 		),
 	)
@@ -230,15 +226,6 @@ func renderError(err error) string {
 		</div>`,
 		err.Error(),
 	)
-}
-
-// -------------------------------------------------------------------------- //
-// MARKDOWN
-// -------------------------------------------------------------------------- //
-
-// Markdown renders the node as markdown string.
-func (*NodeRender) Markdown(n *graph.Node) string {
-	return parseContent(n, linkFormatAPI)
 }
 
 var ratTagRegex = regexp.MustCompile(
