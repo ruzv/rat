@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"private/rat/graph"
-	"private/rat/graph/pathutil"
+	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"

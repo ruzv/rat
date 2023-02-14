@@ -3,13 +3,16 @@ package graph
 import (
 	"text/template"
 
-	"private/rat/graph/pathutil"
+	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
+	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-// Store describes a graph store.
+var log = logging.MustGetLogger("graph")
+
+// Provider describes graph node manipulations.
 type Provider interface {
 	GetByID(id uuid.UUID) (*Node, error)
 	GetByPath(path string) (*Node, error)
@@ -138,8 +141,9 @@ type Metrics struct {
 // Metrics calculates metrics for node.
 func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	var (
-		m        Metrics
-		hasLeafs int
+		m          Metrics
+		hasLeafs   int
+		totalLeafs int
 	)
 
 	err := n.Walk(
@@ -164,7 +168,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 				m.MaxLeafs = len(leafs)
 			}
 
-			m.AvgLeafs += float64(len(leafs))
+			totalLeafs += len(leafs)
 			hasLeafs++
 
 			return true
@@ -174,7 +178,9 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		return nil, errors.Wrap(err, "failed to walk graph")
 	}
 
-	m.AvgLeafs /= float64(hasLeafs)
+	if hasLeafs > 0 {
+		m.AvgLeafs = float64(totalLeafs) / float64(hasLeafs)
+	}
 
 	return &m, nil
 }

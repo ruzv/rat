@@ -15,6 +15,7 @@ import (
 	hUtil "private/rat/handler"
 
 	"github.com/gofrs/uuid"
+	"github.com/gomarkdown/markdown/html"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 
@@ -24,15 +25,15 @@ import (
 var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
-	gp   graph.Provider
-	rend *render.NodeRender
+	p    graph.Provider
+	rend *html.Renderer
 }
 
 // creates a new Handler.
 func newHandler(conf *config.Config) (*handler, error) {
 	log.Info("loading graph")
 
-	gp, err := storefilesystem.NewFileSystem(
+	p, err := storefilesystem.NewFileSystem(
 		conf.Graph.Name,
 		conf.Graph.Path,
 	)
@@ -40,12 +41,14 @@ func newHandler(conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to create net fs")
 	}
 
-	r, err := gp.Root()
+	r, err := p.Root()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	m, err := r.Metrics(gp)
+	log.Info("reading metrics")
+
+	m, err := r.Metrics(p)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
@@ -59,8 +62,8 @@ func newHandler(conf *config.Config) (*handler, error) {
 	log.Notice("loaded graph -", conf.Graph.Name)
 
 	return &handler{
-		gp:   gp,
-		rend: render.NewNodeRender(),
+		p:    p,
+		rend: render.NewRenderer(),
 	}, nil
 }
 
@@ -115,7 +118,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	_, err = n.AddLeaf(h.gp, body.Name)
+	_, err = n.AddLeaf(h.p, body.Name)
 	if err != nil {
 		hUtil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
@@ -145,7 +148,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	resp.Node = *n
-	resp.Node.Content = h.rend.HTML(n)
+	resp.Node.Content = n.Render(h.p, h.rend)
 
 	if includeLeafs(r) {
 		leafs, err := h.getLeafPaths(w, n.ID)
@@ -168,7 +171,7 @@ func (h *handler) getLeafPaths(
 	w http.ResponseWriter,
 	id uuid.UUID,
 ) ([]string, error) {
-	leafNodes, err := h.gp.GetLeafs(id)
+	leafNodes, err := h.p.GetLeafs(id)
 	if err != nil {
 		hUtil.WriteError(
 			w,
@@ -216,7 +219,7 @@ func (h *handler) getNode(
 	)
 
 	if path == "" {
-		n, err = h.gp.Root()
+		n, err = h.p.Root()
 		if err != nil {
 			hUtil.WriteError(
 				w,
@@ -227,7 +230,7 @@ func (h *handler) getNode(
 			return nil, errors.Wrap(err, "failed to write error")
 		}
 	} else {
-		n, err = h.gp.GetByPath(path)
+		n, err = h.p.GetByPath(path)
 		if err != nil {
 			hUtil.WriteError(
 				w,
