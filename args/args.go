@@ -5,7 +5,6 @@ import "github.com/spf13/pflag"
 // Args are the command line arguments.
 type Args struct {
 	ConfigPath string
-	LogPath    string
 	Embed      bool
 }
 
@@ -13,9 +12,6 @@ type Args struct {
 func Load() (*Args, bool) {
 	configPath := pflag.StringP(
 		"config", "c", "./config.json", "path to config file",
-	)
-	logPath := pflag.StringP(
-		"log", "l", "./logs.log", "path to log file",
 	)
 	embed := pflag.BoolP(
 		"embed", "e", true, "flag to toggle usage of embedded files",
@@ -33,7 +29,6 @@ func Load() (*Args, bool) {
 
 	return &Args{
 		ConfigPath: *configPath,
-		LogPath:    *logPath,
 		Embed:      *embed,
 	}, true
 }
