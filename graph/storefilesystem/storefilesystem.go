@@ -122,10 +122,10 @@ func (fs *FileSystem) GetByPath(path string) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to get cont")
 	}
 
-	// err = getTemplate(node, fullpath)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "failed to get template")
-	// }
+	err = getTemplate(node, fullpath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get template")
+	}
 
 	return node, nil
 }
@@ -169,18 +169,18 @@ func getCont(node *graph.Node, path string) error {
 	return nil
 }
 
-// func getTemplate(node *graph.Node, path string) error {
-// 	p := filepath.Join(path, templateFilename)
+func getTemplate(node *graph.Node, path string) error {
+	p := filepath.Join(path, templateFilename)
 
-// 	data, err := os.ReadFile(p)
-// 	if err != nil {
-// 		return nil
-// 	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return nil
+	}
 
-// 	node.Template = string(data)
+	node.Template = string(data)
 
-// 	return nil
-// }
+	return nil
+}
 
 func (fs *FileSystem) newNode(name, path string) *graph.Node {
 	return &graph.Node{
@@ -240,11 +240,14 @@ func (fs *FileSystem) AddLeaf(
 
 	buff := &bytes.Buffer{}
 
-	err = templ.Execute(buff, struct {
-		Name string
-	}{
-		Name: name,
-	})
+	err = templ.Execute(
+		buff,
+		struct {
+			Name string
+		}{
+			Name: name,
+		},
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute template")
 	}

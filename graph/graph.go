@@ -113,21 +113,32 @@ func (n *Node) Parent(p Provider) (*Node, error) {
 
 // GetTemplate returns the first template encountered when walking up the tree.
 func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
-	if n.Template != "" {
-		templ, err := template.New("newNode").Parse(n.Template)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse template")
+	root, err := p.Root()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get root")
+	}
+
+	var getTemplate func(n *Node) (*template.Template, error)
+
+	getTemplate = func(n *Node) (*template.Template, error) {
+		if root.ID == n.ID || n.Template != "" {
+			templ, err := template.New("newNode").Parse(n.Template)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse template")
+			}
+
+			return templ, nil
 		}
 
-		return templ, nil
+		parent, err := n.Parent(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get parent")
+		}
+
+		return getTemplate(parent)
 	}
 
-	parent, err := n.Parent(p)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get parent")
-	}
-
-	return parent.GetTemplate(p)
+	return getTemplate(n)
 }
 
 // Metrics groups all nodes metrics.
