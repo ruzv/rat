@@ -111,7 +111,7 @@ func renderTodoList(rend *html.Renderer, n *ast.CodeBlock) string {
 			header,
 			fmt.Sprintf(
 				`<span class="markdown-code"><a href="%s">%s</a></span>`,
-				util.Link(todoL.SourceNodePath, todoL.SourceNodePath),
+				util.Link(todoL.SourceNodePath, string(todoL.SourceNodePath)),
 				todoL.SourceNodePath,
 			),
 		)

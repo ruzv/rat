@@ -3,6 +3,8 @@ package util
 import (
 	"fmt"
 	"net/url"
+
+	pathutil "private/rat/graph/util/path"
 )
 
 // ReverseSlice reverses a slice.
@@ -15,7 +17,7 @@ func ReverseSlice[T any](a []T) []T {
 }
 
 // Link returns a markdown link to a node with given path.
-func Link(path, name string) string {
+func Link(path pathutil.NodePath, name string) string {
 	var (
 		u url.URL
 		q = make(url.Values)
@@ -23,7 +25,7 @@ func Link(path, name string) string {
 
 	u.Path = "/view/"
 
-	q.Add("node", path)
+	q.Add("node", string(path))
 
 	u.RawQuery = q.Encode()
 

@@ -10,11 +10,12 @@ import (
 	"private/rat/config"
 
 	"private/rat/graph"
+	"private/rat/graph/filesystem"
+	"private/rat/graph/pathcache"
 	"private/rat/graph/render"
-	"private/rat/graph/storefilesystem"
+	pathutil "private/rat/graph/util/path"
 	hUtil "private/rat/handler"
 
-	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -33,13 +34,15 @@ type handler struct {
 func newHandler(conf *config.Config) (*handler, error) {
 	log.Info("loading graph")
 
-	p, err := storefilesystem.NewFileSystem(
+	p, err := filesystem.NewFileSystem(
 		conf.Graph.Name,
 		conf.Graph.Path,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create net fs")
 	}
+
+	pc := pathcache.NewPathCache(p)
 
 	r, err := p.Root()
 	if err != nil {
@@ -48,7 +51,7 @@ func newHandler(conf *config.Config) (*handler, error) {
 
 	log.Info("reading metrics")
 
-	m, err := r.Metrics(p)
+	m, err := r.Metrics(pc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
@@ -62,7 +65,7 @@ func newHandler(conf *config.Config) (*handler, error) {
 	log.Notice("loaded graph -", conf.Graph.Name)
 
 	return &handler{
-		p:    p,
+		p:    pc,
 		rend: render.NewRenderer(),
 	}, nil
 }
@@ -139,7 +142,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	resp := struct {
 		graph.Node
-		Leafs []string `json:"leafs,omitempty"`
+		Leafs []pathutil.NodePath `json:"leafs,omitempty"`
 	}{}
 
 	n, err := h.getNode(w, r)
@@ -151,7 +154,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	resp.Node.Content = n.Render(h.p, h.rend)
 
 	if includeLeafs(r) {
-		leafs, err := h.getLeafPaths(w, n.ID)
+		leafs, err := h.getLeafPaths(w, n.Path)
 		if err != nil {
 			return errors.Wrap(err, "failed to get leaf paths")
 		}
@@ -169,9 +172,9 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 
 func (h *handler) getLeafPaths(
 	w http.ResponseWriter,
-	id uuid.UUID,
-) ([]string, error) {
-	leafNodes, err := h.p.GetLeafs(id)
+	path pathutil.NodePath,
+) ([]pathutil.NodePath, error) {
+	leafNodes, err := h.p.GetLeafs(path)
 	if err != nil {
 		hUtil.WriteError(
 			w,
@@ -182,7 +185,7 @@ func (h *handler) getLeafPaths(
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
 
-	leafs := make([]string, 0, len(leafNodes))
+	leafs := make([]pathutil.NodePath, 0, len(leafNodes))
 
 	for _, lf := range leafNodes {
 		leafs = append(leafs, lf.Path)
@@ -230,7 +233,7 @@ func (h *handler) getNode(
 			return nil, errors.Wrap(err, "failed to write error")
 		}
 	} else {
-		n, err = h.p.GetByPath(path)
+		n, err = h.p.GetByPath(pathutil.NodePath(path))
 		if err != nil {
 			hUtil.WriteError(
 				w,

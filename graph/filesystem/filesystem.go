@@ -1,4 +1,4 @@
-package storefilesystem
+package filesystem
 
 import (
 	"bytes"
@@ -57,7 +57,10 @@ func NewFileSystem(root, path string) (*FileSystem, error) {
 		return nil, errors.Wrapf(err, "failed to create root node dir")
 	}
 
-	n := fs.newNode(root, root)
+	n := &graph.Node{
+		Name: root,
+		Path: pathutil.NodePath(root),
+	}
 
 	err = setCont(n, p)
 	if err != nil {
@@ -107,10 +110,13 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 }
 
 // GetByPath returns a node by path.
-func (fs *FileSystem) GetByPath(path string) (*graph.Node, error) {
+func (fs *FileSystem) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	fullpath := fs.fullPath(path)
 
-	node := fs.newNode(pathutil.NameFromPath(path), path)
+	node := &graph.Node{
+		Path: path,
+		Name: pathutil.NameFromPath(path),
+	}
 
 	err := getMeta(node, fullpath)
 	if err != nil {
@@ -174,6 +180,10 @@ func getTemplate(node *graph.Node, path string) error {
 
 	data, err := os.ReadFile(p)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to read template file")
+		}
+
 		return nil
 	}
 
@@ -182,25 +192,13 @@ func getTemplate(node *graph.Node, path string) error {
 	return nil
 }
 
-func (fs *FileSystem) newNode(name, path string) *graph.Node {
-	return &graph.Node{
-		Name: name,
-		Path: path,
-	}
-}
-
-func (fs *FileSystem) fullPath(path string) string {
-	return filepath.Join(fs.path, path)
+func (fs *FileSystem) fullPath(path pathutil.NodePath) string {
+	return filepath.Join(fs.path, string(path))
 }
 
 // GetLeafs returns leaf nodes.
-func (fs *FileSystem) GetLeafs(id uuid.UUID) ([]*graph.Node, error) {
-	parent, err := fs.GetByID(id)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get parent node")
-	}
-
-	fullPath := fs.fullPath(parent.Path)
+func (fs *FileSystem) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
+	fullPath := fs.fullPath(path)
 
 	leafs, err := os.ReadDir(fullPath)
 	if err != nil {
@@ -215,7 +213,7 @@ func (fs *FileSystem) GetLeafs(id uuid.UUID) ([]*graph.Node, error) {
 			continue
 		}
 
-		node, err := fs.GetByPath(filepath.Join(parent.Path, leaf.Name()))
+		node, err := fs.GetByPath(pathutil.JoinName(path, leaf.Name()))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get node")
 		}
@@ -226,11 +224,15 @@ func (fs *FileSystem) GetLeafs(id uuid.UUID) ([]*graph.Node, error) {
 	return leafNodes, nil
 }
 
-// Add adds a new node to the graph.
+// AddLeaf adds a new node to the graph.
 func (fs *FileSystem) AddLeaf(
 	parent *graph.Node, name string,
 ) (*graph.Node, error) {
-	newNode := fs.newNode(name, filepath.Join(parent.Path, name))
+	newNode := &graph.Node{
+		Name: name,
+		Path: pathutil.JoinName(parent.Path, name),
+	}
+
 	newFullPath := filepath.Join(fs.fullPath(parent.Path), name)
 
 	templ, err := parent.GetTemplate(fs)
@@ -325,5 +327,5 @@ func setCont(node *graph.Node, path string) error {
 
 // Root returns the root node of the graph.
 func (fs *FileSystem) Root() (*graph.Node, error) {
-	return fs.GetByPath(fs.root)
+	return fs.GetByPath(pathutil.NodePath(fs.root))
 }

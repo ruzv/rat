@@ -146,7 +146,7 @@ func (n *Node) parseRatTagGraph(p Provider, depth int) (string, error) {
 				links,
 				fmt.Sprintf(
 					"%s- %s",
-					strings.Repeat("\t", depth),
+					strings.Repeat("\t", d),
 					util.Link(node.Path, node.Name),
 				),
 			)

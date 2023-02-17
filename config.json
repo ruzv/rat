@@ -2,7 +2,7 @@
   "port": 8889,
 
   "graph": {
-    "name": "test-graph",
-    "path": "/home/ruzv/go/src/rat"
+    "name": "notes",
+    "path": "/Users/rudolfszvejs/notes"
   }
 }
