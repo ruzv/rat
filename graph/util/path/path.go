@@ -1,6 +1,9 @@
 package path
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // NodePath filesystem like path that describes where a node is located in the
 // graph.
@@ -61,4 +64,20 @@ func JoinName(parent NodePath, name string) NodePath {
 // JoinPath adds first and second paths together.
 func JoinPath(first, second NodePath) NodePath {
 	return NodePath(strings.Join([]string{string(first), string(second)}, "/"))
+}
+
+// URL returns a URL to a node with given path.
+func URL(path NodePath) string {
+	var (
+		u url.URL
+		q = make(url.Values)
+	)
+
+	u.Path = "/view/"
+
+	q.Add("node", string(path))
+
+	u.RawQuery = q.Encode()
+
+	return u.String()
 }

@@ -64,9 +64,14 @@ func newHandler(conf *config.Config) (*handler, error) {
 	log.Infof("metrics: \f %s", string(b))
 	log.Notice("loaded graph -", conf.Graph.Name)
 
+	ts, err := render.DefaultTemplateStore()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create default template store")
+	}
+
 	return &handler{
 		p:    pc,
-		rend: render.NewRenderer(),
+		rend: render.NewRenderer(ts, pc),
 	}, nil
 }
 
@@ -151,7 +156,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	resp.Node = *n
-	resp.Node.Content = n.Render(h.p, h.rend)
+	resp.Node.Content = render.Render(n, h.p, h.rend)
 
 	if includeLeafs(r) {
 		leafs, err := h.getLeafPaths(w, n.Path)
