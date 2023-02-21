@@ -61,7 +61,7 @@ func newHandler(conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to marshal metrics")
 	}
 
-	log.Infof("metrics: \f %s", string(b))
+	log.Infof("metrics:\n%s", string(b))
 	log.Notice("loaded graph -", conf.Graph.Name)
 
 	ts, err := render.DefaultTemplateStore()
