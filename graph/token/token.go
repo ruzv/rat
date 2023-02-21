@@ -250,11 +250,7 @@ func (t *Token) transformTodoToken(
 	err = parent.Walk(
 		p,
 		func(d int, leaf *graph.Node) bool {
-			if d == depth {
-				return false
-			}
-
-			if parseErr != nil {
+			if d == depth || parseErr != nil {
 				return false
 			}
 

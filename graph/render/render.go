@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"strings"
 
 	"private/rat/graph"
@@ -23,34 +24,42 @@ import (
 
 var log = logging.MustGetLogger("render")
 
+// Renderer allows rendering nodes markdown content to HTML.
+type Renderer struct {
+	ts   *TemplateStore
+	p    graph.Provider
+	rend *html.Renderer
+}
+
+// NewRenderer creates a new Renderer.
+func NewRenderer(ts *TemplateStore, p graph.Provider) *Renderer {
+	r := &Renderer{
+		ts:   ts,
+		p:    p,
+		rend: &html.Renderer{}, // allocate, temp value
+	}
+
+	*r.rend = *html.NewRenderer(html.RendererOptions{RenderNodeHook: r.hook()})
+
+	return r
+}
+
 // Render parses nodes content, converts tokens into markdown and renders it to
 // HTML.
-func Render(n *graph.Node, p graph.Provider, rend *html.Renderer) string {
+func (r *Renderer) Render(n *graph.Node) string {
 	return string(
 		markdown.ToHTML(
-			[]byte(token.TransformContentTokens(n, p)),
+			[]byte(token.TransformContentTokens(n, r.p)),
 			parser.NewWithExtensions(parser.CommonExtensions),
-			rend,
+			r.rend,
 		),
 	)
 }
 
-// NewRenderer creates a new NodeRender.
-func NewRenderer(ts *TemplateStore, p graph.Provider) *html.Renderer {
-	rend := &html.Renderer{}
-
-	*rend = *html.NewRenderer(
-		html.RendererOptions{
-			RenderNodeHook: newRenderHook(rend, ts, p),
-		},
-	)
-
-	return rend
-}
-
 // TemplateStore contains all templates used by the renderer.
 type TemplateStore struct {
-	LinkTempl *template.Template
+	link      *template.Template
+	codeBlock *template.Template
 }
 
 // LinkTemplData contains the data used to render a link.
@@ -61,7 +70,7 @@ type LinkTemplData struct {
 
 // Link renders a link.
 func (ts *TemplateStore) Link(w io.Writer, data LinkTemplData) error {
-	err := ts.LinkTempl.Execute(w, data)
+	err := ts.link.Execute(w, data)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute link template")
 	}
@@ -69,26 +78,40 @@ func (ts *TemplateStore) Link(w io.Writer, data LinkTemplData) error {
 	return nil
 }
 
-// DefaultTemplateStore creates a new TemplateStore with the default templates.
-func DefaultTemplateStore() (*TemplateStore, error) {
-	link, err := template.New("link").Parse(
-		`<a href="{{ .Link }}" class="link">
-			{{ .Name }}
-		</a>`,
-	)
+// CodeBlock renders a code block.
+func (ts *TemplateStore) CodeBlock(w io.Writer, lines []string) error {
+	err := ts.codeBlock.Execute(w, struct{ Lines []string }{lines})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse link template")
+		return errors.Wrap(err, "failed to execute link template")
 	}
 
-	return &TemplateStore{
-		LinkTempl: link,
-	}, nil
+	return nil
 }
 
-//nolint:gocyclo,cyclop
-func newRenderHook(
-	rend *html.Renderer, ts *TemplateStore, p graph.Provider,
-) func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+// FileTemplateStore creates a new TemplateStore with the templates from the
+// specified directory.
+func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
+	ts := &TemplateStore{
+		link:      &template.Template{},
+		codeBlock: &template.Template{},
+	}
+
+	for name, dest := range map[string]*template.Template{
+		"link.tmpl":      ts.link,
+		"codeBlock.tmpl": ts.codeBlock,
+	} {
+		templ, err := template.ParseFS(templateFS, name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse %s template", name)
+		}
+
+		*dest = *templ
+	}
+
+	return ts, nil
+}
+
+func (r *Renderer) hook() html.RenderNodeFunc {
 	return func(
 		w io.Writer, node ast.Node, entering bool,
 	) (ast.WalkStatus, bool) {
@@ -96,64 +119,17 @@ func newRenderHook(
 
 		switch n := node.(type) {
 		case *ast.CodeBlock:
-			if string(n.Info) == "todo" {
-				parsed = renderTodoList(rend, n)
-			} else {
-				parsed = renderCodeBlock(n)
+			if string(n.Info) != "todo" {
+				return r.renderCodeBlock(w, string(n.Literal))
 			}
 
+			parsed = renderTodoList(r.rend, string(n.Literal))
 		case *ast.Code:
 			parsed = fmt.Sprintf(
 				"<span class=\"markdown-code\">%s</span>", string(n.Literal),
 			)
 		case *ast.Link:
-			if len(n.Children) != 1 {
-				// unknown structure, let gomarkdown handle it
-				return ast.GoToNext, false
-			}
-
-			// skip exiting only for structures we know how to handle
-			if !entering {
-				return ast.GoToNext, false
-			}
-
-			link := string(n.Destination)
-			name := string(n.Children[0].AsLeaf().Literal)
-
-			func() {
-				id, err := uuid.FromString(link)
-				if err != nil {
-					return
-				}
-
-				n, err := p.GetByID(id)
-				if err != nil {
-					return
-				}
-
-				link = pathutil.URL(n.Path)
-
-				if len(strings.TrimSpace(name)) != 0 {
-					return
-				}
-
-				name = n.Name
-			}()
-
-			err := ts.Link(
-				w,
-				LinkTemplData{
-					Link: link,
-					Name: name,
-				},
-			)
-			if err != nil {
-				log.Warning("failed to render link", err)
-
-				return ast.GoToNext, false
-			}
-
-			return ast.SkipChildren, true
+			return r.renderLink(w, n, entering)
 		default:
 			return ast.GoToNext, false // false - didn't enter current ast.Node
 		}
@@ -167,24 +143,78 @@ func newRenderHook(
 	}
 }
 
-func renderCodeBlock(n *ast.CodeBlock) string {
-	lines := strings.Split(string(n.Literal), "\n")
-
-	for idx, line := range lines {
-		lines[idx] = fmt.Sprintf(
-			"<span style=\"flex-wrap: wrap;\">%s</span>",
-			line,
-		)
+func (r *Renderer) renderLink(
+	w io.Writer, n *ast.Link, entering bool,
+) (ast.WalkStatus, bool) {
+	if len(n.Children) != 1 {
+		// unknown structure, let gomarkdown handle it
+		return ast.GoToNext, false
 	}
 
-	return fmt.Sprintf(
-		"<div class=\"markdown-code-block\"><pre><code>%s</code></pre></div>",
-		strings.Join(lines, "\n"),
+	// skip exiting only for structures we know how to handle
+	if !entering {
+		return ast.GoToNext, false
+	}
+
+	link := string(n.Destination)
+	name := string(n.Children[0].AsLeaf().Literal)
+
+	func() {
+		id, err := uuid.FromString(link)
+		if err != nil {
+			return
+		}
+
+		n, err := r.p.GetByID(id)
+		if err != nil {
+			return
+		}
+
+		link = pathutil.URL(n.Path)
+
+		if len(strings.TrimSpace(name)) != 0 {
+			return
+		}
+
+		name = n.Name
+	}()
+
+	err := r.ts.Link(
+		w,
+		LinkTemplData{
+			Link: link,
+			Name: name,
+		},
 	)
+	if err != nil {
+		log.Error("failed to render link", err)
+
+		return ast.GoToNext, false
+	}
+
+	return ast.SkipChildren, true
 }
 
-func renderTodoList(rend *html.Renderer, n *ast.CodeBlock) string {
-	todoL, err := todo.Parse(string(n.Literal))
+func (r *Renderer) renderCodeBlock(
+	w io.Writer, raw string,
+) (ast.WalkStatus, bool) {
+	lines := strings.Split(raw, "\n")
+	if len(lines) != 0 {
+		lines = lines[:len(lines)-1] // last line is always empty
+	}
+
+	err := r.ts.CodeBlock(w, lines)
+	if err != nil {
+		log.Error("failed to render code block", err)
+
+		return ast.GoToNext, false
+	}
+
+	return ast.GoToNext, true
+}
+
+func renderTodoList(rend *html.Renderer, raw string) string {
+	todoL, err := todo.Parse(raw)
 	if err != nil {
 		log.Warning("failed to parse todo list", err)
 
