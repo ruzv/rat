@@ -85,10 +85,7 @@ func DefaultTemplateStore() (*TemplateStore, error) {
 	}, nil
 }
 
-// -------------------------------------------------------------------------- //
-// HTML
-// -------------------------------------------------------------------------- //
-
+//nolint:gocyclo,cyclop
 func newRenderHook(
 	rend *html.Renderer, ts *TemplateStore, p graph.Provider,
 ) func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
@@ -272,7 +269,7 @@ func renderTodo(rend *html.Renderer, td todo.Todo) string {
 
 	return fmt.Sprintf(
 		`<div class="markdown-todo">
-			<div class="markdown-todo-checkbox-border" onclick="todoDone(event)">
+			<div class="markdown-todo-checkbox-border">
 				<div class="markdown-todo-checkbox-check%s">
 				</div>
 			</div>			
