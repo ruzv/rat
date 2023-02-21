@@ -125,10 +125,16 @@ func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
 
 // Metrics groups all nodes metrics.
 type Metrics struct {
-	Nodes    int
-	MaxDepth int
-	MaxLeafs int
-	AvgLeafs float64
+	Nodes      int
+	FinalNodes int
+	Depth      struct {
+		Max int
+		Avg float64
+	}
+	Leafs struct {
+		Max int
+		Avg float64
+	}
 }
 
 // Metrics calculates metrics for node.
@@ -137,6 +143,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		m          Metrics
 		hasLeafs   int
 		totalLeafs int
+		totalDepth int
 	)
 
 	err := n.Walk(
@@ -144,8 +151,8 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		func(depth int, node *Node) bool {
 			m.Nodes++
 
-			if depth > m.MaxDepth {
-				m.MaxDepth = depth
+			if depth > m.Depth.Max {
+				m.Depth.Max = depth
 			}
 
 			leafs, err := node.GetLeafs(p)
@@ -154,11 +161,14 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			}
 
 			if len(leafs) == 0 {
+				totalDepth += depth
+				m.FinalNodes++
+
 				return true
 			}
 
-			if len(leafs) > m.MaxLeafs {
-				m.MaxLeafs = len(leafs)
+			if len(leafs) > m.Leafs.Max {
+				m.Leafs.Max = len(leafs)
 			}
 
 			totalLeafs += len(leafs)
@@ -172,7 +182,11 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	}
 
 	if hasLeafs > 0 {
-		m.AvgLeafs = float64(totalLeafs) / float64(hasLeafs)
+		m.Leafs.Avg = float64(totalLeafs) / float64(hasLeafs)
+	}
+
+	if m.FinalNodes > 0 {
+		m.Depth.Avg = float64(totalDepth) / float64(m.FinalNodes)
 	}
 
 	return &m, nil
