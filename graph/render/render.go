@@ -2,12 +2,17 @@ package render
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"strings"
 
+	"private/rat/graph"
 	"private/rat/graph/render/todo"
+	"private/rat/graph/token"
 	"private/rat/graph/util"
+	pathutil "private/rat/graph/util/path"
 
+	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/html"
@@ -18,17 +23,66 @@ import (
 
 var log = logging.MustGetLogger("render")
 
-// NewRender creates a new NodeRender.
-func NewRenderer() *html.Renderer {
+// Render parses nodes content, converts tokens into markdown and renders it to
+// HTML.
+func Render(n *graph.Node, p graph.Provider, rend *html.Renderer) string {
+	return string(
+		markdown.ToHTML(
+			[]byte(token.TransformContentTokens(n, p)),
+			parser.NewWithExtensions(parser.CommonExtensions),
+			rend,
+		),
+	)
+}
+
+// NewRenderer creates a new NodeRender.
+func NewRenderer(ts *TemplateStore, p graph.Provider) *html.Renderer {
 	rend := &html.Renderer{}
 
 	*rend = *html.NewRenderer(
 		html.RendererOptions{
-			RenderNodeHook: newRenderHook(rend),
+			RenderNodeHook: newRenderHook(rend, ts, p),
 		},
 	)
 
 	return rend
+}
+
+// TemplateStore contains all templates used by the renderer.
+type TemplateStore struct {
+	LinkTempl *template.Template
+}
+
+// LinkTemplData contains the data used to render a link.
+type LinkTemplData struct {
+	Link string
+	Name string
+}
+
+// Link renders a link.
+func (ts *TemplateStore) Link(w io.Writer, data LinkTemplData) error {
+	err := ts.LinkTempl.Execute(w, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute link template")
+	}
+
+	return nil
+}
+
+// DefaultTemplateStore creates a new TemplateStore with the default templates.
+func DefaultTemplateStore() (*TemplateStore, error) {
+	link, err := template.New("link").Parse(
+		`<a href="{{ .Link }}" class="link">
+			{{ .Name }}
+		</a>`,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse link template")
+	}
+
+	return &TemplateStore{
+		LinkTempl: link,
+	}, nil
 }
 
 // -------------------------------------------------------------------------- //
@@ -36,7 +90,7 @@ func NewRenderer() *html.Renderer {
 // -------------------------------------------------------------------------- //
 
 func newRenderHook(
-	rend *html.Renderer,
+	rend *html.Renderer, ts *TemplateStore, p graph.Provider,
 ) func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
 	return func(
 		w io.Writer, node ast.Node, entering bool,
@@ -55,8 +109,56 @@ func newRenderHook(
 			parsed = fmt.Sprintf(
 				"<span class=\"markdown-code\">%s</span>", string(n.Literal),
 			)
+		case *ast.Link:
+			if len(n.Children) != 1 {
+				// unknown structure, let gomarkdown handle it
+				return ast.GoToNext, false
+			}
+
+			// skip exiting only for structures we know how to handle
+			if !entering {
+				return ast.GoToNext, false
+			}
+
+			link := string(n.Destination)
+			name := string(n.Children[0].AsLeaf().Literal)
+
+			func() {
+				id, err := uuid.FromString(link)
+				if err != nil {
+					return
+				}
+
+				n, err := p.GetByID(id)
+				if err != nil {
+					return
+				}
+
+				link = pathutil.URL(n.Path)
+
+				if len(strings.TrimSpace(name)) != 0 {
+					return
+				}
+
+				name = n.Name
+			}()
+
+			err := ts.Link(
+				w,
+				LinkTemplData{
+					Link: link,
+					Name: name,
+				},
+			)
+			if err != nil {
+				log.Warning("failed to render link", err)
+
+				return ast.GoToNext, false
+			}
+
+			return ast.SkipChildren, true
 		default:
-			return ast.GoToNext, false
+			return ast.GoToNext, false // false - didn't enter current ast.Node
 		}
 
 		_, err := io.WriteString(w, parsed)
