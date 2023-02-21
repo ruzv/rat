@@ -6,11 +6,8 @@ import (
 	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
-
-var log = logging.MustGetLogger("graph")
 
 // Provider describes graph node manipulations.
 type Provider interface {
@@ -125,16 +122,15 @@ func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
 
 // Metrics groups all nodes metrics.
 type Metrics struct {
-	Nodes      int
-	FinalNodes int
-	Depth      struct {
-		Max int
-		Avg float64
-	}
-	Leafs struct {
-		Max int
-		Avg float64
-	}
+	Nodes      int    `json:"nodes"`
+	FinalNodes int    `json:"final_nodes"`
+	Depth      metric `json:"depth"`
+	Leafs      metric `json:"leafs"`
+}
+
+type metric struct {
+	Max int     `json:"max"`
+	Avg float64 `json:"avg"`
 }
 
 // Metrics calculates metrics for node.

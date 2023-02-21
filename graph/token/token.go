@@ -152,7 +152,9 @@ func NewToken(raw string) (*Token, error) {
 
 // Transform produces the expanded version of the token.
 func (t *Token) Transform(n *graph.Node, p graph.Provider) (string, error) {
-	transformers := map[TokenType]func(n *graph.Node, p graph.Provider) (string, error){
+	transformers := map[TokenType]func(
+		n *graph.Node, p graph.Provider,
+	) (string, error){
 		GraphTokenType: t.transformGraphToken,
 		TodoTokenType:  t.transformTodoToken,
 	}
@@ -220,6 +222,7 @@ var todoRegex = regexp.MustCompile(
 	"```todo\n((?:.*\n)*?)```",
 )
 
+//nolint:gocyclo,cyclop
 func (t *Token) transformTodoToken(
 	n *graph.Node,
 	p graph.Provider,
