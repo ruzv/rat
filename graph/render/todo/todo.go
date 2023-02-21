@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	pathutil "private/rat/graph/util/path"
+
 	"github.com/pkg/errors"
 )
 
@@ -24,7 +26,7 @@ func Parse(raw string) (*TodoList, error) {
 		rawTodos       []string
 		due            time.Time
 		size           time.Duration
-		sourceNodePath string
+		sourceNodePath pathutil.NodePath
 		err            error
 	)
 
@@ -58,7 +60,9 @@ func Parse(raw string) (*TodoList, error) {
 		}
 
 		if strings.HasPrefix(line, "sourceNodePath=") {
-			sourceNodePath = strings.TrimPrefix(line, "sourceNodePath=")
+			sourceNodePath = pathutil.NodePath(
+				strings.TrimPrefix(line, "sourceNodePath="),
+			)
 
 			continue
 		}
@@ -147,7 +151,7 @@ type TodoList struct {
 	List           []Todo
 	Due            time.Time
 	Size           time.Duration
-	SourceNodePath string
+	SourceNodePath pathutil.NodePath
 }
 
 // CopyMeta returns a new todo list with the same meta data as the current one.

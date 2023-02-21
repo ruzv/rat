@@ -259,7 +259,10 @@ function setNode(path) {
       contentSet(data.content);
       consoleSetDataFields([data.id, data.name, data.path]);
       consoleSetNavigator(data.path);
-      setLeafs(data.leafs);
+
+      if (data.leafs) {
+        setLeafs(data.leafs);
+      }
 
       CURRENT_NODE_PATH = data.path;
       console.log(CURRENT_NODE_PATH);

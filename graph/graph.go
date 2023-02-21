@@ -1,49 +1,38 @@
 package graph
 
 import (
-	"fmt"
-	"path/filepath"
-	"strings"
+	"text/template"
+
+	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
+	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-// var log = logging.MustGetLogger("graph")
+var log = logging.MustGetLogger("graph")
 
-// Store describes a graph store.
-type Store interface {
+// Provider describes graph node manipulations.
+type Provider interface {
 	GetByID(id uuid.UUID) (*Node, error)
-	GetByPath(path string) (*Node, error)
-	Leafs(path string) ([]*Node, error)
-	Add(parent *Node, name, template string) (*Node, error)
+	GetByPath(path pathutil.NodePath) (*Node, error)
+	GetLeafs(path pathutil.NodePath) ([]*Node, error)
+	AddLeaf(parent *Node, name string) (*Node, error)
 	Root() (*Node, error)
-	Update(node *Node) error
-	Move(node *Node, path string) error
-	Delete(node *Node) error
 }
 
 // Node describes a single node.
 type Node struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	Path     string    `json:"path"`
-	Content  string    `json:"content"`
-	Template string    `json:"template"`
-	Store    Store     `json:"-"`
+	ID       uuid.UUID         `json:"id"`
+	Name     string            `json:"name"`
+	Path     pathutil.NodePath `json:"path"`
+	Content  string            `json:"content"`
+	Template string            `json:"template"`
 }
 
-type NodeUpdate struct {
-	Todos []string
-}
-
-// -------------------------------------------------------------------------- //
-// LEAFS
-// -------------------------------------------------------------------------- //
-
-// Leafs returns all leafs of node.
-func (n *Node) Leafs() ([]*Node, error) {
-	leafs, err := n.Store.Leafs(n.Path)
+// GetLeafs returns all leafs of node.
+func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
+	leafs, err := p.GetLeafs(n.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
@@ -51,26 +40,9 @@ func (n *Node) Leafs() ([]*Node, error) {
 	return leafs, nil
 }
 
-// GenID enerates an sets a new ID for node.
-func (n *Node) GenID() error {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return errors.Wrap(err, "failed to generate uuid")
-	}
-
-	n.ID = id
-
-	return nil
-}
-
-// Add new node as child with name.
-func (n *Node) Add(name string) (*Node, error) {
-	template, err := n.getTemplate()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get template")
-	}
-
-	node, err := n.Store.Add(n, name, template)
+// AddLeaf new node as child with name.
+func (n *Node) AddLeaf(p Provider, name string) (*Node, error) {
+	node, err := p.AddLeaf(n, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to add node")
 	}
@@ -78,38 +50,21 @@ func (n *Node) Add(name string) (*Node, error) {
 	return node, nil
 }
 
-func (n *Node) getTemplate() (string, error) {
-	root, err := n.Store.Root()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get root")
-	}
-
-	return func() (string, error) {
-		if n.Template != "" {
-			return n.Template, nil
-		}
-
-		p, err := n.Parent()
-		if err != nil {
-			return "", errors.Wrap(err, "failed to get parent")
-		}
-
-		if p.ID == root.ID {
-			return n.Template, nil
-		}
-
-		return p.getTemplate()
-	}()
-}
-
 // Walk to every child node recursively starting from n. callback is called
 // for every child node. callback is not called for n.
-func (n *Node) Walk(callback func(int, *Node) bool) error {
-	return n.walk(0, callback)
+func (n *Node) Walk(
+	p Provider,
+	callback func(depth int, node *Node) bool,
+) error {
+	return n.walk(p, 0, callback)
 }
 
-func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
-	leafs, err := n.Leafs()
+func (n *Node) walk(
+	p Provider,
+	depth int,
+	callback func(int, *Node) bool,
+) error {
+	leafs, err := n.GetLeafs(p)
 	if err != nil {
 		return errors.Wrap(err, "failed to get leafs")
 	}
@@ -119,7 +74,7 @@ func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
 			continue // callback returned false, skip this branch
 		}
 
-		err = leaf.walk(depth+1, callback)
+		err = leaf.walk(p, depth+1, callback)
 		if err != nil {
 			return errors.Wrap(err, "failed to walk leaf")
 		}
@@ -128,99 +83,45 @@ func (n *Node) walk(depth int, callback func(int, *Node) bool) error {
 	return nil
 }
 
-// -------------------------------------------------------------------------- //
-// UPDATE
-// -------------------------------------------------------------------------- //
-
-// Update updates node.
-func (n *Node) Update(nu *NodeUpdate) error {
-	for _, todo := range nu.Todos {
-		n.Content = strings.Replace(
-			n.Content,
-			fmt.Sprintf("- %s", todo),
-			fmt.Sprintf("x %s", todo),
-			1,
-		)
-	}
-
-	for _, todo := range nu.Todos {
-		n.Content = strings.Replace(
-			n.Content,
-			fmt.Sprintf("- %s", todo),
-			fmt.Sprintf("x %s", todo),
-			1,
-		)
-	}
-
-	err := n.Store.Update(n)
+// Parent returns parent of node.
+func (n *Node) Parent(p Provider) (*Node, error) {
+	parent, err := p.GetByPath(pathutil.ParentPath(n.Path))
 	if err != nil {
-		return errors.Wrap(err, "failed to update")
+		return nil, errors.Wrap(err, "failed to get parent")
 	}
 
-	return nil
+	return parent, nil
 }
 
-// Rename renames a node.
-func (n *Node) Rename(name string) error {
-	err := n.Store.Move(n, filepath.Join(ParentPath(n.Path), name))
+// GetTemplate returns the first template encountered when walking up the tree.
+func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
+	root, err := p.Root()
 	if err != nil {
-		return errors.Wrap(err, "failed to rename")
+		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	return nil
-}
+	var getTemplate func(n *Node) (*template.Template, error)
 
-// Move node to new path.
-func (n *Node) Move(path string) error {
-	err := n.Store.Move(n, path)
-	if err != nil {
-		return errors.Wrap(err, "failed to move")
-	}
+	getTemplate = func(n *Node) (*template.Template, error) {
+		if root.ID == n.ID || n.Template != "" {
+			templ, err := template.New("newNode").Parse(n.Template)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse template")
+			}
 
-	return nil
-}
-
-// -------------------------------------------------------------------------- //
-// DELETE
-// -------------------------------------------------------------------------- //
-
-// DeleteAll deletes a node and all its children.
-func (n *Node) DeleteAll() error {
-	err := n.Store.Delete(n)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete")
-	}
-
-	return nil
-}
-
-// DeleteSingle deletes only a single node, moving all children to parent.
-func (n *Node) DeleteSingle() error {
-	leafs, err := n.Leafs()
-	if err != nil {
-		return errors.Wrap(err, "failed to get leafs")
-	}
-
-	parent := ParentPath(n.Path)
-
-	for _, leaf := range leafs {
-		err = leaf.Move(filepath.Join(parent, leaf.Name))
-		if err != nil {
-			return errors.Wrap(err, "failed to move leaf node")
+			return templ, nil
 		}
+
+		parent, err := n.Parent(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get parent")
+		}
+
+		return getTemplate(parent)
 	}
 
-	err = n.DeleteAll()
-	if err != nil {
-		return errors.Wrap(err, "failed to delete all")
-	}
-
-	return nil
+	return getTemplate(n)
 }
-
-// -------------------------------------------------------------------------- //
-// METRICS
-// -------------------------------------------------------------------------- //
 
 // Metrics groups all nodes metrics.
 type Metrics struct {
@@ -231,13 +132,15 @@ type Metrics struct {
 }
 
 // Metrics calculates metrics for node.
-func (n *Node) Metrics() (*Metrics, error) {
+func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	var (
-		m        Metrics
-		hasLeafs int
+		m          Metrics
+		hasLeafs   int
+		totalLeafs int
 	)
 
 	err := n.Walk(
+		p,
 		func(depth int, node *Node) bool {
 			m.Nodes++
 
@@ -245,7 +148,7 @@ func (n *Node) Metrics() (*Metrics, error) {
 				m.MaxDepth = depth
 			}
 
-			leafs, err := node.Leafs()
+			leafs, err := node.GetLeafs(p)
 			if err != nil {
 				return true
 			}
@@ -258,7 +161,7 @@ func (n *Node) Metrics() (*Metrics, error) {
 				m.MaxLeafs = len(leafs)
 			}
 
-			m.AvgLeafs += float64(len(leafs))
+			totalLeafs += len(leafs)
 			hasLeafs++
 
 			return true
@@ -268,74 +171,9 @@ func (n *Node) Metrics() (*Metrics, error) {
 		return nil, errors.Wrap(err, "failed to walk graph")
 	}
 
-	m.AvgLeafs /= float64(hasLeafs)
+	if hasLeafs > 0 {
+		m.AvgLeafs = float64(totalLeafs) / float64(hasLeafs)
+	}
 
 	return &m, nil
-}
-
-// -------------------------------------------------------------------------- //
-// UTILS
-// -------------------------------------------------------------------------- //
-
-// NameFromPath returns name of node from its path.
-func NameFromPath(path string) string {
-	parts := strings.Split(path, "/")
-
-	if len(parts) == 0 {
-		return ""
-	}
-
-	if len(parts) == 1 {
-		return parts[0]
-	}
-
-	return parts[len(parts)-1]
-}
-
-// PathDepth returns depth.
-func PathDepth(path string) int {
-	return len(PathParts(path))
-}
-
-// PathParts returns path parts.
-func PathParts(path string) []string {
-	split := strings.Split(path, "/")
-	parts := make([]string, 0, len(split))
-
-	for _, part := range split {
-		if part == "" {
-			continue
-		}
-
-		parts = append(parts, part)
-	}
-
-	return parts
-}
-
-// ParentPath returns parent path of node. Returns root path for root path.
-func ParentPath(path string) string {
-	parts := PathParts(path)
-
-	if len(parts) < 2 {
-		return path
-	}
-
-	return strings.Join(parts[:len(parts)-1], "/")
-}
-
-// -------------------------------------------------------------------------- //
-// PARENT
-// -------------------------------------------------------------------------- //
-
-// Parent .
-func (n *Node) Parent() (*Node, error) {
-	parentPath := ParentPath(n.Path)
-
-	p, err := n.Store.GetByPath(parentPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get parent")
-	}
-
-	return p, nil
 }

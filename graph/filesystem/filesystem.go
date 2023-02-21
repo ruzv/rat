@@ -1,33 +1,24 @@
-package storefilesystem
+package filesystem
 
 import (
 	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"text/template"
 
 	"private/rat/graph"
+	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var (
-	log             = logging.MustGetLogger("storefilesystem")
-	_   graph.Store = (*FileSystem)(nil)
-)
+var _ graph.Provider = (*FileSystem)(nil)
 
 const (
 	metadataFilename = ".metadata.json"
 	contentFilename  = "content.md"
 	templateFilename = ".template.md"
-	newNodeTemplate  = `
-# %s
-		
-<rat graph>
-`
 )
 
 // FileSystem implements graph.Store reading and writing to the filesystem. for
@@ -66,7 +57,10 @@ func NewFileSystem(root, path string) (*FileSystem, error) {
 		return nil, errors.Wrapf(err, "failed to create root node dir")
 	}
 
-	n := fs.newNode(root, root)
+	n := &graph.Node{
+		Name: root,
+		Path: pathutil.NodePath(root),
+	}
 
 	err = setCont(n, p)
 	if err != nil {
@@ -98,6 +92,7 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 	)
 
 	err = root.Walk(
+		fs,
 		func(_ int, node *graph.Node) bool {
 			if node.ID == id {
 				n = node
@@ -115,10 +110,13 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 }
 
 // GetByPath returns a node by path.
-func (fs *FileSystem) GetByPath(path string) (*graph.Node, error) {
+func (fs *FileSystem) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	fullpath := fs.fullPath(path)
 
-	node := fs.newNode(graph.NameFromPath(path), path)
+	node := &graph.Node{
+		Path: path,
+		Name: pathutil.NameFromPath(path),
+	}
 
 	err := getMeta(node, fullpath)
 	if err != nil {
@@ -182,6 +180,10 @@ func getTemplate(node *graph.Node, path string) error {
 
 	data, err := os.ReadFile(p)
 	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to read template file")
+		}
+
 		return nil
 	}
 
@@ -190,20 +192,12 @@ func getTemplate(node *graph.Node, path string) error {
 	return nil
 }
 
-func (fs *FileSystem) newNode(name, path string) *graph.Node {
-	return &graph.Node{
-		Name:  name,
-		Path:  path,
-		Store: fs,
-	}
+func (fs *FileSystem) fullPath(path pathutil.NodePath) string {
+	return filepath.Join(fs.path, string(path))
 }
 
-func (fs *FileSystem) fullPath(path string) string {
-	return filepath.Join(fs.path, path)
-}
-
-// Leafs returns leaf nodes.
-func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
+// GetLeafs returns leaf nodes.
+func (fs *FileSystem) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 	fullPath := fs.fullPath(path)
 
 	leafs, err := os.ReadDir(fullPath)
@@ -219,7 +213,7 @@ func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 			continue
 		}
 
-		node, err := fs.GetByPath(filepath.Join(path, leaf.Name()))
+		node, err := fs.GetByPath(pathutil.JoinName(path, leaf.Name()))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get node")
 		}
@@ -230,33 +224,39 @@ func (fs *FileSystem) Leafs(path string) ([]*graph.Node, error) {
 	return leafNodes, nil
 }
 
-// Add adds a new node to the graph.
-func (fs *FileSystem) Add(
-	parent *graph.Node,
-	name, templ string,
+// AddLeaf adds a new node to the graph.
+func (fs *FileSystem) AddLeaf(
+	parent *graph.Node, name string,
 ) (*graph.Node, error) {
-	newNode := fs.newNode(name, filepath.Join(parent.Path, name))
+	newNode := &graph.Node{
+		Name: name,
+		Path: pathutil.JoinName(parent.Path, name),
+	}
+
 	newFullPath := filepath.Join(fs.fullPath(parent.Path), name)
 
-	t, err := template.New("newNode").Parse(templ)
+	templ, err := parent.GetTemplate(fs)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse template")
+		return nil, errors.Wrap(err, "failed to get template")
 	}
 
 	buff := &bytes.Buffer{}
 
-	err = t.Execute(buff, struct {
-		Name string
-	}{
-		Name: name,
-	})
+	err = templ.Execute(
+		buff,
+		struct {
+			Name string
+		}{
+			Name: name,
+		},
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute template")
 	}
 
 	newNode.Content = buff.String()
 
-	err = newNode.GenID()
+	newNode.ID, err = uuid.NewV4()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate id")
 	}
@@ -327,33 +327,5 @@ func setCont(node *graph.Node, path string) error {
 
 // Root returns the root node of the graph.
 func (fs *FileSystem) Root() (*graph.Node, error) {
-	return fs.GetByPath(fs.root)
-}
-
-// Update updates the content of the node.
-func (fs *FileSystem) Update(node *graph.Node) error {
-	return setCont(node, fs.fullPath(node.Path))
-}
-
-// Move moves a node from one parent to another.
-func (fs *FileSystem) Move(node *graph.Node, path string) error {
-	err := os.Rename(fs.fullPath(node.Path), fs.fullPath(path))
-	if err != nil {
-		return errors.Wrap(err, "failed to move node")
-	}
-
-	node.Path = path
-	node.Name = graph.NameFromPath(path)
-
-	return nil
-}
-
-// Delete removes node from the filesystem.
-func (fs *FileSystem) Delete(node *graph.Node) error {
-	err := os.RemoveAll(fs.fullPath(node.Path))
-	if err != nil {
-		return errors.Wrapf(err, "failed to remove all")
-	}
-
-	return nil
+	return fs.GetByPath(pathutil.NodePath(fs.root))
 }
