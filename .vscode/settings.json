@@ -9,14 +9,14 @@
         "formatting.gofumpt": true,
     },
 
-    "emeraldwalk.runonsave": {
-        "commands": [
-            {
-                "match": "\\.go$",
-                "cmd": "golines ${file} -w -m 80 --shorten-comments --chain-split-dots"
-            }
-        ]
-    },
+    // "emeraldwalk.runonsave": {
+    //     "commands": [
+    //         {
+    //             "match": "\\.go$",
+    //             "cmd": "golines ${file} -w -m 80 --shorten-comments --chain-split-dots"
+    //         }
+    //     ]
+    // },
 
     "[json]": {
         "editor.formatOnSave": true,

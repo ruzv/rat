@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -218,11 +217,6 @@ func (t *Token) transformGraphToken(
 	return b.String(), nil
 }
 
-var todoRegex = regexp.MustCompile(
-	"```todo\n((?:.*\n)*?)```",
-)
-
-//nolint:gocyclo,cyclop
 func (t *Token) transformTodoToken(
 	n *graph.Node,
 	p graph.Provider,
@@ -243,42 +237,25 @@ func (t *Token) transformTodoToken(
 	}
 
 	var (
-		todoLists []*todo.TodoList
-		parseErr  error
+		todos    []*todo.Todo
+		parseErr error
 	)
 
 	err = parent.Walk(
 		p,
-		func(d int, leaf *graph.Node) bool {
-			if d == depth {
+		func(d int, node *graph.Node) bool {
+			if d == depth || parseErr != nil {
 				return false
 			}
 
-			if parseErr != nil {
+			nodeTodos, err := todo.ParseNode(node)
+			if err != nil {
+				parseErr = errors.Wrap(err, "failed to parse nodes todos")
+
 				return false
 			}
 
-			matches := todoRegex.FindAllStringSubmatch(leaf.Content, -1)
-			for _, match := range matches {
-				todoL, err := todo.Parse(match[1])
-				if err != nil {
-					parseErr = errors.Wrap(err, "failed to parse todo")
-
-					return false
-				}
-
-				notDone := todoL.NotDone()
-				if notDone.Empty() {
-					continue
-				}
-
-				// if filterPriority && !notDone.HasPriority() {
-				// 	continue
-				// }
-
-				notDone.SourceNodePath = leaf.Path
-				todoLists = append(todoLists, notDone)
-			}
+			todos = append(todos, nodeTodos...)
 
 			return true
 		},
@@ -291,38 +268,16 @@ func (t *Token) transformTodoToken(
 		return "", errors.Wrap(parseErr, "failed to parse todo")
 	}
 
-	sort.SliceStable(
-		todoLists,
-		func(iIdx, jIdx int) bool {
-			i := todoLists[iIdx]
-			j := todoLists[jIdx]
-
-			if !i.HasPriority() && !j.HasPriority() {
-				return false
-			}
-
-			if i.HasPriority() && !j.HasPriority() {
-				return true
-			}
-
-			if !i.HasPriority() && j.HasPriority() {
-				return false
-			}
-
-			return i.Priority() > j.Priority()
-		},
-	)
-
-	rawTodoLists := make([]string, 0, len(todoLists))
-
-	for _, todoList := range todoLists {
-		rawTodoLists = append(
-			rawTodoLists,
-			todoList.Markdown(),
-		)
-	}
-
-	return strings.Join(rawTodoLists, "\n"), nil
+	return strings.Join(
+			util.Map(
+				todos,
+				func(t *todo.Todo) string {
+					return t.Markdown()
+				},
+			),
+			"\n",
+		),
+		nil
 }
 
 // by default returns -1, meaning no depth limit.

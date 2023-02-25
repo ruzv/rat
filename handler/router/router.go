@@ -26,7 +26,7 @@ func New(
 
 	router.Use(GetAccessLoggerMW())
 
-	err := nodeshttp.RegisterRoutes(conf, router)
+	err := nodeshttp.RegisterRoutes(router, embeds, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register node routes")
 	}

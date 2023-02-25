@@ -1,0 +1,14 @@
+{{ range .Entries }}
+    <div class="todo-entire">
+        <div style="display: inline-block">
+            {{ if .Done }}
+                <input type="checkbox" checked>
+            {{ else }}
+                <input type="checkbox">
+            {{ end }}
+        </div>
+        <div class="todo-entire-content">
+            {{ .Content }}
+        </div>
+    </div>
+{{ end }}

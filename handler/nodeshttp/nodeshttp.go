@@ -3,6 +3,7 @@ package nodeshttp
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -13,10 +14,10 @@ import (
 	"private/rat/graph/filesystem"
 	"private/rat/graph/pathcache"
 	"private/rat/graph/render"
+	"private/rat/graph/render/templ"
 	pathutil "private/rat/graph/util/path"
 	hUtil "private/rat/handler"
 
-	"github.com/gomarkdown/markdown/html"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 
@@ -26,12 +27,12 @@ import (
 var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
-	p    graph.Provider
-	rend *html.Renderer
+	p graph.Provider
+	r *render.Renderer
 }
 
 // creates a new Handler.
-func newHandler(conf *config.Config) (*handler, error) {
+func newHandler(embeds fs.FS, conf *config.Config) (*handler, error) {
 	log.Info("loading graph")
 
 	p, err := filesystem.NewFileSystem(
@@ -64,20 +65,27 @@ func newHandler(conf *config.Config) (*handler, error) {
 	log.Infof("metrics:\n%s", string(b))
 	log.Notice("loaded graph -", conf.Graph.Name)
 
-	ts, err := render.DefaultTemplateStore()
+	templateFS, err := fs.Sub(embeds, "render-templates")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
+	}
+
+	ts, err := templ.FileTemplateStore(templateFS)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create default template store")
 	}
 
 	return &handler{
-		p:    pc,
-		rend: render.NewRenderer(ts, pc),
+		p: pc,
+		r: render.NewRenderer(ts, pc),
 	}, nil
 }
 
 // RegisterRoutes registers graph routes on given router.
-func RegisterRoutes(conf *config.Config, router *mux.Router) error {
-	h, err := newHandler(conf)
+func RegisterRoutes(
+	router *mux.Router, embeds fs.FS, conf *config.Config,
+) error {
+	h, err := newHandler(embeds, conf)
 	if err != nil {
 		return errors.Wrap(err, "failed create new graph handler")
 	}
@@ -156,7 +164,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	resp.Node = *n
-	resp.Node.Content = render.Render(n, h.p, h.rend)
+	resp.Node.Content = h.r.Render(n)
 
 	if includeLeafs(r) {
 		leafs, err := h.getLeafPaths(w, n.Path)
