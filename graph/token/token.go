@@ -217,11 +217,6 @@ func (t *Token) transformGraphToken(
 	return b.String(), nil
 }
 
-var todoRegex = regexp.MustCompile(
-	"```todo\n((?:.*\n)*?)```",
-)
-
-//nolint:gocyclo,cyclop
 func (t *Token) transformTodoToken(
 	n *graph.Node,
 	p graph.Provider,
@@ -261,28 +256,6 @@ func (t *Token) transformTodoToken(
 			}
 
 			todos = append(todos, nodeTodos...)
-
-			// matches := todoRegex.FindAllStringSubmatch(leaf.Content, -1)
-			// for _, match := range matches {
-			// 	todoL, err := todo.Parse(match[1])
-			// 	if err != nil {
-			// 		parseErr = errors.Wrap(err, "failed to parse todo")
-
-			// 		return false
-			// 	}
-
-			// 	notDone := todoL.NotDone()
-			// 	if notDone.Empty() {
-			// 		continue
-			// 	}
-
-			// 	// if filterPriority && !notDone.HasPriority() {
-			// 	// 	continue
-			// 	// }
-
-			// 	// notDone.SourceNodePath = leaf.Path
-			// 	todoLists = append(todoLists, notDone)
-			// }
 
 			return true
 		},
