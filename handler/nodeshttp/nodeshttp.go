@@ -61,8 +61,15 @@ func newHandler(conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to marshal metrics")
 	}
 
-	log.Infof("metrics:\n%s", string(b))
 	log.Notice("loaded graph -", conf.Graph.Name)
+	log.Infof("metrics:\n%s", string(b))
+
+	dot, err := r.GenerateDOT(-1, pc)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate dot")
+	}
+
+	log.Infof("dot:\n%s", dot)
 
 	ts, err := render.DefaultTemplateStore()
 	if err != nil {

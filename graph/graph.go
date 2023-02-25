@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"fmt"
+	"strings"
 	"text/template"
 
 	pathutil "private/rat/graph/util/path"
@@ -186,4 +188,82 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	}
 
 	return &m, nil
+}
+
+// GenerateDOT generates DOT graph description for graph, starting at n node.
+func (n *Node) GenerateDOT(depth int, p Provider) (string, error) {
+	var leafsErr error
+
+	var pairs []string
+
+	used := map[string]bool{
+		n.Name: true,
+	}
+
+	names := map[uuid.UUID]string{
+		n.ID: n.Name,
+	}
+
+	err := n.Walk(
+		p,
+		func(d int, node *Node) bool {
+			if d == depth || leafsErr != nil {
+				return false
+			}
+
+			leafs, err := node.GetLeafs(p)
+			if err != nil {
+				leafsErr = err
+
+				return false
+			}
+
+			for _, leaf := range leafs {
+				leafName := leaf.Name
+
+				if used[leafName] {
+					leafName = fmt.Sprintf(
+						"%s(%s)",
+						leaf.Name,
+						leaf.ID.String(),
+					)
+				}
+
+				used[leafName] = true
+				names[leaf.ID] = leafName
+
+				nodeName, ok := names[node.ID]
+				if !ok {
+					nodeName = node.Name
+
+					if used[nodeName] {
+						nodeName = fmt.Sprintf(
+							"%s(%s)",
+							node.Name,
+							node.ID.String(),
+						)
+					}
+
+					used[nodeName] = true
+					names[node.ID] = nodeName
+				}
+
+				pairs = append(
+					pairs,
+					fmt.Sprintf("%q -- %q", nodeName, leafName),
+				)
+			}
+
+			return true
+		},
+	)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to walk graph")
+	}
+
+	if leafsErr != nil {
+		return "", errors.Wrap(leafsErr, "failed to get leafs")
+	}
+
+	return fmt.Sprintf("graph G {\n%s\n}", strings.Join(pairs, "\n")), nil
 }
