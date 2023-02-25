@@ -14,6 +14,7 @@ import (
 	"private/rat/graph/filesystem"
 	"private/rat/graph/pathcache"
 	"private/rat/graph/render"
+	"private/rat/graph/render/templ"
 	pathutil "private/rat/graph/util/path"
 	hUtil "private/rat/handler"
 
@@ -69,7 +70,7 @@ func newHandler(embeds fs.FS, conf *config.Config) (*handler, error) {
 		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
 	}
 
-	ts, err := render.FileTemplateStore(templateFS)
+	ts, err := templ.FileTemplateStore(templateFS)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create default template store")
 	}

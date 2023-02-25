@@ -19,3 +19,27 @@ func ReverseSlice[T any](a []T) []T {
 func Link(path pathutil.NodePath, name string) string {
 	return fmt.Sprintf("[%s](%s)", name, pathutil.URL(path))
 }
+
+// Map applies a function to all todo entries.
+func Map[T any, R any](s []T, f func(T) R) []R {
+	r := make([]R, len(s))
+	for i, v := range s {
+		r[i] = f(v)
+	}
+
+	return r
+}
+
+// Filter creates a new slice of entries of s that valid function return's
+// true to.
+func Filter[T any](s []T, valid func(T) bool) []T {
+	var r []T
+
+	for _, v := range s {
+		if valid(v) {
+			r = append(r, v)
+		}
+	}
+
+	return r
+}
