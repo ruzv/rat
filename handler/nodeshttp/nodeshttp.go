@@ -64,6 +64,11 @@ func newHandler(conf *config.Config) (*handler, error) {
 	log.Notice("loaded graph -", conf.Graph.Name)
 	log.Infof("metrics:\n%s", string(b))
 
+	// dot -Tpng test.graph -o output.png
+	// neato -Tpng test.graph -o output.png
+	// fdp -Tpng test.graph -o output.png
+	// sfdp -Tpng test.graph -o output.png
+
 	dot, err := r.GenerateDOT(-1, pc)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate dot")
