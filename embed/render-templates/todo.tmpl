@@ -1,5 +1,5 @@
-{{ range $key, $value := .Hints -}}
-    <span class="todo-hint">{{ $key }} = {{ $value }}</span>
+{{ range .Hints -}}
+    <span class="todo-hint">{{ .Type }} = {{ .Value }}</span>
 {{- end }}
 
 {{ range .Entries }}

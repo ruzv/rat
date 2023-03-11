@@ -2,7 +2,6 @@ package render
 
 import (
 	"io"
-	"sort"
 	"strings"
 
 	"private/rat/graph"
@@ -175,12 +174,10 @@ func (r *Renderer) renderTodo(
 		return ast.GoToNext, false, errors.Wrap(err, "failed to parse todo")
 	}
 
-	sort.Sort(t)
-
 	err = r.ts.Todo(
 		w,
 		util.Map(
-			t.Entries,
+			t.OrderEntries(),
 			func(e *todo.TodoEntry) templ.TodoEntryTemplData {
 				return templ.TodoEntryTemplData{
 					Done:    e.Done,
@@ -188,7 +185,15 @@ func (r *Renderer) renderTodo(
 				}
 			},
 		),
-		t.StringHints(),
+		util.Map(
+			t.OrderHints(),
+			func(h *todo.Hint) templ.TodoHintTemplData {
+				return templ.TodoHintTemplData{
+					Type:  string(h.Type),
+					Value: h.String(),
+				}
+			},
+		),
 	)
 	if err != nil {
 		return ast.GoToNext, false, errors.Wrap(err, "failed to render todo")
