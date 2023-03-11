@@ -86,12 +86,18 @@ type TodoEntryTemplData struct {
 }
 
 // Todo renders a list of todo entires.
-func (ts *TemplateStore) Todo(w io.Writer, entires []TodoEntryTemplData) error {
+func (ts *TemplateStore) Todo(
+	w io.Writer,
+	entires []TodoEntryTemplData,
+	hints map[string]string,
+) error {
 	err := ts.todo.Execute(
 		w,
 		struct {
+			Hints   map[string]string
 			Entries []TodoEntryTemplData
 		}{
+			Hints:   hints,
 			Entries: entires,
 		},
 	)

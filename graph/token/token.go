@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -267,6 +268,10 @@ func (t *Token) transformTodoToken(
 	if parseErr != nil {
 		return "", errors.Wrap(parseErr, "failed to parse todo")
 	}
+
+	todos = util.Filter(todos, func(t *todo.Todo) bool { return !t.Done() })
+
+	sort.SliceStable(todo.ByDue(todos))
 
 	return strings.Join(
 			util.Map(

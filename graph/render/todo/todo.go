@@ -10,17 +10,43 @@ import (
 	"private/rat/graph"
 	"private/rat/graph/util"
 
+	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var todoRe = regexp.MustCompile("```todo\n([[:ascii:]]*?)```")
+var todoRe = regexp.MustCompile(
+	"\x60\x60\x60todo\n((?:(?:.*)\n)*?)\x60\x60\x60",
+)
 
-// var log = logging.MustGetLogger("render.todo")
+var log = logging.MustGetLogger("graph.render.todo")
+
+// HintType describes todo hint types.
+type HintType string
+
+const (
+	// None is a hint type that does not provide any hints.
+	None HintType = "none"
+	// Due is a hint type that provides a due date.
+	Due HintType = "due"
+	// Size is a hint type that provides a size.
+	Size HintType = "size"
+	// Src is a hint type that shows the source node path of todo.
+	Src HintType = "src"
+)
 
 // Todo represents a todo list.
 type Todo struct {
 	Entries []*TodoEntry
+	Hints   map[HintType]interface{}
 }
+
+// TODO: FIGURE OUT HOW TO HANDLE HINTS, MYb just an interface, and sort,
+// contains, ... handling is done by casting
+// due
+// size
+// tags
+// sort, compare
+// filter - contains tag
 
 // ParseNode parses a todo lists from a node.
 func ParseNode(n *graph.Node) ([]*Todo, error) {
@@ -33,6 +59,8 @@ func ParseNode(n *graph.Node) ([]*Todo, error) {
 			return nil, errors.Wrap(err, "failed to parse todo")
 		}
 
+		t.Hints[Src] = n.Path
+
 		todos = append(todos, t)
 	}
 
@@ -41,50 +69,111 @@ func ParseNode(n *graph.Node) ([]*Todo, error) {
 
 // Parse parses a todo list from a raw string.
 func Parse(raw string) (*Todo, error) {
-	// filter empty
-	lines := util.Filter(
-		strings.Split(raw, "\n"),
-		func(s string) bool { return len(s) > 0 },
-	)
+	lf := &lineFeed{
+		// filter empty
+		lines: util.Filter(
+			strings.Split(raw, "\n"),
+			func(s string) bool { return len(s) > 0 },
+		),
+	}
 
-	//nolint:prealloc
+	// find todo metadata
+
 	var (
-		entries    []*TodoEntry
-		entryLines []string
+		entries []*TodoEntry
+		hints   = make(map[HintType]interface{})
 	)
 
-	for _, line := range lines {
-		if (strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "x ")) &&
-			len(entryLines) > 0 {
-			e, err := parseEntry(entryLines)
+	for lf.next() {
+		line := lf.peek()
+
+		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "x ") {
+			e, err := parseEntry(
+				append(
+					[]string{lf.pop()},
+					lf.popUntil(
+						func(s string) bool {
+							return strings.HasPrefix(s, "- ") ||
+								strings.HasPrefix(s, "x ")
+						},
+					)...,
+				),
+			)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse entry")
 			}
 
 			entries = append(entries, e)
 
-			entryLines = []string{}
+			continue
 		}
 
-		entryLines = append(entryLines, line)
-	}
+		if strings.Contains(line, "=") {
+			hType, hValue, err := parseHint(lf.pop())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse hint")
+			}
 
-	e, err := parseEntry(entryLines)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse entry")
-	}
+			hints[hType] = hValue
 
-	entries = append(entries, e)
+			continue
+		}
+
+		log.Warningf("unknown line - %q", lf.pop())
+	}
 
 	return &Todo{
 		Entries: entries,
+		Hints:   hints,
 	}, nil
+}
+
+func parseHint(line string) (HintType, interface{}, error) {
+	parts := strings.Split(line, "=")
+
+	if len(parts) != 2 {
+		return None, nil, errors.Errorf("invalid hint - %q", line)
+	}
+
+	hType := strings.TrimSpace(parts[0])
+	hValue := strings.TrimSpace(parts[1])
+
+	switch HintType(hType) {
+	case Due:
+		due, err := parseTime(hValue)
+		if err != nil {
+			return None, nil, errors.Wrap(err, "failed to parse due date")
+		}
+
+		return Due, due, nil
+	case Size:
+		size, err := time.ParseDuration(hValue)
+		if err != nil {
+			return None, nil, errors.Wrap(err, "failed to parse size")
+		}
+
+		return Size, size, nil
+
+	case Src:
+		return Src, hValue, nil
+	default:
+		log.Warningf("unknown hint type - %q, with value - %q", hType, hValue)
+
+		return None, nil, nil // unknown hint type, not and error, just ignore.
+	}
 }
 
 // Markdown returns the markdown representation of the todo list.
 func (t *Todo) Markdown() string {
+	hints := make([]string, 0, len(t.Hints))
+
+	for k, v := range t.StringHints() {
+		hints = append(hints, fmt.Sprintf("%s = %s", k, v))
+	}
+
 	return fmt.Sprintf(
-		"```todo\n%s\n```",
+		"```todo\n%s\n%s\n```",
+		strings.Join(hints, "\n"),
 		strings.Join(
 			util.Map(
 				t.Entries,
@@ -95,6 +184,43 @@ func (t *Todo) Markdown() string {
 			"\n",
 		),
 	)
+}
+
+// StringHints converts the todos hins to a string map, that can be used to
+// render the todos template.
+func (t *Todo) StringHints() map[string]string {
+	hints := make(map[string]string)
+
+	for hType, hValue := range t.Hints {
+		if hValue == nil {
+			continue
+		}
+
+		strValue := func() string {
+			switch hType {
+			case Due:
+				v, ok := hValue.(time.Time)
+				if !ok {
+					return fmt.Sprintf("%v", hValue)
+				}
+
+				return v.Format("02.01.2006")
+			case Size:
+				v, ok := hValue.(time.Duration)
+				if !ok {
+					return fmt.Sprintf("%v", hValue)
+				}
+
+				return v.String()
+			default:
+				return fmt.Sprintf("%v", hValue)
+			}
+		}()
+
+		hints[string(hType)] = strValue
+	}
+
+	return hints
 }
 
 var _ sort.Interface = (*Todo)(nil)
@@ -183,9 +309,6 @@ func (te *TodoEntry) markdown() string {
 	return fmt.Sprintf("- %s", te.Text)
 }
 
-// TODO: this will be used when parsing todo metadata.
-//
-//nolint:unused
 func parseTime(raw string) (time.Time, error) {
 	t, err := time.Parse("02.01.2006", raw)
 	if err == nil {
@@ -217,5 +340,53 @@ func parseTime(raw string) (time.Time, error) {
 		return t.AddDate(time.Now().Year(), 0, 0), nil
 	}
 
-	return time.Time{}, errors.New("failed to parse time in any format")
+	return time.Time{},
+		errors.Errorf("failed to parse %q as time in any format", raw)
+}
+
+// ByDue produces the sort arguments for sorting todos by due date.
+func ByDue(s []*Todo) ([]*Todo, func(i, j int) bool) {
+	return s, func(i, j int) bool {
+		iT := s[i].hintDue()
+		jT := s[j].hintDue()
+
+		if iT == nil && jT == nil {
+			return false
+		}
+
+		if iT == nil {
+			return true
+		}
+
+		if jT == nil {
+			return false
+		}
+
+		return iT.Before(*jT)
+	}
+}
+
+func (t *Todo) hintDue() *time.Time {
+	due, ok := t.Hints[Due]
+	if !ok {
+		return nil
+	}
+
+	tDue, ok := due.(time.Time)
+	if !ok {
+		return nil
+	}
+
+	return &tDue
+}
+
+// Done returns true if all entries are done.
+func (t *Todo) Done() bool {
+	for _, e := range t.Entries {
+		if !e.Done {
+			return false
+		}
+	}
+
+	return true
 }

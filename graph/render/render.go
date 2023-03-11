@@ -188,6 +188,7 @@ func (r *Renderer) renderTodo(
 				}
 			},
 		),
+		t.StringHints(),
 	)
 	if err != nil {
 		return ast.GoToNext, false, errors.Wrap(err, "failed to render todo")
