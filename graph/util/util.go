@@ -53,3 +53,18 @@ func Filter[T any](s []T, valid func(T) bool) []T {
 
 	return r
 }
+
+type Slice[T any] []T
+
+// Iter iterates over a slice and calls the given function for each element.
+func Iter[T any](s []T, f func(T)) {
+	for _, v := range s {
+		f(v)
+	}
+}
+
+func (s Slice[T]) Iter(f func(T)) {
+	for _, v := range s {
+		f(v)
+	}
+}

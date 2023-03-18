@@ -204,29 +204,8 @@ func parseTime(raw string) (time.Time, error) {
 		errors.Errorf("failed to parse %q as time in any format", raw)
 }
 
-// ByDue produces the sort arguments for sorting todos by due date.
-func ByDue(s []*Todo) ([]*Todo, func(i, j int) bool) {
-	return s, func(i, j int) bool {
-		iT := s[i].hintDue()
-		jT := s[j].hintDue()
-
-		if iT == nil && jT == nil {
-			return false
-		}
-
-		if iT == nil {
-			return true
-		}
-
-		if jT == nil {
-			return false
-		}
-
-		return iT.Before(*jT)
-	}
-}
-
-func (t *Todo) getHint(hType HintType) *Hint {
+// GetHint returns the hint of the given type. Returns nil if not found.
+func (t *Todo) GetHint(hType HintType) *Hint {
 	for _, h := range t.Hints {
 		if h.Type == hType {
 			return h
@@ -234,20 +213,6 @@ func (t *Todo) getHint(hType HintType) *Hint {
 	}
 
 	return nil
-}
-
-func (t *Todo) hintDue() *time.Time {
-	due := t.getHint(Due)
-	if due == nil {
-		return nil
-	}
-
-	tDue, ok := due.Value.(time.Time)
-	if !ok {
-		return nil
-	}
-
-	return &tDue
 }
 
 // Done returns true if all entries are done.
@@ -259,4 +224,17 @@ func (t *Todo) Done() bool {
 	}
 
 	return true
+}
+
+// RemoveDoneEntries removes all done entries from t.Entries.
+func (t *Todo) RemoveDoneEntries() {
+	var entries []*TodoEntry
+
+	for _, e := range t.Entries {
+		if !e.Done {
+			entries = append(entries, e)
+		}
+	}
+
+	t.Entries = entries
 }

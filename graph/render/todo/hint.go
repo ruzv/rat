@@ -20,6 +20,10 @@ const (
 	Size HintType = "size"
 	// Src is a hint type that shows the source node path of todo.
 	Src HintType = "src"
+	// Priority is a hint type that specifies the priority of a todo.
+	Priority HintType = "priority"
+	// Tags is a hint type that specifies a list of tags for a todo.
+	Tags HintType = "tags"
 )
 
 // Hint represents a todo hint. That can have a type and a value.
@@ -28,11 +32,10 @@ type Hint struct {
 	Value interface{}
 }
 
-var errUnknownHint = errors.New("unknown hint type")
-
-var hintsTypeProcessors = map[HintType]*struct {
-	parse  func(string) (*Hint, error)
-	format func(interface{}) string
+var hintTypeProcessors = map[HintType]*struct {
+	parse      func(string) (*Hint, error)
+	formatMD   func(interface{}) string
+	formatHTML func(interface{}) string
 }{
 	Due: {
 		parse: func(s string) (*Hint, error) {
@@ -43,13 +46,26 @@ var hintsTypeProcessors = map[HintType]*struct {
 
 			return &Hint{Due, due}, nil
 		},
-		format: func(v interface{}) string {
+		formatMD: func(v interface{}) string {
 			t, ok := v.(time.Time)
 			if !ok {
 				return fmt.Sprintf("%v", v)
 			}
 
 			return t.Format("02.01.2006")
+		},
+		formatHTML: func(v interface{}) string {
+			t, ok := v.(time.Time)
+			if !ok {
+				return fmt.Sprintf("%v", v)
+			}
+
+			// &nbs; - non-breaking space
+			return fmt.Sprintf(
+				"%.2f&nbsp;days&nbsp;to&nbsp;%s",
+				time.Until(t).Hours()/24,
+				t.Format("02.01.2006"),
+			)
 		},
 	},
 	Size: {
@@ -61,9 +77,48 @@ var hintsTypeProcessors = map[HintType]*struct {
 
 			return &Hint{Size, size}, nil
 		},
+		formatMD: func(v interface{}) string {
+			d, ok := v.(time.Duration)
+			if !ok {
+				return fmt.Sprintf("%v", v)
+			}
+
+			f := ""
+
+			h := d / time.Hour
+			m := (d % time.Hour) / time.Minute
+			s := (d % time.Minute) / time.Second
+
+			if h > 0 {
+				f += fmt.Sprintf("%dh", h)
+			}
+
+			if m > 0 {
+				f += fmt.Sprintf("%dm", m)
+			}
+
+			if s > 0 {
+				f += fmt.Sprintf("%ds", s)
+			}
+
+			return f
+		},
 	},
-	Src: {},
+	Src: {
+		formatHTML: func(v interface{}) string {
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Sprintf("%v", v)
+			}
+
+			return strings.ReplaceAll(s, "-", "&#8209;")
+		},
+	},
+	Priority: {},
+	Tags:     {},
 }
+
+var errUnknownHint = errors.New("unknown hint type")
 
 func parseHint(line string) (*Hint, error) {
 	parts := strings.Split(line, "=")
@@ -75,7 +130,7 @@ func parseHint(line string) (*Hint, error) {
 	hType := strings.TrimSpace(parts[0])
 	hValue := strings.TrimSpace(parts[1])
 
-	p, ok := hintsTypeProcessors[HintType(hType)]
+	p, ok := hintTypeProcessors[HintType(hType)]
 	if !ok {
 		return nil, errors.Wrapf(
 			errUnknownHint,
@@ -92,24 +147,61 @@ func parseHint(line string) (*Hint, error) {
 	return p.parse(hValue)
 }
 
-// String returns a string representation of the hint.
-func (h *Hint) String() string {
+// HTML returns a string representation of the hints value as it is presented
+// in HTML.
+func (h *Hint) HTML() string {
 	if h.Type == None {
 		return ""
 	}
 
-	p, ok := hintsTypeProcessors[h.Type]
+	p, ok := hintTypeProcessors[h.Type]
 	if !ok {
 		return fmt.Sprintf("%v", h.Value)
 	}
 
-	if p.format == nil {
-		return fmt.Sprintf("%v", h.Value)
+	if p.formatHTML == nil {
+		if p.formatMD == nil {
+			return fmt.Sprintf("%v", h.Value)
+		}
+
+		return p.formatMD(h.Value)
 	}
 
-	return p.format(h.Value)
+	// html.EscapeString()
+
+	return p.formatHTML(h.Value)
 }
 
 func (h *Hint) markdown() string {
-	return fmt.Sprintf("%s = %s", h.Type, h.String())
+	if h.Type == None {
+		return ""
+	}
+
+	p, ok := hintTypeProcessors[h.Type]
+	if !ok {
+		return fmt.Sprintf("%s = %v", h.Type, h.Value)
+	}
+
+	if p.formatMD == nil {
+		return fmt.Sprintf("%s = %v", h.Type, h.Value)
+	}
+
+	return fmt.Sprintf("%s = %s", h.Type, p.formatMD(h.Value))
+}
+
+// Value returns the value of the hint as the given type. Returns an empty
+// value of type T if hint is nil or hint value is not of type T.
+func Value[T any](h *Hint) T {
+	var empty T
+
+	if h == nil {
+		return empty
+	}
+
+	v, ok := h.Value.(T)
+	if !ok {
+		return empty
+	}
+
+	return v
 }

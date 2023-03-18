@@ -3,7 +3,7 @@
 {{- end }}
 
 {{ range .Entries }}
-    <div class="todo-entire">
+    <div class="todo-entry">
         <div style="display: inline-block">
             {{ if .Done }}
                 <input type="checkbox" checked>
@@ -11,7 +11,7 @@
                 <input type="checkbox">
             {{ end }}
         </div>
-        <div class="todo-entire-content">
+        <div class="todo-entry-content">
             {{ .Content }}
         </div>
     </div>

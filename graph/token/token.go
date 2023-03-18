@@ -218,6 +218,7 @@ func (t *Token) transformGraphToken(
 	return b.String(), nil
 }
 
+//nolint:cyclop,gocyclo
 func (t *Token) transformTodoToken(
 	n *graph.Node,
 	p graph.Provider,
@@ -230,6 +231,21 @@ func (t *Token) transformTodoToken(
 	depth, err := t.getArgDepth()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get depth")
+	}
+
+	filters, err := t.getArgFilterHas()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get has hint filter")
+	}
+
+	includeDone, includeDoneEntries, err := t.getArgInclude()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get include done arg")
+	}
+
+	sortRules, err := t.getArgSort()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get sort arg")
 	}
 
 	parent, err := p.GetByID(id)
@@ -269,9 +285,28 @@ func (t *Token) transformTodoToken(
 		return "", errors.Wrap(parseErr, "failed to parse todo")
 	}
 
-	todos = util.Filter(todos, func(t *todo.Todo) bool { return !t.Done() })
+	todos = util.Filter(
+		todos,
+		func(t *todo.Todo) bool {
+			if !includeDoneEntries {
+				t.RemoveDoneEntries()
+			}
 
-	sort.SliceStable(todo.ByDue(todos))
+			if len(t.Entries) == 0 {
+				return false
+			}
+
+			if !t.Done() {
+				return true
+			}
+
+			return includeDone
+		},
+	)
+
+	todos = todo.Filter(todos, filters)
+
+	sort.SliceStable(todo.NewSorter(sortRules)(todos))
 
 	return strings.Join(
 			util.Map(
@@ -318,4 +353,70 @@ func (t *Token) getArgParent(defaultID uuid.UUID) (uuid.UUID, error) {
 	}
 
 	return id, nil
+}
+
+func (t *Token) getArgFilterHas() ([]*todo.FilterRule, error) {
+	filterHasArg, ok := t.Args["filter_has"]
+	if !ok {
+		return nil, nil
+	}
+
+	rawFilters := strings.Split(filterHasArg, ",")
+	filters := make([]*todo.FilterRule, 0, len(rawFilters))
+
+	for _, rawFilter := range rawFilters {
+		f, err := todo.ParseFilterRule(rawFilter)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse filter rule")
+		}
+
+		filters = append(filters, f)
+	}
+
+	return filters, nil
+}
+
+func (t *Token) getArgInclude() (bool, bool, error) {
+	includeArg, ok := t.Args["include"]
+	if !ok {
+		return false, false, nil
+	}
+
+	var done, doneEntries bool
+
+	parts := strings.Split(includeArg, ",")
+
+	for _, part := range parts {
+		switch part {
+		case "done":
+			done = true
+		case "done_entries":
+			doneEntries = true
+		default:
+			return false, false, errors.Errorf("unknown include - %s", part)
+		}
+	}
+
+	return done, doneEntries, nil
+}
+
+func (t *Token) getArgSort() ([]*todo.SortRule, error) {
+	sortArg, ok := t.Args["sort"]
+	if !ok {
+		return nil, nil
+	}
+
+	rawRules := strings.Split(sortArg, ",")
+	rules := make([]*todo.SortRule, 0, len(rawRules))
+
+	for _, rawRule := range rawRules {
+		r, err := todo.ParseSortRule(rawRule)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse sort rule")
+		}
+
+		rules = append(rules, r)
+	}
+
+	return rules, nil
 }

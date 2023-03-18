@@ -190,7 +190,7 @@ func (r *Renderer) renderTodo(
 			func(h *todo.Hint) templ.TodoHintTemplData {
 				return templ.TodoHintTemplData{
 					Type:  string(h.Type),
-					Value: h.String(),
+					Value: h.HTML(),
 				}
 			},
 		),
