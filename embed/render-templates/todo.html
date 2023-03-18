@@ -1,0 +1,20 @@
+<div style="display: grid">
+  {{ range .Hints -}}
+  <div style="margin: 2px 0px 2px 0px">
+    <span class="markdown-code">{{ .Type }} = {{ .Value }}</span>
+  </div>
+  {{- end }}
+</div>
+
+{{ range .Entries }}
+<div class="todo-entry">
+  <div style="display: inline-block">
+    {{ if .Done }}
+    <input style="margin: 5px" type="checkbox" checked />
+    {{ else }}
+    <input style="margin: 5px" type="checkbox" />
+    {{ end }}
+  </div>
+  <div class="todo-entry-content">{{ .Content }}</div>
+</div>
+{{ end }}

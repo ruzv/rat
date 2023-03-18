@@ -27,10 +27,10 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 	}
 
 	for name, dest := range map[string]*template.Template{
-		"link.tmpl":      ts.link,
-		"codeBlock.tmpl": ts.codeBlock,
-		"code.tmpl":      ts.code,
-		"todo.tmpl":      ts.todo,
+		"link.html":      ts.link,
+		"codeBlock.html": ts.codeBlock,
+		"code.html":      ts.code,
+		"todo.html":      ts.todo,
 	} {
 		templ, err := template.ParseFS(templateFS, name)
 		if err != nil {

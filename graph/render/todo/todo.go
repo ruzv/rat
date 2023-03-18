@@ -138,9 +138,11 @@ func (t *Todo) Markdown() string {
 // OrderHints sorts t.Hints by a predefined order, and returns it.
 func (t *Todo) OrderHints() []*Hint {
 	priorities := map[HintType]int{
-		Src:  0,
-		Due:  1,
-		Size: 2,
+		Src:      0,
+		Due:      1,
+		Size:     2,
+		Priority: 3,
+		Tags:     4,
 	}
 
 	sort.SliceStable(

@@ -179,7 +179,7 @@ td {
   max-width: 500px;
 }
 
-.todo-entire {
+.todo-entry {
   background-color: #222222;
   display: flex;
   justify-content: left;
@@ -193,18 +193,6 @@ td {
 
   padding: 2px;
 }
-
-.todo-hint {
-  background-color: #343434;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-radius: 5px;
-  margin-bottom: 10px;
-  font-size: 90%;  
-
-  margin-right: 5px;
-}
-
 
 .todo-entry-content {
   display: inline-block;

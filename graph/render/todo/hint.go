@@ -62,9 +62,9 @@ var hintTypeProcessors = map[HintType]*struct {
 
 			// &nbs; - non-breaking space
 			return fmt.Sprintf(
-				"%.2f&nbsp;days&nbsp;to&nbsp;%s",
-				time.Until(t).Hours()/24,
+				"%s in %.2f days",
 				t.Format("02.01.2006"),
+				time.Until(t).Hours()/24,
 			)
 		},
 	},
@@ -166,8 +166,6 @@ func (h *Hint) HTML() string {
 
 		return p.formatMD(h.Value)
 	}
-
-	// html.EscapeString()
 
 	return p.formatHTML(h.Value)
 }
