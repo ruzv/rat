@@ -27,10 +27,10 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 	}
 
 	for name, dest := range map[string]*template.Template{
-		"link.tmpl":      ts.link,
-		"codeBlock.tmpl": ts.codeBlock,
-		"code.tmpl":      ts.code,
-		"todo.tmpl":      ts.todo,
+		"link.html":      ts.link,
+		"codeBlock.html": ts.codeBlock,
+		"code.html":      ts.code,
+		"todo.html":      ts.todo,
 	} {
 		templ, err := template.ParseFS(templateFS, name)
 		if err != nil {
@@ -85,13 +85,25 @@ type TodoEntryTemplData struct {
 	Content string
 }
 
+// TodoHintTemplData contains the data used to render a todo hint.
+type TodoHintTemplData struct {
+	Type  string
+	Value string
+}
+
 // Todo renders a list of todo entires.
-func (ts *TemplateStore) Todo(w io.Writer, entires []TodoEntryTemplData) error {
+func (ts *TemplateStore) Todo(
+	w io.Writer,
+	entires []TodoEntryTemplData,
+	hints []TodoHintTemplData,
+) error {
 	err := ts.todo.Execute(
 		w,
 		struct {
+			Hints   []TodoHintTemplData
 			Entries []TodoEntryTemplData
 		}{
+			Hints:   hints,
 			Entries: entires,
 		},
 	)

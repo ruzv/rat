@@ -24,7 +24,7 @@ a:visited {
 .page-box {
   padding: 10px;
   margin-top: 20px;
-  background-color: #2d2d2d;
+  background-color: #111111;
   border: 3px solid #2d2d2d;
   border-radius: 8px;
 }
@@ -51,6 +51,7 @@ a:visited {
 /* -------------------------------------------------------------------------- */
 
 .container {
+  display: block;
   width: 100%;
   overflow: hidden;
 }
@@ -178,23 +179,20 @@ td {
   max-width: 500px;
 }
 
-.todo-entire {
-  background-color: #363636;
+.todo-entry {
+  background-color: #222222;
   display: flex;
   justify-content: left;
   align-items: center;
   position: relative;
-
   border-radius: 5px;
-
-  margin-top: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
-.todo-entire-content {
-  display: inline-block
+.todo-entry-content {
+  display: inline-block;
 }
 
-div.todo-entire-content > p {
+div.todo-entry-content > p {
   margin: 0;
 }

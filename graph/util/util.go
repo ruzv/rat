@@ -30,6 +30,16 @@ func Map[T any, R any](s []T, f func(T) R) []R {
 	return r
 }
 
+// Values returns all values of a map.
+func Values[K comparable, V any](m map[K]V) []V {
+	r := make([]V, 0, len(m))
+	for _, v := range m {
+		r = append(r, v)
+	}
+
+	return r
+}
+
 // Filter creates a new slice of entries of s that valid function return's
 // true to.
 func Filter[T any](s []T, valid func(T) bool) []T {
@@ -42,4 +52,11 @@ func Filter[T any](s []T, valid func(T) bool) []T {
 	}
 
 	return r
+}
+
+// Iter iterates over a slice and calls the given function for each element.
+func Iter[T any](s []T, f func(T)) {
+	for _, v := range s {
+		f(v)
+	}
 }
