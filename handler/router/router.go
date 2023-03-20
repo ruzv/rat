@@ -24,7 +24,7 @@ func New(
 ) (*mux.Router, error) {
 	router := mux.NewRouter()
 
-	router.Use(GetAccessLoggerMW())
+	router.Use(GetAccessLoggerMW(false))
 
 	err := nodeshttp.RegisterRoutes(router, embeds, conf)
 	if err != nil {
@@ -102,7 +102,7 @@ func (w *BufferResponseWriter) WriteHeader(code int) {
 }
 
 // GetAccessLoggerMW returns a middleware that logs the access.
-func GetAccessLoggerMW() mux.MiddlewareFunc {
+func GetAccessLoggerMW(all bool) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			b := &BufferResponseWriter{
@@ -110,13 +110,14 @@ func GetAccessLoggerMW() mux.MiddlewareFunc {
 			}
 
 			startT := time.Now()
+
 			next.ServeHTTP(b, r)
 
-			if b.Code/100 == 2 {
+			if !all && b.Code/100 == 2 {
 				return
 			}
 
-			log.Errorf(
+			log.Infof(
 				"rat access %-7s %d %-7fs %s",
 				r.Method,
 				b.Code,
