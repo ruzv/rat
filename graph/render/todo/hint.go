@@ -29,13 +29,13 @@ const (
 // Hint represents a todo hint. That can have a type and a value.
 type Hint struct {
 	Type  HintType
-	Value interface{}
+	Value any
 }
 
 var hintTypeProcessors = map[HintType]*struct {
 	parse      func(string) (*Hint, error)
-	formatMD   func(interface{}) string
-	formatHTML func(interface{}) string
+	formatMD   func(any) string
+	formatHTML func(any) string
 }{
 	Due: {
 		parse: func(s string) (*Hint, error) {
@@ -46,7 +46,7 @@ var hintTypeProcessors = map[HintType]*struct {
 
 			return &Hint{Due, due}, nil
 		},
-		formatMD: func(v interface{}) string {
+		formatMD: func(v any) string {
 			t, ok := v.(time.Time)
 			if !ok {
 				return fmt.Sprintf("%v", v)
@@ -54,7 +54,7 @@ var hintTypeProcessors = map[HintType]*struct {
 
 			return t.Format("02.01.2006")
 		},
-		formatHTML: func(v interface{}) string {
+		formatHTML: func(v any) string {
 			t, ok := v.(time.Time)
 			if !ok {
 				return fmt.Sprintf("%v", v)
@@ -77,7 +77,7 @@ var hintTypeProcessors = map[HintType]*struct {
 
 			return &Hint{Size, size}, nil
 		},
-		formatMD: func(v interface{}) string {
+		formatMD: func(v any) string {
 			d, ok := v.(time.Duration)
 			if !ok {
 				return fmt.Sprintf("%v", v)
@@ -105,7 +105,7 @@ var hintTypeProcessors = map[HintType]*struct {
 		},
 	},
 	Src: {
-		formatHTML: func(v interface{}) string {
+		formatHTML: func(v any) string {
 			s, ok := v.(string)
 			if !ok {
 				return fmt.Sprintf("%v", v)

@@ -31,6 +31,14 @@ linters-settings:
         arguments:
           - checkPrivateReceivers
           - disableStutteringCheck
+      - name: comment-spacings
+        arguments:
+          - nolint
+          - in
+          - readonly
+          - swagger
+          - required
+          - enum          
       # disabled
       - name: argument-limit
         disabled: true
