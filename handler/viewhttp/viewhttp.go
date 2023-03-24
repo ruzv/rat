@@ -67,10 +67,6 @@ func (h *handler) view(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// -------------------------------------------------------------------------- //
-// READ
-// -------------------------------------------------------------------------- //
-
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	path := r.URL.Query().Get("node")
 

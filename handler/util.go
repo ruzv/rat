@@ -28,7 +28,7 @@ func Wrap(f RatHandlerFunc) MuxHandlerFunc {
 }
 
 // WriteResponse writes a response to the response writer.
-func WriteResponse(w http.ResponseWriter, code int, body interface{}) error {
+func WriteResponse(w http.ResponseWriter, code int, body any) error {
 	w.WriteHeader(code)
 
 	err := json.NewEncoder(w).Encode(body)
