@@ -103,27 +103,26 @@ func (r *Renderer) renderLink(
 	link := string(n.Destination)
 	name := string(n.Children[0].AsLeaf().Literal)
 
-	func() {
-		id, err := uuid.FromString(link)
-		if err != nil {
-			return
-		}
-
+	id, err := uuid.FromString(link)
+	if err == nil {
 		n, err := r.p.GetByID(id)
 		if err != nil {
-			return
+			return ast.GoToNext, false, errors.Wrap(err, "failed to get node")
 		}
 
-		link = pathutil.URL(n.Path)
-
-		if len(strings.TrimSpace(name)) != 0 {
-			return
+		link, err = pathutil.URL(n.Path)
+		if err != nil {
+			return ast.GoToNext,
+				false,
+				errors.Wrap(err, "failed to get node path")
 		}
 
-		name = n.Name
-	}()
+		if len(strings.TrimSpace(name)) == 0 {
+			name = n.Name
+		}
+	}
 
-	err := r.ts.Link(
+	err = r.ts.Link(
 		w,
 		templ.LinkTemplData{
 			Link: link,

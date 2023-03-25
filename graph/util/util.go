@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	pathutil "private/rat/graph/util/path"
+
+	"github.com/pkg/errors"
 )
 
 // ReverseSlice reverses a slice.
@@ -16,8 +18,13 @@ func ReverseSlice[T any](a []T) []T {
 }
 
 // Link returns a markdown link to a node with given path.
-func Link(path pathutil.NodePath, name string) string {
-	return fmt.Sprintf("[%s](%s)", name, pathutil.URL(path))
+func Link(path pathutil.NodePath, name string) (string, error) {
+	link, err := pathutil.URL(path)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get url")
+	}
+
+	return fmt.Sprintf("[%s](%s)", name, link), nil
 }
 
 // Map applies a function to all todo entries.

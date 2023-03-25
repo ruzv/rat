@@ -3,6 +3,8 @@ package path
 import (
 	"net/url"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // NodePath filesystem like path that describes where a node is located in the
@@ -67,17 +69,11 @@ func JoinPath(first, second NodePath) NodePath {
 }
 
 // URL returns a URL to a node with given path.
-func URL(path NodePath) string {
-	var (
-		u url.URL
-		q = make(url.Values)
-	)
+func URL(path NodePath) (string, error) {
+	u, err := url.JoinPath("/view/", string(path))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to join path")
+	}
 
-	u.Path = "/view/"
-
-	q.Add("node", string(path))
-
-	u.RawQuery = q.Encode()
-
-	return u.String()
+	return u, nil
 }
