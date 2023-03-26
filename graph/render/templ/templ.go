@@ -14,6 +14,8 @@ type TemplateStore struct {
 	codeBlock *template.Template
 	code      *template.Template
 	todo      *template.Template
+	index     *template.Template
+	errorPage *template.Template
 }
 
 // FileTemplateStore creates a new templateStore with the templates from the
@@ -24,6 +26,8 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 		codeBlock: &template.Template{},
 		code:      &template.Template{},
 		todo:      &template.Template{},
+		index:     &template.Template{},
+		errorPage: &template.Template{},
 	}
 
 	for name, dest := range map[string]*template.Template{
@@ -31,6 +35,8 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 		"codeBlock.html": ts.codeBlock,
 		"code.html":      ts.code,
 		"todo.html":      ts.todo,
+		"index.html":     ts.index,
+		"errorPage.html": ts.errorPage,
 	} {
 		templ, err := template.ParseFS(templateFS, name)
 		if err != nil {
@@ -109,6 +115,50 @@ func (ts *TemplateStore) Todo(
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute todo entry template")
+	}
+
+	return nil
+}
+
+// IndexTemplData contains the data used to render the index page.
+type IndexTemplData struct {
+	ID      string
+	Name    string
+	Path    string
+	Content string
+	Leafs   []*IndexTemplLeafData
+}
+
+// IndexTemplLeafData contains the data used to render a leaf in the index page.
+type IndexTemplLeafData struct {
+	Path    string
+	Content string
+}
+
+// Index renders the index page.
+func (ts *TemplateStore) Index(w io.Writer, data *IndexTemplData) error {
+	err := ts.index.Execute(w, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute index template")
+	}
+
+	return nil
+}
+
+// ErrorPageTemplData contains the data used to render the error page.
+type ErrorPageTemplData struct {
+	Code    int
+	Message string
+	Cause   string
+}
+
+// ErrorPage renders the error page.
+func (ts *TemplateStore) ErrorPage(
+	w io.Writer, data *ErrorPageTemplData,
+) error {
+	err := ts.errorPage.Execute(w, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute error page template")
 	}
 
 	return nil

@@ -1,38 +1,8 @@
-// -------------------------------------------------------------------------- //
-// utils
-// -------------------------------------------------------------------------- //
+let Title = document.getElementById("title");
 
-function apiPath(path) {
-  if (path === "") {
-    return window.location.origin + "/nodes/";
-  }
-
-  return window.location.origin + "/nodes/" + path + "/";
-}
-
-function viewPath(path) {
-  let url = new URL(window.location.origin);
-  url.pathname = "/view/";
-
-  url.searchParams.append("node", path);
-
-  return url.toString();
-}
-
-let prevT = null;
-
-function log(msg) {
-  let t = Date.now();
-  let dt = 0;
-
-  if (prevT !== null) {
-    dt = t - prevT;
-  }
-
-  console.log(dt, msg);
-
-  prevT = t;
-}
+let NodeID = Title.getAttribute("data-id");
+let NodeName = Title.getAttribute("data-name");
+let NodePath = Title.getAttribute("data-path");
 
 // -------------------------------------------------------------------------- //
 // console
@@ -45,7 +15,7 @@ function consolePromptSubmit() {
     return;
   }
 
-  fetch(apiPath(CURRENT_NODE_PATH), {
+  fetch(new URL("/nodes/" + NodePath + "/", window.location.origin).href, {
     method: "POST",
     body: JSON.stringify({
       name: p.value,
@@ -60,37 +30,9 @@ function consolePromptSubmit() {
       }
     })
     .then(() => {
-      p.value = "";
-      setNode(CURRENT_NODE_PATH);
+      window.location.reload();
     })
     .catch((error) => console.log(error));
-}
-
-function consoleSetDataFields(fields) {
-  let console = document.getElementById("console-data-fields");
-  console.innerHTML = "";
-
-  fields.forEach((field) => {
-    let div = document.createElement("div");
-    div.classList.add("console-data-field");
-
-    let span = document.createElement("span");
-    span.className = "markdown-code";
-    span.innerHTML = field;
-    span.onclick = () => {
-      navigator.clipboard.writeText(span.innerHTML);
-
-      let prevBorder = span.style.border;
-      span.style.border = "2px solid #ffffff";
-
-      setTimeout(() => {
-        span.style.border = prevBorder;
-      }, 70);
-    };
-
-    div.appendChild(span);
-    console.appendChild(div);
-  });
 }
 
 function consoleSetNavigator(path) {
@@ -100,178 +42,34 @@ function consoleSetNavigator(path) {
   let parts = path.split("/");
 
   for (let i = 0; i < parts.length; i++) {
-    let span = document.createElement("span");
-    span.className = "markdown-code console-navigator-field";
-    span.innerHTML = parts[i];
-    span.style.marginRight = "5px";
-    span.onclick = () => {
-      navigator.clipboard.writeText(span.innerHTML);
+    let div = document.createElement("div");
 
-      let prevBorder = span.style.border;
-      span.style.border = "2px solid #ffffff";
+    div.className = "console-field clickable";
+    div.innerHTML = parts[i];
+    div.style.marginRight = "5px";
 
-      setTimeout(() => {
-        span.style.border = prevBorder;
-      }, 70);
+    div.onclick = () => {
+      let path = parts.slice(0, i + 1).join("/");
 
-      window.location.href = viewPath(parts.slice(0, i + 1).join("/"));
+      window.location.href = new URL(
+        "/view/" + path,
+        window.location.origin
+      ).href;
     };
 
-    nav.appendChild(span);
+    nav.appendChild(div);
   }
 }
 
-function copyConsoleDataField(element) {
-  navigator.clipboard.writeText(element.innerHTML);
-
-  let prevBorder = element.style.border;
-  element.style.border = "2px solid #ffffff";
-
-  setTimeout(() => {
-    element.style.border = prevBorder;
-  }, 70);
+function navigateToPath(e) {
+  window.location.href = new URL(
+    "/view/" + e.getAttribute("data-path"),
+    window.location.origin
+  ).href;
 }
 
-// -------------------------------------------------------------------------- //
-// content
-// -------------------------------------------------------------------------- //
-
-function contentSet(content) {
-  let c = document.getElementById("page-content");
-  c.innerHTML = content;
+function innerHTMLToClipboard(element) {
+  navigator.clipboard.writeText(element.innerHTML.trim());
 }
 
-function todoDone(event) {
-  let e = event.path[1];
-  if (e.className == "markdown-todo-checkbox-border") {
-    e = event.path[2];
-  }
-
-  childNodes = e.childNodes;
-
-  for (let i = 0; i < childNodes.length; i++) {
-    if (childNodes[i].className == "markdown-todo-text") {
-      childNodes = e.childNodes[i].childNodes;
-      break;
-    }
-  }
-
-  for (let i = 0; i < childNodes.length; i++) {
-    if (childNodes[i].nodeName == "P") {
-      e = childNodes[i];
-      break;
-    }
-  }
-
-  console.log(e);
-  console.log(e.innerHTML);
-
-  fetch(apiPath(CURRENT_NODE_PATH), {
-    method: "PATCH",
-    body: JSON.stringify({
-      Todos: [e.innerHTML],
-    }),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      setNode(CURRENT_NODE_PATH);
-    })
-    .catch((error) => console.log(error));
-}
-
-// -------------------------------------------------------------------------- //
-// leafs
-// -------------------------------------------------------------------------- //
-
-function setLeafs(leafPaths) {
-  document.getElementById("leafs-container-one").innerHTML = "";
-  document.getElementById("leafs-container-two").innerHTML = "";
-
-  let getContainer = () => {
-    let c1 = document.getElementById("leafs-container-one");
-    let c2 = document.getElementById("leafs-container-two");
-
-    if (c1.offsetHeight > c2.offsetHeight) {
-      return c2;
-    }
-
-    return c1;
-  };
-
-  let newLeaf = (data) => {
-    let leafBox = document.createElement("div");
-    leafBox.className = "page-box clickable";
-    leafBox.onclick = () => {
-      // setNode(data.path);
-      window.location.href = viewPath(data.path);
-    };
-
-    let leaf = document.createElement("div");
-    leaf.className = "page-content-box";
-    leaf.innerHTML = data.content;
-
-    leafBox.appendChild(leaf);
-
-    return leafBox;
-  };
-
-  let leafs = {};
-  let all = [];
-
-  leafPaths.forEach((path) => {
-    all.push(
-      getNode(path, "html", false).then((data) => {
-        leafs[path] = newLeaf(data);
-      })
-    );
-  });
-  Promise.all(all).then(() => {
-    for (let i = 0; i < leafPaths.length; i++) {
-      getContainer().appendChild(leafs[leafPaths[i]]);
-    }
-  });
-}
-
-async function getNode(path, format, includeLeafs) {
-  let url = new URL(apiPath(path));
-
-  url.searchParams.append("format", format);
-  url.searchParams.append("leafs", includeLeafs);
-
-  const response = await fetch(url, {
-    method: "GET",
-  });
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  return data;
-}
-
-function setNode(path) {
-  getNode(path, "html", true)
-    .then((data) => {
-      contentSet(data.content);
-      consoleSetDataFields([data.id, data.name, data.path]);
-      consoleSetNavigator(data.path);
-
-      if (data.leafs) {
-        setLeafs(data.leafs);
-      }
-
-      CURRENT_NODE_PATH = data.path;
-      console.log(CURRENT_NODE_PATH);
-      document.title = data.name;
-    })
-    .then(() => {
-      log("loaded");
-    });
-}
-
-log("starting loading");
-setNode(CURRENT_NODE_PATH);
+consoleSetNavigator(NodePath);

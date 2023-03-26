@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <!-- style -->
+    <link rel="stylesheet" href="/static/style.css" />
+    <!-- tab icon -->
+    <link rel="icon" href="/static/logo/rat_head.png" />
+    <!-- font -->
+    <link rel="stylesheet" href="/static/fonts.css" />
+
+    <title>error</title>
+  </head>
+
+  <body>
+    <div class="page">
+      <!-- page content -->
+      <div class="box">
+        <div id="page-content" class="content-box">
+          <h1>{{ .Code }}</h1>
+
+          <h2>{{ .Message }}</h2>
+
+          <p>{{ .Cause }}</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

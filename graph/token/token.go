@@ -191,11 +191,18 @@ func (t *Token) transformGraphToken(
 				return false
 			}
 
-			_, err := b.WriteString(
+			link, err := util.Link(node.Path, node.Name)
+			if err != nil {
+				buffErr = errors.Wrap(err, "failed to create link")
+
+				return false
+			}
+
+			_, err = b.WriteString(
 				fmt.Sprintf(
 					"%s- %s \n",
 					strings.Repeat("\t", d),
-					util.Link(node.Path, node.Name),
+					link,
 				),
 			)
 			if err != nil {

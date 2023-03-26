@@ -7,6 +7,7 @@ import (
 
 	"private/rat/config"
 	"private/rat/handler/nodeshttp"
+	"private/rat/handler/shared"
 	"private/rat/handler/statichttp"
 	"private/rat/handler/viewhttp"
 
@@ -24,14 +25,27 @@ func New(
 ) (*mux.Router, error) {
 	router := mux.NewRouter()
 
-	router.Use(GetAccessLoggerMW(false))
+	templateFS, err := fs.Sub(embeds, "render-templates")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
+	}
 
-	err := nodeshttp.RegisterRoutes(router, embeds, conf)
+	ss, err := shared.NewServices(conf.Graph, templateFS)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create shared services")
+	}
+
+	router.Use(
+		ss.ReloadTemplatesMW,
+		GetAccessLoggerMW(false),
+	)
+
+	err = nodeshttp.RegisterRoutes(router, ss)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register node routes")
 	}
 
-	err = viewhttp.RegisterRoutes(router, embeds)
+	err = viewhttp.RegisterRoutes(router, ss)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register view routes")
 	}

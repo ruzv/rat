@@ -106,6 +106,10 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to walk graph")
 	}
 
+	if !found {
+		return nil, graph.ErrNodeNotFound
+	}
+
 	return n, nil
 }
 
@@ -141,7 +145,11 @@ func getMeta(node *graph.Node, path string) error {
 
 	f, err := os.Open(metaFilepath)
 	if err != nil {
-		return errors.Wrap(err, "failed to open meta file")
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to open meta file")
+		}
+
+		return graph.ErrNodeNotFound
 	}
 
 	defer f.Close()
@@ -157,8 +165,6 @@ func getMeta(node *graph.Node, path string) error {
 
 	node.ID = m.ID
 
-	// m.name = NameFromPath(path)
-
 	return nil
 }
 
@@ -167,7 +173,11 @@ func getCont(node *graph.Node, path string) error {
 
 	data, err := os.ReadFile(contentPath)
 	if err != nil {
-		return errors.Wrap(err, "failed to read content file")
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to read content file")
+		}
+
+		return graph.ErrNodeNotFound
 	}
 
 	node.Content = string(data)
@@ -202,7 +212,11 @@ func (fs *FileSystem) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 
 	leafs, err := os.ReadDir(fullPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read dir %s", fullPath)
+		if !os.IsNotExist(err) {
+			return nil, errors.Wrapf(err, "failed to read dir %s", fullPath)
+		}
+
+		return nil, graph.ErrNodeNotFound
 	}
 
 	// cont, meta

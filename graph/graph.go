@@ -9,6 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ErrNodeNotFound is returned when a node is not found.
+var ErrNodeNotFound = errors.New("node not found")
+
 // Provider describes graph node manipulations.
 type Provider interface {
 	GetByID(id uuid.UUID) (*Node, error)

@@ -3,20 +3,14 @@ package nodeshttp
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"regexp"
 	"strconv"
 
-	"private/rat/config"
-
 	"private/rat/graph"
-	"private/rat/graph/filesystem"
-	"private/rat/graph/pathcache"
-	"private/rat/graph/render"
-	"private/rat/graph/render/templ"
+	"private/rat/handler/shared"
+
 	pathutil "private/rat/graph/util/path"
-	hUtil "private/rat/handler"
 
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -27,32 +21,25 @@ import (
 var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
-	p graph.Provider
-	r *render.Renderer
+	ss *shared.Services
 }
 
 // creates a new Handler.
-func newHandler(embeds fs.FS, conf *config.Config) (*handler, error) {
-	log.Info("loading graph")
-
-	p, err := filesystem.NewFileSystem(
-		conf.Graph.Name,
-		conf.Graph.Path,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create net fs")
+func newHandler(ss *shared.Services) (*handler, error) {
+	h := &handler{
+		ss: ss,
 	}
 
-	pc := pathcache.NewPathCache(p)
+	log.Info("loading graph")
 
-	r, err := p.Root()
+	r, err := h.ss.Graph.Root()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
 	log.Info("reading metrics")
 
-	m, err := r.Metrics(pc)
+	m, err := r.Metrics(h.ss.Graph)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get metrics")
 	}
@@ -63,37 +50,24 @@ func newHandler(embeds fs.FS, conf *config.Config) (*handler, error) {
 	}
 
 	log.Infof("metrics:\n%s", string(b))
-	log.Notice("loaded graph -", conf.Graph.Name)
+	log.Notice("loaded graph")
 
-	templateFS, err := fs.Sub(embeds, "render-templates")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
-	}
-
-	ts, err := templ.FileTemplateStore(templateFS)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create default template store")
-	}
-
-	return &handler{
-		p: pc,
-		r: render.NewRenderer(ts, pc),
-	}, nil
+	return h, nil
 }
 
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
-	router *mux.Router, embeds fs.FS, conf *config.Config,
+	router *mux.Router, ss *shared.Services,
 ) error {
-	h, err := newHandler(embeds, conf)
+	h, err := newHandler(ss)
 	if err != nil {
 		return errors.Wrap(err, "failed create new graph handler")
 	}
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()
 
-	nodesRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
-	nodesRouter.HandleFunc("/", hUtil.Wrap(h.create)).Methods(http.MethodPost)
+	nodesRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
+	nodesRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
 
 	pathRe := regexp.MustCompile(
 		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
@@ -103,10 +77,8 @@ func RegisterRoutes(
 		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
 		Subrouter()
 
-	nodeRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
-	nodeRouter.HandleFunc("/", hUtil.Wrap(h.create)).Methods(http.MethodPost)
-	// nodeRouter.HandleFunc("/",
-	// hUtil.Wrap(h.update)).Methods(http.MethodPatch)
+	nodeRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
+	nodeRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
 
 	return nil
 }
@@ -116,7 +88,7 @@ func RegisterRoutes(
 // -------------------------------------------------------------------------- //
 
 func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
-	body, err := hUtil.Body[struct {
+	body, err := shared.Body[struct {
 		Name string `json:"name" binding:"required"`
 	}](w, r)
 	if err != nil {
@@ -125,7 +97,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	n, err := h.getNode(w, r)
 	if err != nil {
-		hUtil.WriteError(
+		shared.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"failed to get node",
@@ -134,9 +106,9 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	_, err = n.AddLeaf(h.p, body.Name)
+	_, err = n.AddLeaf(h.ss.Graph, body.Name)
 	if err != nil {
-		hUtil.WriteError(
+		shared.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
 		)
 
@@ -164,7 +136,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	resp.Node = *n
-	resp.Node.Content = h.r.Render(n)
+	resp.Node.Content = h.ss.Renderer.Render(n)
 
 	if includeLeafs(r) {
 		leafs, err := h.getLeafPaths(w, n.Path)
@@ -175,7 +147,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 		resp.Leafs = leafs
 	}
 
-	err = hUtil.WriteResponse(w, http.StatusOK, resp)
+	err = shared.WriteResponse(w, http.StatusOK, resp)
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
@@ -187,9 +159,9 @@ func (h *handler) getLeafPaths(
 	w http.ResponseWriter,
 	path pathutil.NodePath,
 ) ([]pathutil.NodePath, error) {
-	leafNodes, err := h.p.GetLeafs(path)
+	leafNodes, err := h.ss.Graph.GetLeafs(path)
 	if err != nil {
-		hUtil.WriteError(
+		shared.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"failed to get leafs",
@@ -235,9 +207,9 @@ func (h *handler) getNode(
 	)
 
 	if path == "" {
-		n, err = h.p.Root()
+		n, err = h.ss.Graph.Root()
 		if err != nil {
-			hUtil.WriteError(
+			shared.WriteError(
 				w,
 				http.StatusInternalServerError,
 				"failed to get node",
@@ -246,9 +218,9 @@ func (h *handler) getNode(
 			return nil, errors.Wrap(err, "failed to write error")
 		}
 	} else {
-		n, err = h.p.GetByPath(pathutil.NodePath(path))
+		n, err = h.ss.Graph.GetByPath(pathutil.NodePath(path))
 		if err != nil {
-			hUtil.WriteError(
+			shared.WriteError(
 				w,
 				http.StatusInternalServerError,
 				"failed to get node",

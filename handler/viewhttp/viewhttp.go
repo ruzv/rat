@@ -1,104 +1,226 @@
 package viewhttp
 
 import (
-	"io/fs"
+	"bytes"
+	"fmt"
 	"net/http"
-	"text/template"
+	"net/url"
 
-	hUtil "private/rat/handler"
+	"private/rat/graph"
+	"private/rat/graph/render/templ"
+	"private/rat/graph/util"
+	pathutil "private/rat/graph/util/path"
+	"private/rat/handler/shared"
 
 	"github.com/gorilla/mux"
+	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-const viewNodeTemplatePath = "view-node-tmpl.html"
+var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
-	embeds fs.FS
+	ss *shared.Services
 }
 
 // RegisterRoutes registers view routes on given router.
-func RegisterRoutes(router *mux.Router, embeds fs.FS) error {
+func RegisterRoutes(
+	router *mux.Router,
+	ss *shared.Services,
+) error {
 	h := &handler{
-		embeds: embeds,
+		ss: ss,
 	}
 
 	viewRouter := router.PathPrefix("/view").
 		Subrouter().
 		StrictSlash(true)
 
-	// TODO: REDIRECT TO ROOT NODE VIEW PATH
-	viewRouter.HandleFunc("/", hUtil.Wrap(h.read)).Methods(http.MethodGet)
+	viewRouter.HandleFunc("/", shared.Wrap(h.rootRedirect)).
+		Methods(http.MethodGet)
 
-	viewRouter.HandleFunc("/{path:.+}", hUtil.Wrap(h.view)).
+	viewRouter.HandleFunc("/{path:.+}", shared.Wrap(h.view)).
 		Methods(http.MethodGet)
 
 	return nil
 }
 
-func (h *handler) view(w http.ResponseWriter, r *http.Request) error {
-	path := mux.Vars(r)["path"]
-
-	tmpl, err := template.ParseFS(h.embeds, viewNodeTemplatePath)
+func (h *handler) rootRedirect(w http.ResponseWriter, r *http.Request) error {
+	n, err := h.ss.Graph.Root()
 	if err != nil {
-		hUtil.WriteError(
+		h.writeError(
 			w,
-			http.StatusInternalServerError,
-			"failed to parse template",
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusInternalServerError,
+				Message: "something went wrong while looking for root node",
+				Cause:   err.Error(),
+			},
 		)
+
+		return errors.Wrap(err, "failed to get root node")
 	}
 
-	w.WriteHeader(http.StatusOK)
+	path, err := url.JoinPath("/view", string(n.Path))
+	if err != nil {
+		h.writeError(
+			w,
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusInternalServerError,
+				Message: "something went wrong while preparing root node path",
+				Cause:   err.Error(),
+			},
+		)
 
-	err = tmpl.Execute(
+		return errors.Wrap(err, "failed to get root node path")
+	}
+
+	http.Redirect(w, r, path, http.StatusFound)
+
+	return nil
+}
+
+func (h *handler) view(w http.ResponseWriter, r *http.Request) error {
+	n, err := h.ss.GetNode(pathutil.NodePath(mux.Vars(r)["path"]))
+	if err != nil {
+		if !errors.Is(err, graph.ErrNodeNotFound) {
+			h.writeError(
+				w,
+				&templ.ErrorPageTemplData{
+					Code:    http.StatusInternalServerError,
+					Message: "something went wrong while looking for node",
+					Cause:   err.Error(),
+				},
+			)
+
+			return errors.Wrap(err, "failed to get node")
+		}
+
+		h.writeError(
+			w,
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusNotFound,
+				Message: "node not found",
+			},
+		)
+
+		return nil
+	}
+
+	leafs, err := n.GetLeafs(h.ss.Graph)
+	if err != nil {
+		h.writeError(
+			w,
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusInternalServerError,
+				Message: "something went wrong while looking for leafs",
+				Cause:   err.Error(),
+			},
+		)
+
+		return errors.Wrap(err, "failed to get leafs")
+	}
+
+	err = h.writeIndex(
 		w,
-		map[string]string{
-			"path": path,
+		&templ.IndexTemplData{
+			ID:      n.ID.String(),
+			Name:    n.Name,
+			Path:    string(n.Path),
+			Content: h.ss.Renderer.Render(n),
+			Leafs: util.Map(
+				leafs,
+				func(l *graph.Node) *templ.IndexTemplLeafData {
+					return &templ.IndexTemplLeafData{
+						Content: h.ss.Renderer.Render(l),
+						Path:    string(l.Path),
+					}
+				},
+			),
 		},
 	)
 	if err != nil {
-		hUtil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to execute template",
-		)
+		return errors.Wrap(err, "failed to render page")
 	}
 
 	return nil
 }
 
-func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
-	path := r.URL.Query().Get("node")
+func (h *handler) writeError(
+	w http.ResponseWriter, data *templ.ErrorPageTemplData,
+) {
+	b := &bytes.Buffer{}
 
-	t, err := h.template()
+	err := h.ss.Templates.ErrorPage(b, data)
 	if err != nil {
-		return errors.Wrap(err, "failed to get template")
+		shared.WriteError(
+			w,
+			http.StatusInternalServerError,
+			fmt.Sprintf(
+				"an error (%s) occurred while rendering error "+
+					"page with the following data: %v",
+				err.Error(),
+				data,
+			),
+		)
+
+		log.Errorf("failed to render error page: %s", err.Error())
+
+		return
+	}
+
+	w.WriteHeader(data.Code)
+
+	_, err = w.Write(b.Bytes())
+	if err != nil {
+		shared.WriteError(
+			w,
+			http.StatusInternalServerError,
+			fmt.Sprintf(
+				"an error (%s) occurred while rendering error "+
+					"page with the following data: %v",
+				err.Error(),
+				data,
+			),
+		)
+
+		log.Errorf("failed to write error page: %s", err.Error())
+	}
+}
+
+func (h *handler) writeIndex(
+	w http.ResponseWriter, data *templ.IndexTemplData,
+) error {
+	b := &bytes.Buffer{}
+
+	err := h.ss.Templates.Index(b, data)
+	if err != nil {
+		h.writeError(
+			w,
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusInternalServerError,
+				Message: "something went wrong while rendering page",
+				Cause:   err.Error(),
+			},
+		)
+
+		return errors.Wrap(err, "failed to render index page")
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	err = t.Execute(
-		w,
-		map[string]string{"path": path, "api_base": ""},
-	)
+	_, err = w.Write(b.Bytes())
 	if err != nil {
-		hUtil.WriteError(
+		h.writeError(
 			w,
-			http.StatusInternalServerError,
-			"failed to execute template",
+			&templ.ErrorPageTemplData{
+				Code:    http.StatusInternalServerError,
+				Message: "something went wrong while rendering page",
+				Cause:   err.Error(),
+			},
 		)
 
-		return errors.Wrap(err, "failed to execute template")
+		return errors.Wrap(err, "failed to write index page")
 	}
 
 	return nil
-}
-
-func (h *handler) template() (*template.Template, error) {
-	t, err := template.ParseFS(h.embeds, "index.html")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse index.html")
-	}
-
-	return t, nil
 }
