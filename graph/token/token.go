@@ -18,7 +18,7 @@ import (
 )
 
 var tokenRegex = regexp.MustCompile(
-	`<rat(\s([^>]+))>`,
+	`<rat(?:\s((?:.|\s)+?))\/>`,
 )
 
 var log = logging.MustGetLogger("graph")
@@ -42,7 +42,7 @@ func TransformContentTokens(n *graph.Node, p graph.Provider) string {
 		tokenEnd := match[1]
 
 		res, err := func() (string, error) {
-			t, err := NewToken(n.Content[tokenStart:tokenEnd])
+			t, err := newToken(n.Content[tokenStart:tokenEnd])
 			if err != nil {
 				return "", errors.Wrap(err, "failed to create token")
 			}
@@ -101,8 +101,8 @@ type Token struct {
 	Args map[string]string
 }
 
-// NewToken attempts to create a new woken from raw string.
-func NewToken(raw string) (*Token, error) {
+// newToken attempts to create a new woken from raw string.
+func newToken(raw string) (*Token, error) {
 	parts := strings.Fields(strings.Trim(raw, "<>"))
 
 	if len(parts) <= 1 {
@@ -129,20 +129,16 @@ func NewToken(raw string) (*Token, error) {
 		return nil, errors.Wrap(err, "failed to get token type")
 	}
 
-	args := func(raw []string) map[string]string {
-		args := make(map[string]string)
+	args := make(map[string]string)
 
-		for _, r := range raw {
-			parts := strings.Split(r, "=")
-			if len(parts) != 2 {
-				continue
-			}
-
-			args[parts[0]] = parts[1]
+	for _, r := range parts[1:] {
+		parts := strings.Split(r, "=")
+		if len(parts) < 2 {
+			continue
 		}
 
-		return args
-	}(parts[1:])
+		args[parts[0]] = strings.Join(parts[1:], "=")
+	}
 
 	return &Token{
 		Type: tokenType,
@@ -240,9 +236,14 @@ func (t *Token) transformTodoToken(
 		return "", errors.Wrap(err, "failed to get depth")
 	}
 
-	filters, err := t.getArgFilterHas()
+	filtersHas, err := t.getArgFilterHas()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get has hint filter")
+	}
+
+	filterValue, err := t.getArgFilterValue()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get value filter")
 	}
 
 	includeDone, includeDoneEntries, err := t.getArgInclude()
@@ -311,7 +312,9 @@ func (t *Token) transformTodoToken(
 		},
 	)
 
-	todos = todo.Filter(todos, filters)
+	todos = todo.FilterHas(todos, filtersHas)
+
+	todos = todo.FilterValue(todos, filterValue)
 
 	sort.SliceStable(todo.NewSorter(sortRules)(todos))
 
@@ -373,6 +376,27 @@ func (t *Token) getArgFilterHas() ([]*todo.FilterRule, error) {
 
 	for _, rawFilter := range rawFilters {
 		f, err := todo.ParseFilterRule(rawFilter)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse filter rule")
+		}
+
+		filters = append(filters, f)
+	}
+
+	return filters, nil
+}
+
+func (t *Token) getArgFilterValue() ([]*todo.FilterValueRule, error) {
+	filterValueArg, ok := t.Args["filter_value"]
+	if !ok {
+		return nil, nil
+	}
+
+	rawFilters := strings.Split(strings.Trim(filterValueArg, "\""), ",")
+	filters := make([]*todo.FilterValueRule, 0, len(rawFilters))
+
+	for _, rawFilter := range rawFilters {
+		f, err := todo.ParseFilterValueRule(rawFilter)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse filter rule")
 		}

@@ -5,14 +5,9 @@ go 1.19
 require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gomarkdown/markdown v0.0.0-20220731190611-dcdaee8e7a53
+	github.com/google/go-cmp v0.5.9
 	github.com/gorilla/mux v1.8.0
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
-	go.uber.org/zap v1.24.0
-)
-
-require (
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
 )
