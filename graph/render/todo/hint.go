@@ -2,6 +2,7 @@ package todo
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,18 +34,31 @@ type Hint struct {
 }
 
 var hintTypeProcessors = map[HintType]*struct {
-	parse      func(string) (*Hint, error)
-	formatMD   func(any) string
-	formatHTML func(any) string
+	parse            func(string) (any, error)
+	parseFilterValue func(string) (any, error)
+	formatMD         func(any) string
+	formatHTML       func(any) string
+	//           self, other
+	equal   func(any, any) bool
+	less    func(any, any) bool
+	greater func(any, any) bool
 }{
 	Due: {
-		parse: func(s string) (*Hint, error) {
+		parse: func(s string) (any, error) {
 			due, err := parseTime(s)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse due date")
 			}
 
-			return &Hint{Due, due}, nil
+			return due, nil
+		},
+		parseFilterValue: func(s string) (any, error) {
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse due filter value")
+			}
+
+			return v, nil
 		},
 		formatMD: func(v any) string {
 			t, ok := v.(time.Time)
@@ -60,22 +74,60 @@ var hintTypeProcessors = map[HintType]*struct {
 				return fmt.Sprintf("%v", v)
 			}
 
-			// &nbs; - non-breaking space
 			return fmt.Sprintf(
 				"%s in %.2f days",
 				t.Format("02.01.2006"),
 				time.Until(t).Hours()/24,
 			)
 		},
+		equal: func(self, other any) bool {
+			t, ok := self.(time.Time)
+			if !ok {
+				return false
+			}
+
+			d, ok := other.(int)
+			if !ok {
+				return false
+			}
+
+			return int(time.Until(t).Hours()/24) == d
+		},
+		less: func(self, other any) bool {
+			t, ok := self.(time.Time)
+			if !ok {
+				return false
+			}
+
+			d, ok := other.(int)
+			if !ok {
+				return false
+			}
+
+			return int(time.Until(t).Hours()/24) < d
+		},
+		greater: func(self, other any) bool {
+			t, ok := self.(time.Time)
+			if !ok {
+				return false
+			}
+
+			d, ok := other.(int)
+			if !ok {
+				return false
+			}
+
+			return int(time.Until(t).Hours()/24) > d
+		},
 	},
 	Size: {
-		parse: func(s string) (*Hint, error) {
+		parse: func(s string) (any, error) {
 			size, err := time.ParseDuration(s)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse size")
 			}
 
-			return &Hint{Size, size}, nil
+			return size, nil
 		},
 		formatMD: func(v any) string {
 			d, ok := v.(time.Duration)
@@ -103,6 +155,9 @@ var hintTypeProcessors = map[HintType]*struct {
 
 			return f
 		},
+		equal:   equal[time.Duration],
+		less:    less[time.Duration],
+		greater: greater[time.Duration],
 	},
 	Src: {
 		formatHTML: func(v any) string {
@@ -114,8 +169,40 @@ var hintTypeProcessors = map[HintType]*struct {
 			return strings.ReplaceAll(s, "-", "&#8209;")
 		},
 	},
-	Priority: {},
-	Tags:     {},
+	Priority: {
+		parse: func(s string) (any, error) {
+			p, err := strconv.Atoi(s)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse priority")
+			}
+
+			return p, nil
+		},
+		equal:   equal[int],
+		less:    less[int],
+		greater: greater[int],
+	},
+	Tags: {
+		equal: func(self, other any) bool {
+			s, ok := self.(string)
+			if !ok {
+				return false
+			}
+
+			o, ok := other.(string)
+			if !ok {
+				return false
+			}
+
+			for _, tag := range strings.Split(s, ",") {
+				if tag == o {
+					return true
+				}
+			}
+
+			return false
+		},
+	},
 }
 
 var errUnknownHint = errors.New("unknown hint type")
@@ -144,7 +231,12 @@ func parseHint(line string) (*Hint, error) {
 		return &Hint{HintType(hType), hValue}, nil
 	}
 
-	return p.parse(hValue)
+	v, err := p.parse(hValue)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse hint value %q", hValue)
+	}
+
+	return &Hint{HintType(hType), v}, nil
 }
 
 // HTML returns a string representation of the hints value as it is presented
@@ -202,4 +294,50 @@ func Value[T any](h *Hint) T {
 	}
 
 	return v
+}
+
+type comparableValue interface {
+	int | time.Duration
+}
+
+func equal[T comparableValue](self, other any) bool {
+	s, ok := self.(T)
+	if !ok {
+		return false
+	}
+
+	o, ok := other.(T)
+	if !ok {
+		return false
+	}
+
+	return s == o
+}
+
+func less[T comparableValue](self, other any) bool {
+	s, ok := self.(T)
+	if !ok {
+		return false
+	}
+
+	o, ok := other.(T)
+	if !ok {
+		return false
+	}
+
+	return s < o
+}
+
+func greater[T comparableValue](self, other any) bool {
+	s, ok := self.(T)
+	if !ok {
+		return false
+	}
+
+	o, ok := other.(T)
+	if !ok {
+		return false
+	}
+
+	return s > o
 }
