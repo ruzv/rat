@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -106,12 +107,17 @@ func Wrap(f RatHandlerFunc) MuxHandlerFunc {
 
 // WriteResponse writes a response to the response writer.
 func WriteResponse(w http.ResponseWriter, code int, body any) error {
-	w.WriteHeader(code)
+	b := &bytes.Buffer{}
 
-	err := json.NewEncoder(w).Encode(body)
+	err := json.NewEncoder(b).Encode(body)
 	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "failed to encode body")
+
 		return errors.Wrap(err, "failed to encode body")
 	}
+
+	w.WriteHeader(code)
+	w.Write(b.Bytes()) //nolint:errcheck
 
 	return nil
 }
