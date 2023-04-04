@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"private/rat/config"
-	"private/rat/handler/nodeshttp"
+	"private/rat/handler/graphhttp"
 	"private/rat/handler/shared"
 	"private/rat/handler/statichttp"
 	"private/rat/handler/viewhttp"
@@ -40,9 +40,9 @@ func New(
 		GetAccessLoggerMW(false),
 	)
 
-	err = nodeshttp.RegisterRoutes(router, ss)
+	err = graphhttp.RegisterRoutes(router, ss)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to register node routes")
+		return nil, errors.Wrap(err, "failed to register graph routes")
 	}
 
 	err = viewhttp.RegisterRoutes(router, ss)
@@ -66,7 +66,8 @@ func New(
 
 			methods, err := route.GetMethods()
 			if err != nil {
-				log.Infof("route %-7s %s %s", "", path, err.Error())
+				// route does not have a methods.
+				return nil //nolint:nilerr
 			}
 
 			for _, m := range methods {

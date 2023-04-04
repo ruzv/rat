@@ -7,6 +7,13 @@
     <!-- font -->
     <link rel="stylesheet" href="/static/fonts.css" />
 
+    <!-- scripts -->
+    <!-- shortcut -->
+    <script type="text/javascript" src="/static/scripts/shortcut.js"></script>
+
+    <!-- logic -->
+    <script type="text/javascript" src="/static/scripts/logic.js"></script>
+
     <title
       id="title"
       data-id="{{ .ID }}"
@@ -20,15 +27,23 @@
   <body>
     <div class="page">
       <div class="box">
-        <div class="console">
-          <!-- prompt -->
-          <form
-            class="console-prompt-form"
-            onsubmit="consolePromptSubmit(event); return false;"
-          >
-            <input id="console-prompt" class="console-prompt" type="text" />
-          </form>
+        <div id="search-modal" class="modal">
+          <div class="modal-content box">
+            <!-- prompt -->
+            <input id="search-prompt" class="prompt" type="text" />
+            <div id="search-results"></div>
+          </div>
+        </div>
 
+        <div id="new-node-modal" class="modal">
+          <div class="modal-content box">
+            <!-- prompt -->
+            <input id="new-node-prompt" class="prompt" type="text" />
+            <div id="search-results"></div>
+          </div>
+        </div>
+
+        <div class="console">
           <!-- data fields  -->
           <div>
             <div
@@ -52,7 +67,7 @@
           </div>
 
           <!-- navigator -->
-          <div id="console-navigator"></div>
+          <div id="console-navigator" class="console-field-spacer"></div>
         </div>
       </div>
 
@@ -74,8 +89,5 @@
         {{ end }}
       </div>
     </div>
-
-    <!-- logic -->
-    <script type="text/javascript" src="/static/logic.js"></script>
   </body>
 </html>
