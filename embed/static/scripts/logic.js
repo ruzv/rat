@@ -216,8 +216,10 @@ const NewNode = () => {
     },
   };
 
-  nn.prompt.close = () => nn.modal.hide();
-  nn.prompt.submit = () => {
+  nn.prompt.callbacks.close = () => {
+    nn.modal.hide();
+  };
+  nn.prompt.callbacks.submit = () => {
     if (nn.prompt.element.value === "") {
       return;
     }
