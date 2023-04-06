@@ -47,27 +47,26 @@ func ParseNode(n *graph.Node) ([]*Todo, error) {
 
 // Parse parses a todo list from a raw string.
 func Parse(raw string) (*Todo, error) {
-	lf := &lineFeed{
-		// filter empty
-		lines: util.Filter(
+	sf := util.NewStringFeed(
+		util.Filter(
 			strings.Split(raw, "\n"),
 			func(s string) bool { return len(s) > 0 },
 		),
-	}
+	)
 
 	var (
 		entries []*TodoEntry
 		hints   []*Hint
 	)
 
-	for lf.next() {
-		line := lf.peek()
+	for sf.More() {
+		line := sf.Peek()
 
 		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "x ") {
 			e, err := parseEntry(
 				append(
-					[]string{lf.pop()},
-					lf.popUntil(
+					[]string{sf.Pop()},
+					sf.PopUntil(
 						func(s string) bool {
 							return strings.HasPrefix(s, "- ") ||
 								strings.HasPrefix(s, "x ")
@@ -85,7 +84,7 @@ func Parse(raw string) (*Todo, error) {
 		}
 
 		if strings.Contains(line, "=") {
-			h, err := parseHint(lf.pop())
+			h, err := parseHint(sf.Pop())
 			if err != nil {
 				if errors.Is(err, errUnknownHint) {
 					log.Warningf("unknown hint - %q: %s", line, err.Error())
@@ -101,7 +100,7 @@ func Parse(raw string) (*Todo, error) {
 			continue
 		}
 
-		log.Warningf("unknown line - %q", lf.pop())
+		log.Warningf("unknown line - %q", sf.Pop())
 	}
 
 	return &Todo{

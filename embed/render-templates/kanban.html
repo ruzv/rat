@@ -1,0 +1,31 @@
+<div
+  class="kanban-container"
+  style="grid-template-columns: repeat({{ len .Columns }}, minmax(0, 1fr));"
+>
+  {{ range .Columns }}
+
+  <div
+    class="kanban-column"
+    data-path="{{ .Path }}"
+    ondrop="KanbanHandlers.drop(event)"
+    ondragover="KanbanHandlers.dragover(event)"
+  >
+    <h1 class="kanban-column-title">{{ .Name }}</h1>
+
+    {{ range .Cards }}
+
+    <div
+      id="{{ .ID }}}"
+      class="box kanban-card"
+      data-id="{{ .ID }}"
+      data-name="{{ .Name }}"
+      draggable="true"
+      ondragstart="KanbanHandlers.dragstart(event)"
+    >
+      {{ .Content }}
+    </div>
+
+    {{ end }}
+  </div>
+  {{ end }}
+</div>

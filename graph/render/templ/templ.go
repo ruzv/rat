@@ -16,6 +16,7 @@ type TemplateStore struct {
 	todo      *template.Template
 	index     *template.Template
 	errorPage *template.Template
+	kanban    *template.Template
 }
 
 // FileTemplateStore creates a new templateStore with the templates from the
@@ -28,6 +29,7 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 		todo:      &template.Template{},
 		index:     &template.Template{},
 		errorPage: &template.Template{},
+		kanban:    &template.Template{},
 	}
 
 	for name, dest := range map[string]*template.Template{
@@ -37,6 +39,7 @@ func FileTemplateStore(templateFS fs.FS) (*TemplateStore, error) {
 		"todo.html":      ts.todo,
 		"index.html":     ts.index,
 		"errorPage.html": ts.errorPage,
+		"kanban.html":    ts.kanban,
 	} {
 		templ, err := template.ParseFS(templateFS, name)
 		if err != nil {
@@ -159,6 +162,42 @@ func (ts *TemplateStore) ErrorPage(
 	err := ts.errorPage.Execute(w, data)
 	if err != nil {
 		return errors.Wrap(err, "failed to execute error page template")
+	}
+
+	return nil
+}
+
+// KanbanTemplColumnData contains the data used to render a column in the kanban
+// board.
+type KanbanTemplColumnData struct {
+	Index int
+	Name  string
+	Path  string
+	Cards []KanbanTemplCardData
+}
+
+// KanbanTemplCardData contains the data used to render a card in the kanban
+// board.
+type KanbanTemplCardData struct {
+	ID      string
+	Name    string
+	Content string
+}
+
+// Kanban renders the kanban page.
+func (ts *TemplateStore) Kanban(
+	w io.Writer, columns []KanbanTemplColumnData,
+) error {
+	err := ts.kanban.Execute(
+		w,
+		struct {
+			Columns []KanbanTemplColumnData
+		}{
+			Columns: columns,
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute kanban template")
 	}
 
 	return nil

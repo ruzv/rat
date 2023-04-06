@@ -25,6 +25,20 @@ func New(
 ) (*mux.Router, error) {
 	router := mux.NewRouter()
 
+	router.NotFoundHandler = http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			shared.WriteError(w, http.StatusNotFound, "not found")
+		},
+	)
+
+	router.MethodNotAllowedHandler = http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			shared.WriteError(
+				w, http.StatusMethodNotAllowed, "method not allowed",
+			)
+		},
+	)
+
 	templateFS, err := fs.Sub(embeds, "render-templates")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get render-templates sub fs")

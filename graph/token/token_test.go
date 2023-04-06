@@ -20,7 +20,7 @@ func Test_newToken(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			args: args{"rat todo"},
+			args: args{"<rat todo />"},
 			want: &Token{
 				Type: TodoTokenType,
 				Args: map[string]string{},
@@ -28,7 +28,7 @@ func Test_newToken(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			args: args{"rat todo expresion=a=5=c"},
+			args: args{"<rat todo expresion=`a=5=c` />"},
 			want: &Token{
 				Type: TodoTokenType,
 				Args: map[string]string{

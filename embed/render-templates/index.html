@@ -72,7 +72,7 @@
       </div>
 
       <!-- page content -->
-      <div class="box">
+      <div class="box box-spacer">
         <div id="page-content" class="content-box">{{ .Content }}</div>
       </div>
 
@@ -80,7 +80,7 @@
       <div class="leafs-container">
         {{ range .Leafs }}
         <div
-          class="leaf box clickable"
+          class="leaf box clickable box-spacer"
           data-path="{{ .Path }}"
           onclick="navigateToPath(this)"
         >
