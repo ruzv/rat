@@ -343,3 +343,18 @@ func setCont(node *graph.Node, path string) error {
 func (fs *FileSystem) Root() (*graph.Node, error) {
 	return fs.GetByPath(pathutil.NodePath(fs.root))
 }
+
+// Move moves a node to a new path.
+func (fs *FileSystem) Move(id uuid.UUID, path pathutil.NodePath) error {
+	n, err := fs.GetByID(id)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node")
+	}
+
+	err = os.Rename(fs.fullPath(n.Path), fs.fullPath(path))
+	if err != nil {
+		return errors.Wrap(err, "failed to rename node")
+	}
+
+	return nil
+}

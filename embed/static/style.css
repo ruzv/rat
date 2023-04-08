@@ -14,10 +14,13 @@ body {
 /* single entry in page - row */
 .box {
   padding: 10px;
-  margin-top: 20px;
   background-color: #111111;
   border: 3px solid #111111;
   border-radius: 8px;
+}
+
+.box-spacer {
+  margin-top: 20px;
 }
 
 /* has text in it */
@@ -232,9 +235,35 @@ div.todo-entry-content > p {
 
 /* links */
 a:link {
-  color: #4f92d5;
+  color: #f3715d;
 }
 
 a:visited {
-  color: #905dc4;
+  color: #f3715d;
+}
+
+
+/* KANBAN */
+
+.kanban-container {
+  display: grid;
+
+  /* grid-auto-flow: column; */
+
+  /* 111111 */
+
+  column-gap: 10px;
+  background-color: rgb(7, 7, 7);
+  padding: 10px;  
+  border-radius: 8px;
+}
+
+.kanban-card {
+  margin-top: 10px;
+  /* overflow: auto; */
+  word-break: break-word;
+}
+
+.kanban-column-title {
+  margin: 0;
 }

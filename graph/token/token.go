@@ -3,10 +3,12 @@ package token
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"text/scanner"
 
 	"private/rat/graph"
 	"private/rat/graph/render/todo"
@@ -16,6 +18,8 @@ import (
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
+
+var errUnknownTokenType = errors.New("unknown token type")
 
 var tokenRegex = regexp.MustCompile(
 	`<rat(?:\s((?:.|\s)+?))\/>`,
@@ -42,9 +46,11 @@ func TransformContentTokens(n *graph.Node, p graph.Provider) string {
 		tokenEnd := match[1]
 
 		res, err := func() (string, error) {
-			t, err := newToken(n.Content[tokenStart:tokenEnd])
+			raw := n.Content[tokenStart:tokenEnd]
+
+			t, err := newToken(raw)
 			if err != nil {
-				return "", errors.Wrap(err, "failed to create token")
+				return "", errors.Wrapf(err, "failed to parse token - %q", raw)
 			}
 
 			res, err := t.Transform(n, p)
@@ -55,8 +61,13 @@ func TransformContentTokens(n *graph.Node, p graph.Provider) string {
 			return res, nil
 		}()
 		if err != nil {
-			log.Warningf("failed to tansform token: %s", err.Error())
-			res = fmt.Sprintf("`TOKEN ERROR: %s`", err.Error())
+			res = fmt.Sprintf(
+				"failed to process token in node %q: %s",
+				n.Path,
+				html.EscapeString(err.Error()),
+			)
+
+			log.Warning(res)
 		}
 
 		parts = append(
@@ -86,6 +97,8 @@ const (
 	// into a large singular todo. Token args can be used to specify search
 	// options.
 	TodoTokenType TokenType = "todo"
+	// KanbanTokenType kanban tokens provide a kanban board of child nodes.
+	KanbanTokenType TokenType = "kanban"
 )
 
 // Token describes a single rat token. Rat tokens are special html tab like
@@ -102,14 +115,33 @@ type Token struct {
 }
 
 // newToken attempts to create a new woken from raw string.
+//
+//nolint:cyclop,gocyclo
 func newToken(raw string) (*Token, error) {
-	parts := strings.Fields(strings.Trim(raw, "<>"))
+	s := &scanner.Scanner{}
+	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))
 
-	if len(parts) <= 1 {
-		return nil, errors.New("cannot create token without a type")
+	var parts []string
+
+	for {
+		if s.Scan() == scanner.EOF {
+			break
+		}
+
+		parts = append(parts, s.TokenText())
 	}
 
-	parts = parts[1:]
+	sf := util.NewStringFeed(parts)
+
+	err := sf.PopParts("<", "rat")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse beginning of token")
+	}
+
+	rawTokenType, err := sf.MustPop()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get token type")
+	}
 
 	tokenType, err := func(raw string) (TokenType, error) {
 		target := TokenType(raw)
@@ -117,27 +149,44 @@ func newToken(raw string) (*Token, error) {
 		for _, valid := range []TokenType{
 			GraphTokenType,
 			TodoTokenType,
+			KanbanTokenType,
 		} {
 			if target == valid {
 				return target, nil
 			}
 		}
 
-		return "", errors.Errorf("unknown token type %s", target)
-	}(parts[0])
+		return "",
+			errors.Wrapf(errUnknownTokenType, "unknown token type %s", target)
+	}(rawTokenType)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get token type")
 	}
 
 	args := make(map[string]string)
 
-	for _, r := range parts[1:] {
-		parts := strings.Split(r, "=")
-		if len(parts) < 2 {
-			continue
+	for {
+		err := sf.PopParts("/", ">")
+		if err == nil {
+			break
 		}
 
-		args[parts[0]] = strings.Join(parts[1:], "=")
+		key, err := sf.MustPop()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get arg key")
+		}
+
+		err = sf.PopParts("=")
+		if err != nil {
+			return nil, errors.Wrap(err, "unexpected token in arg assignment")
+		}
+
+		value, err := sf.MustPop()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get arg value")
+		}
+
+		args[key] = strings.Trim(value, "`")
 	}
 
 	return &Token{
@@ -151,8 +200,9 @@ func (t *Token) Transform(n *graph.Node, p graph.Provider) (string, error) {
 	transformers := map[TokenType]func(
 		n *graph.Node, p graph.Provider,
 	) (string, error){
-		GraphTokenType: t.transformGraphToken,
-		TodoTokenType:  t.transformTodoToken,
+		GraphTokenType:  t.transformGraphToken,
+		TodoTokenType:   t.transformTodoToken,
+		KanbanTokenType: t.transformKanbanToken,
 	}
 
 	trans, ok := transformers[t.Type]
@@ -328,6 +378,52 @@ func (t *Token) transformTodoToken(
 			"\n",
 		),
 		nil
+}
+
+func (t *Token) transformKanbanToken(
+	_ *graph.Node, _ graph.Provider,
+) (string, error) {
+	cols, err := t.getArgColumns()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get columns")
+	}
+
+	return fmt.Sprintf(
+			`<div id="kanban">%s</div>`,
+			strings.Join(
+				util.Map(
+					cols,
+					func(id uuid.UUID) string {
+						return id.String()
+					},
+				),
+				",",
+			),
+		),
+		nil
+}
+
+func (t *Token) getArgColumns() ([]uuid.UUID, error) {
+	columnsArg, ok := t.Args["columns"]
+	if !ok {
+		return nil, nil
+	}
+
+	parts := strings.Split(columnsArg, ",")
+	cols := make([]uuid.UUID, 0, len(parts))
+
+	for _, raw := range parts {
+		raw = strings.TrimSpace(raw)
+
+		colID, err := uuid.FromString(raw)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse column id")
+		}
+
+		cols = append(cols, colID)
+	}
+
+	return cols, nil
 }
 
 // by default returns -1, meaning no depth limit.

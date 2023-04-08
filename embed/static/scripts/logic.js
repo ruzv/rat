@@ -326,6 +326,60 @@ function innerHTMLToClipboard(element) {
   navigator.clipboard.writeText(element.innerHTML.trim());
 }
 
+// a colletion of functions that are used to handle the kanban board
+// drag and drop
+const KanbanHandlers = {
+  dragstart: (event) => {
+    // Add the target element's id to the data transfer object
+    event.dataTransfer.setData("text/plain", event.target.id);
+  },
+  dragover: (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  },
+  drop: (event) => {
+    event.preventDefault();
+
+    let card = document.getElementById(
+      event.dataTransfer.getData("text/plain")
+    );
+
+    let target = event.target;
+
+    while (!target.className.includes("kanban-column")) {
+      target = target.parentElement;
+    }
+
+    target.appendChild(card);
+
+    fetch("/graph/move/" + card.getAttribute("data-id"), {
+      method: "POST",
+      body: JSON.stringify({
+        new_path:
+          target.getAttribute("data-path") +
+          "/" +
+          card.getAttribute("data-name"),
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          response.json().then((data) => {
+            throw new Error(
+              `failed to move kanban card, ` +
+                `status ${response.status}, body ${data}`
+            );
+          });
+        }
+
+        return response.json();
+      })
+      .catch((error) => console.log(error));
+  },
+};
+
 document.addEventListener("DOMContentLoaded", function () {
   Title = document.getElementById("title");
   NodeID = Title.getAttribute("data-id");

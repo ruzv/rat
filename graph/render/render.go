@@ -52,7 +52,22 @@ func (r *Renderer) render(raw string) string {
 	return string(
 		markdown.ToHTML(
 			[]byte(raw),
-			parser.NewWithExtensions(parser.CommonExtensions),
+			parser.NewWithExtensions(
+				parser.NoIntraEmphasis|
+					parser.Tables|
+					parser.FencedCode|
+					parser.Autolink|
+					parser.Strikethrough|
+					parser.SpaceHeadings|
+					parser.HeadingIDs|
+					parser.BackslashLineBreak|
+					parser.DefinitionLists|
+					parser.MathJax|
+					parser.LaxHTMLBlocks|
+					parser.AutoHeadingIDs|
+					parser.Attributes|
+					parser.SuperSubscript,
+			),
 			r.rend,
 		),
 	)
@@ -74,6 +89,12 @@ func (r *Renderer) hook() html.RenderNodeFunc {
 				return r.renderCode(w, string(n.Literal))
 			case *ast.Link:
 				return r.renderLink(w, n, entering)
+			case *ast.HTMLBlock:
+				if strings.Contains(string(n.Literal), `id="kanban"`) {
+					return r.renderKanban(w, string(n.Literal))
+				}
+
+				return ast.GoToNext, false, nil
 			default:
 				// false - didn't enter current ast.Node
 				return ast.GoToNext, false, nil
@@ -85,6 +106,72 @@ func (r *Renderer) hook() html.RenderNodeFunc {
 
 		return ws, e
 	}
+}
+
+func (r *Renderer) renderKanban(w io.Writer, content string) (
+	ast.WalkStatus, bool, error,
+) {
+	parts := strings.Split(strings.Trim(content, "<>"), ">")
+	if len(parts) != 2 {
+		return ast.GoToNext, false, errors.New("failed to extract column IDs")
+	}
+
+	parts = strings.Split(parts[1], "<")
+	if len(parts) != 2 {
+		return ast.GoToNext, false, errors.New("failed to extract column IDs")
+	}
+
+	rawCols := strings.Split(parts[0], ",")
+	colData := make([]templ.KanbanTemplColumnData, 0, len(rawCols))
+
+	for idx, rawCol := range rawCols {
+		id, err := uuid.FromString(rawCol)
+		if err != nil {
+			return ast.GoToNext,
+				false,
+				errors.Wrap(err, "failed to parse kanban column id")
+		}
+
+		n, err := r.p.GetByID(id)
+		if err != nil {
+			return ast.GoToNext,
+				false,
+				errors.Wrap(err, "failed to get kanban column node")
+		}
+
+		leafs, err := n.GetLeafs(r.p)
+		if err != nil {
+			return ast.GoToNext,
+				false,
+				errors.Wrap(err, "failed to get kanban column leafs")
+		}
+
+		colData = append(
+			colData,
+			templ.KanbanTemplColumnData{
+				Index: idx + 1,
+				Name:  n.Name,
+				Path:  string(n.Path),
+				Cards: util.Map(
+					leafs,
+					func(n *graph.Node) templ.KanbanTemplCardData {
+						return templ.KanbanTemplCardData{
+							ID:      n.ID.String(),
+							Name:    n.Name,
+							Content: r.Render(n),
+						}
+					},
+				),
+			},
+		)
+	}
+
+	err := r.ts.Kanban(w, colData)
+	if err != nil {
+		return ast.GoToNext, false, errors.Wrap(err, "failed to render kanban")
+	}
+
+	return ast.GoToNext, true, nil
 }
 
 func (r *Renderer) renderLink(

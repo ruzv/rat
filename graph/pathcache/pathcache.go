@@ -134,3 +134,20 @@ func (pc *PathCache) Root() (*graph.Node, error) {
 
 	return n, nil
 }
+
+// Move moves a node to a new path. Caches the moved nodes path.
+func (pc *PathCache) Move(id uuid.UUID, path pathutil.NodePath) error {
+	err := pc.p.Move(id, path)
+	if err != nil {
+		return errors.Wrap(err, "failed to move node")
+	}
+
+	pc.cacheMu.Lock()
+	// remove old path
+	delete(pc.cache, id)
+	// add new path
+	pc.cache[id] = path
+	pc.cacheMu.Unlock()
+
+	return nil
+}

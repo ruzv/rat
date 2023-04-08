@@ -18,6 +18,7 @@ type Provider interface {
 	GetByPath(path pathutil.NodePath) (*Node, error)
 	GetLeafs(path pathutil.NodePath) ([]*Node, error)
 	AddLeaf(parent *Node, name string) (*Node, error)
+	Move(id uuid.UUID, path pathutil.NodePath) error
 	Root() (*Node, error)
 }
 
