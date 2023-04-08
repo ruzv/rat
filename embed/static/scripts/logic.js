@@ -326,6 +326,8 @@ function innerHTMLToClipboard(element) {
   navigator.clipboard.writeText(element.innerHTML.trim());
 }
 
+// a colletion of functions that are used to handle the kanban board
+// drag and drop
 const KanbanHandlers = {
   dragstart: (event) => {
     // Add the target element's id to the data transfer object
