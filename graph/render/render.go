@@ -273,11 +273,8 @@ func (r *Renderer) renderTodo(
 		),
 		util.Map(
 			t.OrderHints(),
-			func(h *todo.Hint) templ.TodoHintTemplData {
-				return templ.TodoHintTemplData{
-					Type:  string(h.Type),
-					Value: h.HTML(),
-				}
+			func(h *todo.Hint) string {
+				return h.HTML()
 			},
 		),
 	)

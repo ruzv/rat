@@ -34,7 +34,9 @@ func ParseNode(n *graph.Node) ([]*Todo, error) {
 	for _, match := range matches {
 		t, err := Parse(match[1])
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse todo")
+			return nil, errors.Wrapf(
+				err, "failed to parse todo in node - %q", n.Path,
+			)
 		}
 
 		t.Hints = append(t.Hints, &Hint{Src, n.Path})

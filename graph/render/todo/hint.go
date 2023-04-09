@@ -166,7 +166,7 @@ var hintTypeProcessors = map[HintType]*struct {
 				return fmt.Sprintf("%v", v)
 			}
 
-			return strings.ReplaceAll(s, "-", "&#8209;")
+			return s
 		},
 	},
 	Priority: {
@@ -248,15 +248,11 @@ func (h *Hint) HTML() string {
 
 	p, ok := hintTypeProcessors[h.Type]
 	if !ok {
-		return fmt.Sprintf("%v", h.Value)
+		return fmt.Sprintf("%s = %v", h.Type, h.Value)
 	}
 
 	if p.formatHTML == nil {
-		if p.formatMD == nil {
-			return fmt.Sprintf("%v", h.Value)
-		}
-
-		return p.formatMD(h.Value)
+		return h.markdown()
 	}
 
 	return p.formatHTML(h.Value)
