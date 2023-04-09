@@ -1,7 +1,7 @@
 <div style="display: grid">
   {{ range .Hints -}}
   <div style="margin: 4px 0px 0px 0px">
-    <span class="markdown-code">{{ .Type }} = {{ .Value }}</span>
+    <span class="markdown-code">{{ . }}</span>
   </div>
   {{- end }}
 </div>
@@ -10,9 +10,9 @@
 <div class="todo-entry">
   <div style="display: inline-block">
     {{ if .Done }}
-    <input style="margin: 5px" type="checkbox" checked />
+    <input style="margin: 5px" class="todo-checkbox" type="checkbox" checked />
     {{ else }}
-    <input style="margin: 5px" type="checkbox" />
+    <input style="margin: 5px" class="todo-checkbox" type="checkbox" />
     {{ end }}
   </div>
   <div class="todo-entry-content">{{ .Content }}</div>

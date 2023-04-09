@@ -55,7 +55,7 @@ func (n *Node) AddLeaf(p Provider, name string) (*Node, error) {
 // for every child node. callback is not called for n.
 func (n *Node) Walk(
 	p Provider,
-	callback func(depth int, node *Node) bool,
+	callback func(depth int, node *Node) (shouldWalkLeafs bool, err error),
 ) error {
 	return n.walk(p, 0, callback)
 }
@@ -63,7 +63,7 @@ func (n *Node) Walk(
 func (n *Node) walk(
 	p Provider,
 	depth int,
-	callback func(int, *Node) bool,
+	callback func(int, *Node) (bool, error),
 ) error {
 	leafs, err := n.GetLeafs(p)
 	if err != nil {
@@ -71,8 +71,15 @@ func (n *Node) walk(
 	}
 
 	for _, leaf := range leafs {
-		if callback != nil && !callback(depth, leaf) {
-			continue // callback returned false, skip this branch
+		if callback != nil {
+			walkLeaf, err := callback(depth, leaf)
+			if err != nil {
+				return errors.Wrap(err, "callback failed")
+			}
+
+			if !walkLeaf {
+				continue // callback returned false, skip this branch
+			}
 		}
 
 		err = leaf.walk(p, depth+1, callback)
@@ -148,7 +155,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 	err := n.Walk(
 		p,
-		func(depth int, node *Node) bool {
+		func(depth int, node *Node) (bool, error) {
 			m.Nodes++
 
 			if depth > m.Depth.Max {
@@ -157,14 +164,14 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 			leafs, err := node.GetLeafs(p)
 			if err != nil {
-				return true
+				return false, errors.Wrap(err, "failed to get leafs")
 			}
 
 			if len(leafs) == 0 {
 				totalDepth += depth
 				m.FinalNodes++
 
-				return true
+				return true, nil
 			}
 
 			if len(leafs) > m.Leafs.Max {
@@ -174,7 +181,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			totalLeafs += len(leafs)
 			hasLeafs++
 
-			return true
+			return true, nil
 		},
 	)
 	if err != nil {
@@ -190,4 +197,23 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	}
 
 	return &m, nil
+}
+
+// ChildNodes returns all child nodes of node.
+func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
+	var childNodes []*Node
+
+	err := n.Walk(
+		p,
+		func(d int, node *Node) (bool, error) {
+			childNodes = append(childNodes, node)
+
+			return true, nil
+		},
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to walk graph")
+	}
+
+	return childNodes, nil
 }

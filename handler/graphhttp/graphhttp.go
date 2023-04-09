@@ -62,10 +62,10 @@ func (h *handler) index(w http.ResponseWriter, _ *http.Request) error {
 
 	err = root.Walk(
 		h.ss.Graph,
-		func(d int, n *graph.Node) bool {
+		func(d int, n *graph.Node) (bool, error) {
 			paths = append(paths, string(n.Path))
 
-			return true
+			return true, nil
 		},
 	)
 	if err != nil {

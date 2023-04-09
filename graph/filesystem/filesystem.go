@@ -93,13 +93,13 @@ func (fs *FileSystem) GetByID(id uuid.UUID) (*graph.Node, error) {
 
 	err = root.Walk(
 		fs,
-		func(_ int, node *graph.Node) bool {
+		func(_ int, node *graph.Node) (bool, error) {
 			if node.ID == id {
 				n = node
 				found = true
 			}
 
-			return !found
+			return !found, nil
 		},
 	)
 	if err != nil {

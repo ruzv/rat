@@ -94,22 +94,16 @@ type TodoEntryTemplData struct {
 	Content string
 }
 
-// TodoHintTemplData contains the data used to render a todo hint.
-type TodoHintTemplData struct {
-	Type  string
-	Value string
-}
-
 // Todo renders a list of todo entires.
 func (ts *TemplateStore) Todo(
 	w io.Writer,
 	entires []TodoEntryTemplData,
-	hints []TodoHintTemplData,
+	hints []string,
 ) error {
 	err := ts.todo.Execute(
 		w,
 		struct {
-			Hints   []TodoHintTemplData
+			Hints   []string
 			Entries []TodoEntryTemplData
 		}{
 			Hints:   hints,

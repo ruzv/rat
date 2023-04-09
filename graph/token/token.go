@@ -224,24 +224,16 @@ func (t *Token) transformGraphToken(
 
 	b := &bytes.Buffer{}
 
-	var buffErr error
-
 	err = n.Walk(
 		p,
-		func(d int, node *graph.Node) bool {
+		func(d int, node *graph.Node) (bool, error) {
 			if d == depth {
-				return false
-			}
-
-			if buffErr != nil {
-				return false
+				return false, nil
 			}
 
 			link, err := util.Link(node.Path, node.Name)
 			if err != nil {
-				buffErr = errors.Wrap(err, "failed to create link")
-
-				return false
+				return false, errors.Wrap(err, "failed to create link")
 			}
 
 			_, err = b.WriteString(
@@ -252,40 +244,23 @@ func (t *Token) transformGraphToken(
 				),
 			)
 			if err != nil {
-				buffErr = err
-
-				return false
+				return false, errors.Wrap(err, "failed to write to buffer")
 			}
 
-			return true
+			return true, nil
 		},
 	)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to walk graph")
 	}
 
-	if buffErr != nil {
-		return "", errors.Wrap(buffErr, "failed to prepare read buffer")
-	}
-
 	return b.String(), nil
 }
 
-//nolint:cyclop,gocyclo
 func (t *Token) transformTodoToken(
-	n *graph.Node,
+	_ *graph.Node,
 	p graph.Provider,
 ) (string, error) {
-	id, err := t.getArgParent(n.ID)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get parent arg")
-	}
-
-	depth, err := t.getArgDepth()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get depth")
-	}
-
 	filtersHas, err := t.getArgFilterHas()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get has hint filter")
@@ -306,41 +281,9 @@ func (t *Token) transformTodoToken(
 		return "", errors.Wrap(err, "failed to get sort arg")
 	}
 
-	parent, err := p.GetByID(id)
+	todos, err := t.getTodos(p)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get parent node")
-	}
-
-	var (
-		todos    []*todo.Todo
-		parseErr error
-	)
-
-	err = parent.Walk(
-		p,
-		func(d int, node *graph.Node) bool {
-			if d == depth || parseErr != nil {
-				return false
-			}
-
-			nodeTodos, err := todo.ParseNode(node)
-			if err != nil {
-				parseErr = errors.Wrap(err, "failed to parse nodes todos")
-
-				return false
-			}
-
-			todos = append(todos, nodeTodos...)
-
-			return true
-		},
-	)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to walk graph")
-	}
-
-	if parseErr != nil {
-		return "", errors.Wrap(parseErr, "failed to parse todo")
+		return "", errors.Wrap(err, "failed to get todos")
 	}
 
 	todos = util.Filter(
@@ -380,6 +323,77 @@ func (t *Token) transformTodoToken(
 		nil
 }
 
+//nolint:gocyclo,cyclop
+func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
+	includeSources, excludeSources, err := t.getArgSources()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get sources arg")
+	}
+
+	excludedNodes := make(map[uuid.UUID]bool)
+
+	for _, exID := range excludeSources {
+		exNode, err := p.GetByID(exID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get excluded node")
+		}
+
+		excludedNodes[exID] = true
+
+		exNodes, err := exNode.ChildNodes(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get excluded nodes")
+		}
+
+		for _, exNode := range exNodes {
+			excludedNodes[exNode.ID] = true
+		}
+	}
+
+	var todos []*todo.Todo
+
+	for _, inID := range includeSources {
+		if excludedNodes[inID] {
+			continue
+		}
+
+		inNode, err := p.GetByID(inID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get included node")
+		}
+
+		nodeTodos, err := todo.ParseNode(inNode)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse node todos")
+		}
+
+		todos = append(todos, nodeTodos...)
+
+		err = inNode.Walk(
+			p,
+			func(_ int, node *graph.Node) (bool, error) {
+				if excludedNodes[node.ID] {
+					return false, nil
+				}
+
+				nodeTodos, err := todo.ParseNode(node)
+				if err != nil {
+					return false, errors.Wrap(err, "failed to parse node todos")
+				}
+
+				todos = append(todos, nodeTodos...)
+
+				return true, nil
+			},
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to walk graph")
+		}
+	}
+
+	return todos, nil
+}
+
 func (t *Token) transformKanbanToken(
 	_ *graph.Node, _ graph.Provider,
 ) (string, error) {
@@ -403,27 +417,69 @@ func (t *Token) transformKanbanToken(
 		nil
 }
 
+func (t *Token) getArgSources() ([]uuid.UUID, []uuid.UUID, error) {
+	columnsArg, ok := t.Args["sources"]
+	if !ok {
+		return nil, nil, nil
+	}
+
+	parts := strings.Split(columnsArg, ",")
+
+	var ( //nolint:prealloc
+		include []uuid.UUID
+		exclude []uuid.UUID
+	)
+
+	for _, raw := range parts {
+		raw = strings.TrimSpace(raw)
+
+		if strings.HasPrefix(raw, "-") {
+			id, err := uuid.FromString(raw[1:])
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to parse id")
+			}
+
+			exclude = append(exclude, id)
+
+			continue
+		}
+
+		id, err := uuid.FromString(raw)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to parse id")
+		}
+
+		include = append(include, id)
+	}
+
+	return include, exclude, nil
+}
+
 func (t *Token) getArgColumns() ([]uuid.UUID, error) {
 	columnsArg, ok := t.Args["columns"]
 	if !ok {
 		return nil, nil
 	}
 
-	parts := strings.Split(columnsArg, ",")
-	cols := make([]uuid.UUID, 0, len(parts))
+	return parseListOfUUIDs(columnsArg)
+}
+
+func parseListOfUUIDs(raw string) ([]uuid.UUID, error) {
+	parts := strings.Split(raw, ",")
+	ids := make([]uuid.UUID, 0, len(parts))
 
 	for _, raw := range parts {
 		raw = strings.TrimSpace(raw)
 
-		colID, err := uuid.FromString(raw)
+		id, err := uuid.FromString(raw)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse column id")
+			return nil, errors.Wrap(err, "failed to parse id")
 		}
 
-		cols = append(cols, colID)
+		ids = append(ids, id)
 	}
 
-	return cols, nil
+	return ids, nil
 }
 
 // by default returns -1, meaning no depth limit.
@@ -445,20 +501,6 @@ func (t *Token) getArgDepth() (int, error) {
 	}
 
 	return depth, nil
-}
-
-func (t *Token) getArgParent(defaultID uuid.UUID) (uuid.UUID, error) {
-	parentArg, ok := t.Args["parent"]
-	if !ok {
-		return defaultID, nil
-	}
-
-	id, err := uuid.FromString(parentArg)
-	if err != nil {
-		return uuid.Nil, errors.Wrap(err, "failed to parse parent id")
-	}
-
-	return id, nil
 }
 
 func (t *Token) getArgFilterHas() ([]*todo.FilterRule, error) {
