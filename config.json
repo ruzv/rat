@@ -3,6 +3,6 @@
 
   "graph": {
     "name": "notes",
-    "path": "/Users/rudolfszvejs/notes"
+    "path": "/path/to/your/notes/dir"
   }
 }
