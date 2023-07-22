@@ -31,7 +31,7 @@ var log = logging.MustGetLogger("graph")
 // <rat graph> <rat link> <rat todo>
 // into markdown.
 func TransformContentTokens(n *graph.Node, p graph.Provider) string {
-	matches := tokenRegex.FindAllIndex([]byte(n.Content), -1)
+	matches := tokenRegex.FindAllStringIndex(n.Content, -1)
 
 	if len(matches) == 0 {
 		return n.Content

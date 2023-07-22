@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
+	pathutil "private/rat/graph/util/path"
+
 	"github.com/pkg/errors"
 )
 
@@ -15,8 +17,8 @@ type Config struct {
 
 // GraphConfig is the configuration for the graph.
 type GraphConfig struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name pathutil.NodePath `json:"name"`
+	Path string            `json:"path"`
 }
 
 // Load loads the configuration from a file.
@@ -28,12 +30,12 @@ func Load(path string) (*Config, error) {
 
 	defer f.Close()
 
-	var c Config
+	c := &Config{}
 
-	err = json.NewDecoder(f).Decode(&c)
+	err = json.NewDecoder(f).Decode(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode config")
 	}
 
-	return &c, nil
+	return c, nil
 }

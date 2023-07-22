@@ -6,10 +6,9 @@ import (
 	"regexp"
 
 	"private/rat/graph"
+	pathutil "private/rat/graph/util/path"
 	"private/rat/handler/graphhttp/nodeshttp"
 	"private/rat/handler/shared"
-
-	pathutil "private/rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
@@ -62,7 +61,7 @@ func (h *handler) index(w http.ResponseWriter, _ *http.Request) error {
 
 	err = root.Walk(
 		h.ss.Graph,
-		func(d int, n *graph.Node) (bool, error) {
+		func(_ int, n *graph.Node) (bool, error) {
 			paths = append(paths, string(n.Path))
 
 			return true, nil

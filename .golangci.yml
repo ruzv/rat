@@ -1,19 +1,31 @@
+---
 run:
   deadline: 2m
   allow-parallel-runners: true
 
 severity:
-  default-severity: critical # info, minor, major, critical, blocker
+  default-severity: critical  # info, minor, major, critical, blocker
 
 linters-settings:
+  tagalign:
+    order:
+      - json
+      - yaml
+      - yml
+      - toml
+      - mapstructure
+      - binding
+      - validate
+
   depguard:
-    list-type: blacklist
-    include-go-root: true
-    packages:
-      - io/ioutil
-      - github.com/aws/aws-sdk-go/*
-      - github.com/satori/go.uuid
-      - github.com/satori/uuid
+    rules:
+      main:
+        deny:
+          - pkg: github.com/jfcg/sorty$
+          - pkg: io/ioutil
+          - pkg: github.com/aws/aws-sdk-go/*
+          - pkg: github.com/satori/go.uuid
+          - pkg: github.com/satori/uuid
   gocyclo:
     min-complexity: 10
   grouper:
@@ -38,7 +50,7 @@ linters-settings:
           - readonly
           - swagger
           - required
-          - enum          
+          - enum
       # disabled
       - name: argument-limit
         disabled: true
