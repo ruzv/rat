@@ -8,10 +8,10 @@ import (
 
 	"private/rat/config"
 	"private/rat/graph"
-	"private/rat/graph/filesystem"
 	"private/rat/graph/pathcache"
 	"private/rat/graph/render"
 	"private/rat/graph/render/templ"
+	"private/rat/graph/singlefile"
 	"private/rat/graph/util/path"
 
 	"github.com/op/go-logging"
@@ -40,10 +40,7 @@ func NewServices(
 	graphConf *config.GraphConfig,
 	templateFS fs.FS,
 ) (*Services, error) {
-	p, err := filesystem.NewFileSystem(graphConf.Name, graphConf.Path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create net fs")
-	}
+	p := singlefile.NewSingleFile(graphConf.Name, graphConf.Path)
 
 	pc := pathcache.NewPathCache(p)
 
@@ -138,7 +135,10 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 }
 
 // Body reads the requests body as a specified struct.
-func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) { //nolint:ireturn,lll
+func Body[T any](
+	w http.ResponseWriter,
+	r *http.Request,
+) (T, error) { //nolint:ireturn
 	defer r.Body.Close()
 
 	var body, empty T

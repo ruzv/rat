@@ -11,6 +11,47 @@ import (
 // graph.
 type NodePath string
 
+// String returns string representation of path.
+func (p NodePath) String() string {
+	return string(p)
+}
+
+// ParentPath returns parent path of node. Returns root path for root path.
+func (p NodePath) ParentPath() NodePath {
+	parts := PathParts(p)
+
+	if len(parts) < 2 {
+		return p
+	}
+
+	return NodePath(strings.Join(parts[:len(parts)-1], "/"))
+}
+
+// NameFromPath returns name of node from its path.
+func (p NodePath) NameFromPath() string {
+	parts := strings.Split(string(p), "/")
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	if len(parts) == 1 {
+		return parts[0]
+	}
+
+	return parts[len(parts)-1]
+}
+
+// Depth returns depth of path.
+func (p NodePath) Depth() int {
+	return len(PathParts(p))
+}
+
+// JoinName adds the supplied name to the end of the supplied path.
+func (p NodePath) JoinName(name string) NodePath {
+	return NodePath(strings.Join([]string{string(p), name}, "/"))
+}
+
 // NameFromPath returns name of node from its path.
 func NameFromPath(path NodePath) string {
 	parts := strings.Split(string(path), "/")
