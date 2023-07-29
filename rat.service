@@ -1,0 +1,14 @@
+# /etc/systemd/system/rat.service
+[Unit]
+Description=rat personal knowledge service
+After=network.target
+
+[Service]
+Type=simple
+User=ruzv
+ExecStart=/home/ruzv/go/bin/rat
+WorkingDirectory=/home/ruzv/notes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
