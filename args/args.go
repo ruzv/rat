@@ -1,6 +1,8 @@
 package args
 
-import "github.com/spf13/pflag"
+import (
+	"github.com/spf13/pflag"
+)
 
 // Args are the command line arguments.
 type Args struct {
@@ -11,7 +13,7 @@ type Args struct {
 // Load parses the command line arguments in to a Args struct.
 func Load() (*Args, bool) {
 	configPath := pflag.StringP(
-		"config", "c", "./config.json", "path to config file",
+		"config", "c", "./config.yaml", "path to yaml or json config file",
 	)
 	embed := pflag.BoolP(
 		"embed", "e", true, "flag to toggle usage of embedded files",
