@@ -1,0 +1,9 @@
+
+
+port: 8889
+graph:
+  name: notes
+  path: /Users/rzvejs/notes
+  sync:
+    interval: 10s
+    keyPath: /Users/rzvejs/.ssh/github-priv

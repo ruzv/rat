@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 
 	pathutil "rat/graph/util/path"
 
@@ -22,8 +23,15 @@ type Config struct {
 type GraphConfig struct {
 	Name pathutil.NodePath `json:"name" yaml:"name" validate:"nonzero"`
 	Path string            `json:"path" yaml:"path" validate:"nonzero"`
+	Sync *SyncConfig       `json:"sync" yaml:"sync" validate:"nonnil"`
+}
 
-	GitPublicKeyPath string `json:"git_public_key_path" yaml:"gitPublicKeyPath" validate:"nonzero"` //nolint:lll
+// SyncConfig defines configuration params for periodically syncing graph to a
+// git repository.
+type SyncConfig struct {
+	Interval    time.Duration `json:"interval" yaml:"interval" validate:"nonzero"` //nolint:lll
+	KeyPath     string        `json:"keyPath" yaml:"keyPath" validate:"nonzero"`
+	KeyPassword string        `json:"keyPassword" yaml:"keyPassword"`
 }
 
 // Load loads the configuration from a file.

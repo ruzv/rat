@@ -26,13 +26,13 @@ func New(
 	router := mux.NewRouter()
 
 	router.NotFoundHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			shared.WriteError(w, http.StatusNotFound, "not found")
 		},
 	)
 
 	router.MethodNotAllowedHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			shared.WriteError(
 				w, http.StatusMethodNotAllowed, "method not allowed",
 			)
@@ -49,10 +49,7 @@ func New(
 		return nil, errors.Wrap(err, "failed to create shared services")
 	}
 
-	router.Use(
-		ss.ReloadTemplatesMW,
-		GetAccessLoggerMW(false),
-	)
+	router.Use(GetAccessLoggerMW(false))
 
 	err = graphhttp.RegisterRoutes(router, ss)
 	if err != nil {
