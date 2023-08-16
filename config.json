@@ -1,9 +1,0 @@
-{
-  "port": 8889,
-
-  "graph": {
-    "name": "notes",
-    "path": "/home/ruzv/notes",
-    "git_public_key_path": "hello"
-  }
-}

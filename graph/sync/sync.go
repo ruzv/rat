@@ -15,6 +15,7 @@ import (
 
 var log = logging.MustGetLogger("sync")
 
+// Syncer is a git syncer.
 type Syncer struct {
 	interval      time.Duration
 	repo          *git.Repository
@@ -55,6 +56,7 @@ func NewSyncer(repoDir string, conf *config.SyncConfig) (*Syncer, error) {
 	return s, nil
 }
 
+// Start starts the sync ticker and goroutine.
 func (s *Syncer) Start() {
 	ticker := time.NewTicker(s.interval)
 
@@ -81,10 +83,12 @@ func (s *Syncer) Start() {
 	}()
 }
 
+// Stop stops the sync ticker and goroutine, cleans up allocated resources.
 func (s *Syncer) Stop() {
 	s.stop <- struct{}{}
 }
 
+// Trigger triggers a sync.
 func (s *Syncer) Trigger() {
 	s.trigger <- struct{}{}
 }

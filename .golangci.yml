@@ -93,6 +93,7 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - tagalign
     - gomnd
     - gomoddirectives
     # default disabled linters
