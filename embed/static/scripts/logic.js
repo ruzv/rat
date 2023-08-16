@@ -8,7 +8,7 @@ const Prompt = (
     navigateUp: () => {},
     navigateDown: () => {},
     keydown: () => {},
-  }
+  },
 ) => {
   let p = {
     element: document.getElementById(elementID),
@@ -168,7 +168,7 @@ const Search = () => {
       if (!response.ok) {
         response.json().then((data) => {
           throw new Error(
-            `failed to get graph index, status ${response.status}, body ${data}`
+            `failed to get graph index, status ${response.status}, body ${data}`,
           );
         });
       }
@@ -234,14 +234,14 @@ const NewNode = () => {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     )
       .then((response) => {
         if (!response.ok) {
           response.json().then((data) => {
             throw new Error(
               `create new node request failed, ` +
-                `status ${response.status}, body ${data}`
+                `status ${response.status}, body ${data}`,
             );
           });
         }
@@ -276,7 +276,7 @@ function consolePromptSubmit() {
       headers: {
         "Content-Type": "application/json",
       },
-    }
+    },
   )
     .then((response) => {
       if (!response.ok) {
@@ -307,7 +307,7 @@ function consoleSetNavigator(path) {
 
       window.location.href = new URL(
         "/view/" + path,
-        window.location.origin
+        window.location.origin,
       ).href;
     };
 
@@ -318,7 +318,7 @@ function consoleSetNavigator(path) {
 function navigateToPath(e) {
   window.location.href = new URL(
     "/view/" + e.getAttribute("data-path"),
-    window.location.origin
+    window.location.origin,
   ).href;
 }
 
@@ -341,7 +341,7 @@ const KanbanHandlers = {
     event.preventDefault();
 
     let card = document.getElementById(
-      event.dataTransfer.getData("text/plain")
+      event.dataTransfer.getData("text/plain"),
     );
 
     let target = event.target;
@@ -369,7 +369,7 @@ const KanbanHandlers = {
           response.json().then((data) => {
             throw new Error(
               `failed to move kanban card, ` +
-                `status ${response.status}, body ${data}`
+                `status ${response.status}, body ${data}`,
             );
           });
         }
@@ -391,11 +391,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   consoleSetNavigator(NodePath);
 
-  shortcut.add("Meta+P", function () {
+  shortcut.add("Ctrl+K", function () {
     search.show();
   });
 
-  shortcut.add("Meta+Shift+P", function () {
+  shortcut.add("Ctrl+Shift+K", function () {
     newNode.show();
   });
 });

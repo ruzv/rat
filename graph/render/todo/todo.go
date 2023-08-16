@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"private/rat/graph"
-	"private/rat/graph/util"
+	"rat/graph"
+	"rat/graph/util"
 
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"

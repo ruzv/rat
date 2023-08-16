@@ -1,8 +1,0 @@
-{
-  "port": 8889,
-
-  "graph": {
-    "name": "notes",
-    "path": "/path/to/your/notes/dir"
-  }
-}

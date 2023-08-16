@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"strconv"
 
-	"private/rat/graph"
-	"private/rat/handler/shared"
+	"rat/graph"
+	"rat/handler/shared"
 
-	pathutil "private/rat/graph/util/path"
+	pathutil "rat/graph/util/path"
 
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"

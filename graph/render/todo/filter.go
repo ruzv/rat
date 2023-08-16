@@ -3,7 +3,7 @@ package todo
 import (
 	"strings"
 
-	"private/rat/graph/util"
+	"rat/graph/util"
 
 	"github.com/pkg/errors"
 )

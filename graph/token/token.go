@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/scanner"
 
-	"private/rat/graph"
-	"private/rat/graph/render/todo"
-	"private/rat/graph/util"
+	"rat/graph"
+	"rat/graph/render/todo"
+	"rat/graph/util"
 
 	"github.com/gofrs/uuid"
 	"github.com/op/go-logging"

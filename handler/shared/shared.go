@@ -6,13 +6,14 @@ import (
 	"io/fs"
 	"net/http"
 
-	"private/rat/config"
-	"private/rat/graph"
-	"private/rat/graph/pathcache"
-	"private/rat/graph/render"
-	"private/rat/graph/render/templ"
-	"private/rat/graph/singlefile"
-	"private/rat/graph/util/path"
+	"rat/config"
+	"rat/graph"
+	"rat/graph/pathcache"
+	"rat/graph/render"
+	"rat/graph/render/templ"
+	"rat/graph/singlefile"
+	"rat/graph/sync"
+	"rat/graph/util/path"
 
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -29,10 +30,10 @@ type (
 
 // Services contains services that are shared between handlers.
 type Services struct {
-	Graph      graph.Provider
-	Templates  *templ.TemplateStore
-	Renderer   *render.Renderer
-	templateFS fs.FS
+	Graph     graph.Provider
+	Templates *templ.TemplateStore
+	Renderer  *render.Renderer
+	Syncer    *sync.Syncer
 }
 
 // NewServices creates a new Services.
@@ -49,11 +50,18 @@ func NewServices(
 		return nil, errors.Wrap(err, "failed to create default template store")
 	}
 
+	s, err := sync.NewSyncer(graphConf.Path, graphConf.Sync)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create syncer")
+	}
+
+	s.Start()
+
 	return &Services{
-		Graph:      pc,
-		Templates:  ts,
-		Renderer:   render.NewRenderer(ts, pc),
-		templateFS: templateFS,
+		Graph:     pc,
+		Templates: ts,
+		Renderer:  render.NewRenderer(ts, pc),
+		Syncer:    s,
 	}, nil
 }
 
@@ -74,22 +82,6 @@ func (ss *Services) GetNode(path path.NodePath) (*graph.Node, error) {
 	}
 
 	return n, nil
-}
-
-// ReloadTemplatesMW reloads the template store before each request.
-func (ss *Services) ReloadTemplatesMW(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			ts, err := templ.FileTemplateStore(ss.templateFS)
-			if err != nil {
-				log.Errorf("failed to reload templates: %v", err)
-			} else {
-				ss.Templates = ts
-			}
-
-			next.ServeHTTP(w, r)
-		},
-	)
 }
 
 // Wrap wraps a RatHandlerFunc to be used with mux.

@@ -3,8 +3,8 @@ package pathcache
 import (
 	"sync"
 
-	"private/rat/graph"
-	pathutil "private/rat/graph/util/path"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"

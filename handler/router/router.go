@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"private/rat/config"
-	"private/rat/handler/graphhttp"
-	"private/rat/handler/shared"
-	"private/rat/handler/statichttp"
-	"private/rat/handler/viewhttp"
+	"rat/config"
+	"rat/handler/graphhttp"
+	"rat/handler/shared"
+	"rat/handler/statichttp"
+	"rat/handler/viewhttp"
 
 	"github.com/gorilla/mux"
 	"github.com/op/go-logging"
@@ -26,13 +26,13 @@ func New(
 	router := mux.NewRouter()
 
 	router.NotFoundHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			shared.WriteError(w, http.StatusNotFound, "not found")
 		},
 	)
 
 	router.MethodNotAllowedHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			shared.WriteError(
 				w, http.StatusMethodNotAllowed, "method not allowed",
 			)
@@ -49,10 +49,7 @@ func New(
 		return nil, errors.Wrap(err, "failed to create shared services")
 	}
 
-	router.Use(
-		ss.ReloadTemplatesMW,
-		GetAccessLoggerMW(false),
-	)
+	router.Use(GetAccessLoggerMW(false))
 
 	err = graphhttp.RegisterRoutes(router, ss)
 	if err != nil {

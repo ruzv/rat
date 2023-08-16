@@ -1,0 +1,7 @@
+port: 8889
+graph:
+  name: graph_name
+  path: /path/to/graph
+  sync:
+    interval: 10s
+    keyPath: /path/to/key

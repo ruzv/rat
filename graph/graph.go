@@ -3,7 +3,7 @@ package graph
 import (
 	"text/template"
 
-	pathutil "private/rat/graph/util/path"
+	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"

@@ -3,7 +3,7 @@ package util
 import (
 	"fmt"
 
-	pathutil "private/rat/graph/util/path"
+	pathutil "rat/graph/util/path"
 
 	"github.com/pkg/errors"
 )
@@ -28,7 +28,7 @@ func Link(path pathutil.NodePath, name string) (string, error) {
 }
 
 // Map applies a function to all todo entries.
-func Map[T any, R any](s []T, f func(T) R) []R {
+func Map[T, R any](s []T, f func(T) R) []R {
 	r := make([]R, len(s))
 	for i, v := range s {
 		r[i] = f(v)
