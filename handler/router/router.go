@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"rat/config"
+	auth "rat/handler/authhttp"
 	"rat/handler/graphhttp"
 	"rat/handler/shared"
 	"rat/handler/statichttp"
@@ -38,6 +39,8 @@ func New(
 			)
 		},
 	)
+
+	auth.RegisterRoutes(router, conf.Graph.Auth)
 
 	templateFS, err := fs.Sub(embeds, "render-templates")
 	if err != nil {

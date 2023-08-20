@@ -22,6 +22,7 @@ type GraphConfig struct {
 	Name pathutil.NodePath `yaml:"name" validate:"nonzero"`
 	Path string            `yaml:"path" validate:"nonzero"`
 	Sync *SyncConfig       `yaml:"sync" validate:"nonnil"`
+	Auth *AuthConfig       `yaml:"auth" validate:"nonnil"`
 }
 
 // SyncConfig defines configuration params for periodically syncing graph to a
@@ -30,6 +31,14 @@ type SyncConfig struct {
 	Interval    time.Duration `yaml:"interval" validate:"nonzero"`
 	KeyPath     string        `yaml:"keyPath" validate:"nonzero"`
 	KeyPassword string        `yaml:"keyPassword"`
+}
+
+// AuthConfig defines configuration params for authentication.
+type AuthConfig struct {
+	Username        string        `yaml:"username" validate:"nonzero"`
+	PasswordHash    string        `yaml:"passwordHash" validate:"nonzero"`
+	TokenExpiration time.Duration `yaml:"tokenExpiration" validate:"nonzero"`
+	Secret          string        `yaml:"secret" validate:"nonzero"`
 }
 
 // Load loads the configuration from a file.

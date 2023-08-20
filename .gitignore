@@ -5,4 +5,4 @@ logs.log
 content
 test-graph
 local
-test-config.json
+test-config.yaml
