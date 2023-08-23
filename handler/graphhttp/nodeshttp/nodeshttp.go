@@ -8,20 +8,46 @@ import (
 	"strconv"
 
 	"rat/graph"
+	pathutil "rat/graph/util/path"
 	"rat/handler/shared"
 
-	pathutil "rat/graph/util/path"
-
+	"github.com/gorilla/mux"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
-
-	"github.com/gorilla/mux"
 )
 
 var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
 	ss *shared.Services
+}
+
+// RegisterRoutes registers graph routes on given router.
+func RegisterRoutes(
+	router *mux.Router, ss *shared.Services,
+) error {
+	h, err := newHandler(ss)
+	if err != nil {
+		return errors.Wrap(err, "failed create new graph handler")
+	}
+
+	nodesRouter := router.PathPrefix("/nodes").Subrouter()
+
+	nodesRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
+	nodesRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
+
+	pathRe := regexp.MustCompile(
+		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
+	)
+
+	nodeRouter := nodesRouter.
+		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
+		Subrouter()
+
+	nodeRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
+	nodeRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
+
+	return nil
 }
 
 // creates a new Handler.
@@ -53,34 +79,6 @@ func newHandler(ss *shared.Services) (*handler, error) {
 	log.Notice("loaded graph")
 
 	return h, nil
-}
-
-// RegisterRoutes registers graph routes on given router.
-func RegisterRoutes(
-	router *mux.Router, ss *shared.Services,
-) error {
-	h, err := newHandler(ss)
-	if err != nil {
-		return errors.Wrap(err, "failed create new graph handler")
-	}
-
-	nodesRouter := router.PathPrefix("/nodes").Subrouter()
-
-	nodesRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
-	nodesRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
-
-	pathRe := regexp.MustCompile(
-		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
-	)
-
-	nodeRouter := nodesRouter.
-		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
-		Subrouter()
-
-	nodeRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
-	nodeRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
-
-	return nil
 }
 
 // -------------------------------------------------------------------------- //
