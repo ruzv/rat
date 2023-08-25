@@ -18,7 +18,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("nodeshttp")
+var (
+	log = logging.MustGetLogger("nodeshttp")
+
+	// listTypes maps ast.ListType to string.
+	listTypes = map[ast.ListType]string{
+		ast.ListTypeOrdered:    "ordered",
+		ast.ListTypeDefinition: "definition",
+		ast.ListTypeTerm:       "term",
+	}
+)
 
 type handler struct {
 	ss *shared.Services
@@ -52,12 +61,7 @@ func RegisterRoutes(
 	return nil
 }
 
-var listTypes = map[ast.ListType]string{
-	ast.ListTypeOrdered:    "ordered",
-	ast.ListTypeDefinition: "definition",
-	ast.ListTypeTerm:       "term",
-}
-
+// AstAttributes describes a abstract syntax tree part attributes.
 type AstAttributes map[string]any
 
 // AstPart describes a abstract syntax tree part.
@@ -68,11 +72,15 @@ type AstPart struct {
 	parent     *AstPart
 }
 
+// AddLeaf adds a leaf (a ast part that can not contain other ast parts) to
+// the ast part.
 func (p *AstPart) AddLeaf(leaf *AstPart) {
 	leaf.parent = p
 	p.Children = append(p.Children, leaf)
 }
 
+// AddContainer on entering adds a container (a ast part that can contain other
+// ast parts) to the ast part, on exit moves the target part back one parent.
 func (p *AstPart) AddContainer(child *AstPart, entering bool) *AstPart {
 	if !entering { // exiting
 		return p.parent
@@ -84,6 +92,10 @@ func (p *AstPart) AddContainer(child *AstPart, entering bool) *AstPart {
 	return child
 }
 
+// RenderNode parses a single ast node into a struct, that after parsing can
+// be serialised into JSON. Used int ast.WalkFunc.
+//
+//nolint:gocyclo,cyclop
 func (p *AstPart) RenderNode(node ast.Node, entering bool) *AstPart {
 	switch node := node.(type) {
 	case *ast.Document:
@@ -196,7 +208,6 @@ func (p *AstPart) RenderNode(node ast.Node, entering bool) *AstPart {
 				},
 			)
 		}
-
 	}
 
 	return p
