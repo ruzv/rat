@@ -31,6 +31,19 @@ type Node struct {
 	Template string            `json:"template"`
 }
 
+// Metrics groups all nodes metrics.
+type Metrics struct {
+	Nodes      int    `json:"nodes"`
+	FinalNodes int    `json:"final_nodes"`
+	Depth      metric `json:"depth"`
+	Leafs      metric `json:"leafs"`
+}
+
+type metric struct {
+	Max int     `json:"max"`
+	Avg float64 `json:"avg"`
+}
+
 // GetLeafs returns all leafs of node.
 func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
 	leafs, err := p.GetLeafs(n.Path)
@@ -129,19 +142,6 @@ func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
 	}
 
 	return getTemplate(n)
-}
-
-// Metrics groups all nodes metrics.
-type Metrics struct {
-	Nodes      int    `json:"nodes"`
-	FinalNodes int    `json:"final_nodes"`
-	Depth      metric `json:"depth"`
-	Leafs      metric `json:"leafs"`
-}
-
-type metric struct {
-	Max int     `json:"max"`
-	Avg float64 `json:"avg"`
 }
 
 // Metrics calculates metrics for node.

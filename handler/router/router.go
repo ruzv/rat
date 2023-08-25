@@ -1,11 +1,13 @@
 package router
 
 import (
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"time"
 
 	"rat/config"
+	"rat/graph"
 	"rat/handler/graphhttp"
 	"rat/handler/shared"
 	"rat/handler/statichttp"
@@ -66,9 +68,17 @@ func New(
 		return nil, errors.Wrap(err, "failed to register static routes")
 	}
 
-	err = router.Walk(
+	log.Notice("registered routes")
+	logRoutes(router)
+	logMetrics(ss.Graph)
+
+	return router, nil
+}
+
+func logRoutes(router *mux.Router) {
+	err := router.Walk(
 		func(
-			route *mux.Route, router *mux.Router, ancestors []*mux.Route,
+			route *mux.Route, router *mux.Router, _ []*mux.Route,
 		) error {
 			path, err := route.GetPathTemplate()
 			if err != nil {
@@ -89,12 +99,33 @@ func New(
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk routes")
+		log.Error("failed to log routes", err)
+	}
+}
+
+func logMetrics(p graph.Provider) {
+	r, err := p.Root()
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
+
+		return
 	}
 
-	log.Notice("registered routes")
+	m, err := r.Metrics(p)
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
 
-	return router, nil
+		return
+	}
+
+	b, err := json.MarshalIndent(m, "", "    ")
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
+
+		return
+	}
+
+	log.Infof("metrics:\n%s", string(b))
 }
 
 // BufferResponseWriter is a wrapper around http.ResponseWriter that proxies

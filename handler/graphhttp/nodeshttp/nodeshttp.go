@@ -1,7 +1,6 @@
 package nodeshttp
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -11,6 +10,9 @@ import (
 	pathutil "rat/graph/util/path"
 	"rat/handler/shared"
 
+	"github.com/gofrs/uuid"
+	"github.com/gomarkdown/markdown/ast"
+	"github.com/gomarkdown/markdown/parser"
 	"github.com/gorilla/mux"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
@@ -26,9 +28,8 @@ type handler struct {
 func RegisterRoutes(
 	router *mux.Router, ss *shared.Services,
 ) error {
-	h, err := newHandler(ss)
-	if err != nil {
-		return errors.Wrap(err, "failed create new graph handler")
+	h := &handler{
+		ss: ss,
 	}
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()
@@ -44,46 +45,221 @@ func RegisterRoutes(
 		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
 		Subrouter()
 
-	nodeRouter.HandleFunc("/", shared.Wrap(h.read)).Methods(http.MethodGet)
+	nodeRouter.HandleFunc("/", shared.Wrap(h.deconstruct)).
+		Methods(http.MethodGet)
 	nodeRouter.HandleFunc("/", shared.Wrap(h.create)).Methods(http.MethodPost)
 
 	return nil
 }
 
-// creates a new Handler.
-func newHandler(ss *shared.Services) (*handler, error) {
-	h := &handler{
-		ss: ss,
-	}
-
-	log.Info("loading graph")
-
-	r, err := h.ss.Graph.Root()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get root")
-	}
-
-	log.Info("reading metrics")
-
-	m, err := r.Metrics(h.ss.Graph)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get metrics")
-	}
-
-	b, err := json.MarshalIndent(m, "", "    ")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal metrics")
-	}
-
-	log.Infof("metrics:\n%s", string(b))
-	log.Notice("loaded graph")
-
-	return h, nil
+var listTypes = map[ast.ListType]string{
+	ast.ListTypeOrdered:    "ordered",
+	ast.ListTypeDefinition: "definition",
+	ast.ListTypeTerm:       "term",
 }
 
-// -------------------------------------------------------------------------- //
-// CREATE
-// -------------------------------------------------------------------------- //
+type AstAttributes map[string]any
+
+// AstPart describes a abstract syntax tree part.
+type AstPart struct {
+	Type       string        `json:"type"`
+	Attributes AstAttributes `json:"attributes,omitempty"`
+	Children   []*AstPart    `json:"children,omitempty"`
+	parent     *AstPart
+}
+
+func (p *AstPart) AddLeaf(leaf *AstPart) {
+	leaf.parent = p
+	p.Children = append(p.Children, leaf)
+}
+
+func (p *AstPart) AddContainer(child *AstPart, entering bool) *AstPart {
+	if !entering { // exiting
+		return p.parent
+	}
+
+	child.parent = p
+	p.Children = append(p.Children, child)
+
+	return child
+}
+
+func (p *AstPart) RenderNode(node ast.Node, entering bool) *AstPart {
+	switch node := node.(type) {
+	case *ast.Document:
+		if entering {
+			p.Type = "document"
+		}
+	case *ast.Text:
+		p.AddLeaf(
+			&AstPart{
+				Type: "text",
+				Attributes: AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+	case *ast.Link:
+		p = p.AddContainer(
+			&AstPart{
+				Type: "link",
+				Attributes: AstAttributes{
+					"destination": string(node.Destination),
+					"title":       string(node.Title),
+				},
+			},
+			entering,
+		)
+	case *ast.List:
+		p = p.AddContainer(
+			&AstPart{
+				Type: "list",
+				Attributes: AstAttributes{
+					"type": listTypes[node.ListFlags],
+				},
+			},
+			entering,
+		)
+	case *ast.ListItem:
+		p = p.AddContainer(
+			&AstPart{
+				Type: "list_item",
+				Attributes: AstAttributes{
+					"type": listTypes[node.ListFlags],
+				},
+			},
+			entering,
+		)
+	case *ast.Heading:
+		p = p.AddContainer(
+			&AstPart{
+				Type: "heading",
+				Attributes: AstAttributes{
+					"level": node.Level,
+				},
+			},
+			entering,
+		)
+	case *ast.HTMLSpan:
+		p.AddLeaf(
+			&AstPart{
+				Type: "span",
+				Attributes: AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+	case *ast.Paragraph:
+		p = p.AddContainer(
+			&AstPart{
+				Type: "paragraph",
+			},
+			entering,
+		)
+	case *ast.Code:
+		p.AddLeaf(
+			&AstPart{
+				Type: "code",
+				Attributes: AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+	case *ast.CodeBlock:
+		p.AddLeaf(
+			&AstPart{
+				Type: "code_block",
+				Attributes: AstAttributes{
+					"text": string(node.Literal),
+					"info": string(node.Info),
+				},
+			},
+		)
+	default:
+		if node.AsLeaf() == nil { // container
+			p = p.AddContainer(
+				&AstPart{
+					Type: "unknown",
+					Attributes: AstAttributes{
+						"text": fmt.Sprintf("%T", node),
+					},
+				},
+				entering,
+			)
+		} else {
+			p.AddLeaf(
+				&AstPart{
+					Type: "unknown",
+					Attributes: AstAttributes{
+						"text": fmt.Sprintf("%T", node),
+					},
+				},
+			)
+		}
+
+	}
+
+	return p
+}
+
+func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
+	n, err := h.getNode(w, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node error")
+	}
+
+	rootPart := &AstPart{}
+	rootPart.parent = rootPart
+
+	part := rootPart
+
+	ast.WalkFunc(
+		parser.NewWithExtensions(
+			parser.NoIntraEmphasis|
+				parser.Tables|
+				parser.FencedCode|
+				parser.Autolink|
+				parser.Strikethrough|
+				parser.SpaceHeadings|
+				parser.HeadingIDs|
+				parser.BackslashLineBreak|
+				parser.DefinitionLists|
+				parser.MathJax|
+				parser.LaxHTMLBlocks|
+				parser.AutoHeadingIDs|
+				parser.Attributes|
+				parser.SuperSubscript,
+		).Parse([]byte(n.Content)),
+		func(node ast.Node, entering bool) ast.WalkStatus {
+			part = part.RenderNode(node, entering)
+
+			return ast.GoToNext
+		},
+	)
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	err = shared.WriteResponse(
+		w,
+		http.StatusOK,
+		struct {
+			ID   uuid.UUID         `json:"id"`
+			Name string            `json:"name"`
+			Path pathutil.NodePath `json:"path"`
+			AST  *AstPart          `json:"ast"`
+		}{
+			ID:   n.ID,
+			Name: n.Name,
+			Path: n.Path,
+			AST:  rootPart,
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write response")
+	}
+
+	return nil
+}
 
 func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 	body, err := shared.Body[struct {
@@ -95,12 +271,6 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	n, err := h.getNode(w, r)
 	if err != nil {
-		shared.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to get node",
-		)
-
 		return errors.Wrap(err, "failed to get node error")
 	}
 
@@ -117,10 +287,6 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	return nil
 }
-
-// -------------------------------------------------------------------------- //
-// READ
-// -------------------------------------------------------------------------- //
 
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	resp := struct {
