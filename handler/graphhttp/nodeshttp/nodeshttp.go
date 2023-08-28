@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"rat/graph"
+	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/handler/shared"
 
@@ -219,6 +221,11 @@ func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
+	childNodePaths, err := h.getChildNodes(w, n.Path)
+	if err != nil {
+		return errors.Wrap(err, "failed to get child node paths")
+	}
+
 	rootPart := &AstPart{}
 	rootPart.parent = rootPart
 
@@ -254,15 +261,19 @@ func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 		w,
 		http.StatusOK,
 		struct {
-			ID   uuid.UUID         `json:"id"`
-			Name string            `json:"name"`
-			Path pathutil.NodePath `json:"path"`
-			AST  *AstPart          `json:"ast"`
+			ID             uuid.UUID           `json:"id"`
+			Name           string              `json:"name"`
+			Path           pathutil.NodePath   `json:"path"`
+			ChildNodePaths []pathutil.NodePath `json:"childNodePaths"`
+			Length         int                 `json:"length"`
+			AST            *AstPart            `json:"ast"`
 		}{
-			ID:   n.ID,
-			Name: n.Name,
-			Path: n.Path,
-			AST:  rootPart,
+			ID:             n.ID,
+			Name:           n.Name,
+			Path:           n.Path,
+			Length:         len(strings.Split(n.Content, "\n")),
+			ChildNodePaths: childNodePaths,
+			AST:            rootPart,
 		},
 	)
 	if err != nil {
@@ -314,7 +325,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	resp.Node.Content = h.ss.Renderer.Render(n)
 
 	if includeLeafs(r) {
-		leafs, err := h.getLeafPaths(w, n.Path)
+		leafs, err := h.getChildNodes(w, n.Path)
 		if err != nil {
 			return errors.Wrap(err, "failed to get leaf paths")
 		}
@@ -330,11 +341,11 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *handler) getLeafPaths(
+func (h *handler) getChildNodes(
 	w http.ResponseWriter,
 	path pathutil.NodePath,
 ) ([]pathutil.NodePath, error) {
-	leafNodes, err := h.ss.Graph.GetLeafs(path)
+	childNodes, err := h.ss.Graph.GetLeafs(path)
 	if err != nil {
 		shared.WriteError(
 			w,
@@ -345,13 +356,13 @@ func (h *handler) getLeafPaths(
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
 
-	leafs := make([]pathutil.NodePath, 0, len(leafNodes))
-
-	for _, lf := range leafNodes {
-		leafs = append(leafs, lf.Path)
-	}
-
-	return leafs, nil
+	return util.Map(
+			childNodes,
+			func(n *graph.Node) pathutil.NodePath {
+				return n.Path
+			},
+		),
+		nil
 }
 
 func includeLeafs(r *http.Request) bool {

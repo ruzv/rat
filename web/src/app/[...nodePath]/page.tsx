@@ -1,7 +1,8 @@
 "use client";
 
+import { Container, Clickable, ClickableContainer } from "../components";
 import styles from "./styles.module.css";
-import { FunctionComponent } from "react";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -16,124 +17,152 @@ interface Node {
   id: string;
   name: string;
   path: string;
+  length: number;
+  childNodePaths: string[];
   ast: NodeAstPart;
 }
 
 export default function View({ params }: { params: { nodePath: string[] } }) {
-  return <Node path={params.nodePath.join("/")} />;
+  return <NodeWithChildNodes path={params.nodePath.join("/")} />;
 }
 
-const Node: FunctionComponent<{ path: string }> = ({ path }) => {
+function NodeWithChildNodes({ path }: { path: string }) {
   const [node, setNode] = useState<Node | undefined>(undefined);
 
   useEffect(() => {
     fetch(`http://127.0.0.1:8889/graph/nodes/${path}/`)
       .then((resp) => resp.json())
       .then((node) => setNode(node));
-  });
+  }, []);
 
   if (!node) {
     return <h1>loading...</h1>;
   }
 
-  return <>{renderAstPart(node.ast)}</>;
-};
+  return (
+    <>
+      <Container>
+        <div className={styles.contentSpacer}> </div>
+        <NodePart part={node.ast} />
+        <div className={styles.contentSpacer}> </div>
+      </Container>
 
-const Code: FunctionComponent<{ text: string }> = ({ text }) => {
-  return <code className={styles.code}> {text} </code>;
-};
+      <ChildNodes childNodePaths={node.childNodePaths} />
+    </>
+  );
+}
 
-const CodeBlock: FunctionComponent<{ text: string; language: string }> = ({
-  text,
-  language,
-}) => {
-  // https://github.com/react-syntax-highlighter/react-syntax-highlighter/blob/master/AVAILABLE_LANGUAGES_PRISM.MD
-  if (language === "sh") {
-    language = "bash";
+function Node({ path }: { path: string }) {
+  const [node, setNode] = useState<Node | undefined>(undefined);
+
+  useEffect(() => {
+    fetch(`http://127.0.0.1:8889/graph/nodes/${path}/`)
+      .then((resp) => resp.json())
+      .then((node) => setNode(node));
+  }, []);
+
+  if (!node) {
+    return <h1>loading...</h1>;
   }
 
-  console.log(language);
+  return <NodePart part={node.ast} />;
+}
+
+function ChildNodes({ childNodePaths }: { childNodePaths: string[] }) {
+  if (childNodePaths === undefined || childNodePaths.length === 0) {
+    return <></>;
+  }
+
+  const [nodes, setNodes] = useState<Node[] | undefined>(undefined);
+
+  useEffect(() => {
+    const ratServer = "127.0.0.1:8889";
+
+    Promise.all(
+      childNodePaths.map(async (childNodePath) => {
+        const resp = await fetch(
+          `http://${ratServer}/graph/nodes/${childNodePath}/`,
+        );
+
+        return await resp.json();
+      }),
+    ).then((nodes) => setNodes(nodes));
+  }, []);
+
+  if (!nodes) {
+    return <h1>loading child nodes...</h1>;
+  }
+
+  let leftChildNodes = [];
+  let leftChildNodesLength = 0;
+  let rightChildNodes = [];
+  let rightChildNodesLength = 0;
+
+  for (const n of nodes) {
+    if (leftChildNodesLength > rightChildNodesLength) {
+      rightChildNodes.push(n);
+      rightChildNodesLength += n.length;
+    } else {
+      leftChildNodes.push(n);
+      leftChildNodesLength += n.length;
+    }
+  }
+
+  const router = useRouter();
 
   return (
-    <SyntaxHighlighter language={language} style={SyntaxHighlighterStyle}>
-      {text}
-    </SyntaxHighlighter>
+    <div className={styles.childNodesContainer}>
+      <div className={styles.childNodesColumn}>
+        {leftChildNodes.map((node, idx) => (
+          <ClickableContainer onClick={() => router.push(`/${node.path}/`)}>
+            <div className={styles.contentSpacer}> </div>
+            <NodePart key={idx} part={node.ast} />
+            <div className={styles.contentSpacer}> </div>
+          </ClickableContainer>
+        ))}
+      </div>
+      <div className={styles.childNodesColumnSpacer}></div>
+      <div className={styles.childNodesColumn}>
+        {rightChildNodes.map((node, idx) => (
+          <ClickableContainer onClick={() => router.push(`/${node.path}/`)}>
+            <div className={styles.contentSpacer}> </div>
+            <NodePart key={idx} part={node.ast} />
+            <div className={styles.contentSpacer}> </div>
+          </ClickableContainer>
+        ))}
+      </div>
+    </div>
   );
-};
+}
 
-function renderAstPart(astPart: NodeAstPart) {
-  switch (astPart.type) {
+function NodePart({ part }: { part: NodeAstPart }) {
+  switch (part.type) {
     case "document":
-      if (astPart.children === undefined) {
-        return <> {"empty document"} </>;
-      }
-
-      return <> {astPart.children.map(renderAstPart)} </>;
+      return <Document part={part} />;
     case "heading":
-      const level = astPart.attributes["level"] as number;
-
-      switch (level) {
-        case 1:
-          return <h1> {astPart.children.map(renderAstPart)} </h1>;
-        case 2:
-          return <h2> {astPart.children.map(renderAstPart)} </h2>;
-        case 3:
-          return <h3> {astPart.children.map(renderAstPart)} </h3>;
-        case 4:
-          return <h4> {astPart.children.map(renderAstPart)} </h4>;
-        case 5:
-          return <h5> {astPart.children.map(renderAstPart)} </h5>;
-        case 6:
-          return <h6> {astPart.children.map(renderAstPart)} </h6>;
-        default:
-          return (
-            <h1>
-              {"unknown heading level"}
-              {astPart.children.map(renderAstPart)}
-            </h1>
-          );
-      }
+      return <Heading part={part} />;
     case "code":
-      return <Code text={astPart.attributes["text"] as string} />;
+      return <Code part={part} />;
     case "code_block":
-      return (
-        <CodeBlock
-          text={astPart.attributes["text"] as string}
-          language={astPart.attributes["info"] as string}
-        />
-      );
+      return <CodeBlock part={part} />;
     case "link":
-      const destination: string = astPart.attributes["destination"] as string;
-
-      if (astPart.children === undefined) {
-        <a href={destination}>{astPart.attributes["title"]}</a>;
-      }
-
-      return <a href={destination}>{astPart.children.map(renderAstPart)}</a>;
+      return <Link part={part} />;
     case "list":
-      if (astPart.children === undefined) {
-        return <> {"empty list"} </>;
-      }
-
-      return <ul> {astPart.children.map(renderAstPart)} </ul>;
+      return <List part={part} />;
     case "list_item":
-      if (astPart.children === undefined) {
-        return <li> </li>;
-      }
-
-      return <li> {astPart.children.map(renderAstPart)} </li>;
+      return <ListItem part={part} />;
     case "text":
-      return <>{astPart.attributes["text"]}</>;
+      return <>{part.attributes["text"]}</>;
     case "paragraph":
-      return <p> {astPart.children.map(renderAstPart)} </p>;
+      return <Paragraph part={part} />;
     case "span":
-      return <span>{astPart.attributes["text"]}</span>;
+      return <span>{part.attributes["text"]}</span>;
     case "unknown":
-      if (astPart.children === undefined) {
+      if (part.children === undefined) {
         return (
           <p>
             {"unknown leaf"}
-            {astPart.attributes["text"]}
+            {part.attributes["text"]}
           </p>
         );
       }
@@ -141,16 +170,16 @@ function renderAstPart(astPart: NodeAstPart) {
       return (
         <p>
           {"unknown container"}
-          {astPart.attributes["text"]}
-          {astPart.children.map(renderAstPart)}
+          {part.attributes["text"]}
+          <NodePartChildren part={part} />
         </p>
       );
     default:
-      if (astPart.children === undefined) {
+      if (part.children === undefined) {
         return (
           <p>
             {"unpimplemented parser for "}
-            {astPart.type}
+            {part.type}
           </p>
         );
       }
@@ -158,9 +187,147 @@ function renderAstPart(astPart: NodeAstPart) {
       return (
         <p>
           {"unpimplemented parser for "}
-          {astPart.type}
-          {astPart.children.map(renderAstPart)}
+          {part.type}
+          {part.children.map((child, idx) => (
+            <NodePart key={idx} part={child} />
+          ))}
         </p>
       );
   }
+}
+
+function NodePartChildren({ part }: { part: NodeAstPart }) {
+  if (part.children === undefined || part.children.length === 0) {
+    return <> </>;
+  }
+
+  return (
+    <>
+      {part.children.map((child, idx) => (
+        <NodePart key={idx} part={child} />
+      ))}
+    </>
+  );
+}
+
+function Document({ part }: { part: NodeAstPart }) {
+  return <NodePartChildren part={part} />;
+}
+
+function Link({ part }: { part: NodeAstPart }) {
+  if (part.children === undefined) {
+    return (
+      <a href={part.attributes["destination"] as string}>
+        {part.attributes["title"]}
+      </a>
+    );
+  }
+
+  return (
+    <a
+      style={{ overflowWrap: "anywhere" }}
+      href={part.attributes["destination"] as string}
+    >
+      <NodePartChildren part={part} />
+    </a>
+  );
+}
+
+function Heading({ part }: { part: NodeAstPart }) {
+  switch (part.attributes["level"] as number) {
+    case 1:
+      return (
+        <h1>
+          <NodePartChildren part={part} />
+        </h1>
+      );
+    case 2:
+      return (
+        <h2>
+          <NodePartChildren part={part} />
+        </h2>
+      );
+    case 3:
+      return (
+        <h3>
+          <NodePartChildren part={part} />
+        </h3>
+      );
+    case 4:
+      return (
+        <h4>
+          <NodePartChildren part={part} />
+        </h4>
+      );
+    case 5:
+      return (
+        <h5>
+          <NodePartChildren part={part} />
+        </h5>
+      );
+    case 6:
+      return (
+        <h6>
+          <NodePartChildren part={part} />
+        </h6>
+      );
+    default:
+      return (
+        <h1>
+          {"unknown heading level"}
+          <NodePartChildren part={part} />
+        </h1>
+      );
+  }
+}
+
+function Code({ part }: { part: NodeAstPart }) {
+  return (
+    <code className={styles.code}> {part.attributes["text"] as string} </code>
+  );
+}
+
+function CodeBlock({ part }: { part: NodeAstPart }) {
+  let language = part.attributes["info"] as string;
+
+  // https://github.com/react-syntax-highlighter/react-syntax-highlighter/blob/master/AVAILABLE_LANGUAGES_PRISM.MD
+  if (language === "sh") {
+    language = "bash";
+  }
+
+  return (
+    <SyntaxHighlighter
+      language={language}
+      style={SyntaxHighlighterStyle}
+      wrapLines={true}
+      wrapLongLines={false}
+      useInlineStyles={true}
+    >
+      {part.attributes["text"] as string}
+    </SyntaxHighlighter>
+  );
+}
+
+function List({ part }: { part: NodeAstPart }) {
+  return (
+    <ul>
+      <NodePartChildren part={part} />
+    </ul>
+  );
+}
+
+function ListItem({ part }: { part: NodeAstPart }) {
+  return (
+    <li>
+      <NodePartChildren part={part} />
+    </li>
+  );
+}
+
+function Paragraph({ part }: { part: NodeAstPart }) {
+  return (
+    <p>
+      <NodePartChildren part={part} />
+    </p>
+  );
 }

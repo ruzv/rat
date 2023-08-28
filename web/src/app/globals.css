@@ -2,5 +2,13 @@ body {
   background-color: black;
   color: #acacac;
   font-size: 15px;
-  margin: 0;
+  margin: 20px;
+}
+
+a:link {
+  color: #f3715d;
+}
+
+a:visited {
+  color: #f3715d;
 }
