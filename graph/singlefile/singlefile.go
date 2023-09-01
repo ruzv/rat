@@ -18,7 +18,7 @@ import (
 
 var (
 	markdownFileRe = regexp.MustCompile(`(.*)\.md`)
-	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?)---\n((?:.|\n)*)`)
+	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?)\.\.\.\n((?:.|\n)*)`)
 )
 
 var _ graph.Provider = (*SingleFile)(nil)
@@ -105,15 +105,16 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to read file")
 	}
 
+	content := string(data)
+
 	match := headerBodyRe.FindSubmatch(data)
-	if len(match) != 3 {
-		// TODO: handle this error, generate id
-		return nil, errors.New("invalid header")
+	if len(match) == 3 {
+		content = string(match[2])
 	}
 
 	header := &nodeHeader{}
 
-	err = yaml.Unmarshal(match[1], header)
+	err = yaml.Unmarshal(data, header)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal header as yaml")
 	}
@@ -122,7 +123,7 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 			ID:       header.ID,
 			Name:     pathutil.NameFromPath(path),
 			Path:     path,
-			Content:  string(match[2]),
+			Content:  content,
 			Template: header.Template,
 		},
 		nil
@@ -226,7 +227,7 @@ func (sf *SingleFile) AddLeaf(
 		return nil, errors.Wrap(err, "failed to marshal header")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("---\n%s\n---\n", string(headerData)))
+	_, err = file.WriteString(fmt.Sprintf("---\n%s...\n\n", string(headerData)))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write header")
 	}
