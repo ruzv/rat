@@ -3,7 +3,6 @@ package token
 import (
 	"bytes"
 	"fmt"
-	"html"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,82 +10,13 @@ import (
 	"text/scanner"
 
 	"rat/graph"
+	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
 	"rat/graph/util"
 
 	"github.com/gofrs/uuid"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
-
-var errUnknownTokenType = errors.New("unknown token type")
-
-var tokenRegex = regexp.MustCompile(
-	`<rat(?:\s((?:.|\s)+?))\/>`,
-)
-
-var log = logging.MustGetLogger("graph")
-
-// TransformContentTokens converts special tokens in content like
-// <rat graph> <rat link> <rat todo>
-// into markdown.
-func TransformContentTokens(n *graph.Node, p graph.Provider) string {
-	matches := tokenRegex.FindAllStringIndex(n.Content, -1)
-
-	if len(matches) == 0 {
-		return n.Content
-	}
-
-	var prevTokenEnd int
-
-	parts := make([]string, 0, 2*len(matches)+1)
-
-	for _, match := range matches {
-		tokenStart := match[0]
-		tokenEnd := match[1]
-
-		res, err := func() (string, error) {
-			raw := n.Content[tokenStart:tokenEnd]
-
-			t, err := newToken(raw)
-			if err != nil {
-				return "", errors.Wrapf(err, "failed to parse token - %q", raw)
-			}
-
-			res, err := t.Transform(n, p)
-			if err != nil {
-				return "", errors.Wrap(err, "failed to transform")
-			}
-
-			return res, nil
-		}()
-		if err != nil {
-			res = fmt.Sprintf(
-				"failed to process token in node %q: %s",
-				n.Path,
-				html.EscapeString(err.Error()),
-			)
-
-			log.Warning(res)
-		}
-
-		parts = append(
-			parts,
-			n.Content[prevTokenEnd:tokenStart],
-			res,
-		)
-
-		prevTokenEnd = tokenEnd
-	}
-
-	// last tokens end to end of content
-	parts = append(parts, n.Content[matches[len(matches)-1][1]:])
-
-	return strings.Join(parts, "")
-}
-
-// TokenType describes rat token types.
-type TokenType string
 
 const (
 	// GraphTokenType graph tokens provide an overview of a nodes child nodes.
@@ -101,6 +31,14 @@ const (
 	KanbanTokenType TokenType = "kanban"
 )
 
+var (
+	errUnknownTokenType = errors.New("unknown token type")
+	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))\/>`)
+)
+
+// TokenType describes rat token types.
+type TokenType string
+
 // Token describes a single rat token. Rat tokens are special html tab like
 // strings that when present nodes content have special handling. Mode detailed
 // explication of what each token type does is available at TokenType constat's
@@ -114,10 +52,10 @@ type Token struct {
 	Args map[string]string
 }
 
-// newToken attempts to create a new woken from raw string.
+// NewToken attempts to create a new woken from raw string.
 //
 //nolint:cyclop,gocyclo
-func newToken(raw string) (*Token, error) {
+func NewToken(raw string) (*Token, error) {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))
 
@@ -195,32 +133,79 @@ func newToken(raw string) (*Token, error) {
 	}, nil
 }
 
-// Transform produces the expanded version of the token.
-func (t *Token) Transform(n *graph.Node, p graph.Provider) (string, error) {
-	transformers := map[TokenType]func(
-		n *graph.Node, p graph.Provider,
-	) (string, error){
-		GraphTokenType:  t.transformGraphToken,
-		TodoTokenType:   t.transformTodoToken,
-		KanbanTokenType: t.transformKanbanToken,
-	}
-
-	trans, ok := transformers[t.Type]
-	if !ok {
-		return "", errors.Errorf("unknown token type - %s", t.Type)
-	}
-
-	return trans(n, p)
+// IsToken returns true if the raw string is a token.
+func IsToken(raw string) bool {
+	return tokenRegex.MatchString(raw)
 }
 
-func (t *Token) transformGraphToken(
-	n *graph.Node,
-	p graph.Provider,
-) (string, error) {
+// WrapContentTokens wraps tokens in content with <div></div> tags. Allowing
+// markdown parser to parse them as HTML blocks.
+func WrapContentTokens(content string) string {
+	matches := tokenRegex.FindAllStringIndex(content, -1)
+
+	if len(matches) == 0 {
+		return content
+	}
+
+	var (
+		prevTokenEnd int
+		parts        = make([]string, 0, 2*len(matches)+1)
+	)
+
+	for _, match := range matches {
+		tokenStart := match[0]
+		tokenEnd := match[1]
+
+		parts = append(
+			parts,
+			content[prevTokenEnd:tokenStart],
+			fmt.Sprintf("<div>%s</div>", content[tokenStart:tokenEnd]),
+		)
+
+		prevTokenEnd = tokenEnd
+	}
+
+	// last tokens end to end of content
+	parts = append(parts, content[matches[len(matches)-1][1]:])
+
+	return strings.Join(parts, "")
+}
+
+// Render produces the expanded version of the token.
+func (t *Token) Render(
+	part *jsonast.AstPart, n *graph.Node, p graph.Provider,
+) error {
+	switch t.Type {
+	case TodoTokenType:
+		return t.renderTodoToken(part, n, p)
+	case GraphTokenType:
+		return t.renderGraphToken(part, n, p)
+	case KanbanTokenType:
+		return nil
+	default:
+		return errors.Errorf("unknown token type - %s", t.Type)
+	}
+}
+
+func (t *Token) renderGraphToken(
+	part *jsonast.AstPart, n *graph.Node, p graph.Provider,
+) error {
 	depth, err := t.getArgDepth()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get depth")
+		return errors.Wrap(err, "failed to get depth")
 	}
+
+	// graphPart := part.AddContainer(
+	//        &jsonast.AstPart{
+	//            Type: "list",
+	//        },
+	//        true,
+	//    )
+	//
+	// children, err := n.GetLeafs(p)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to get leafs")
+	// }
 
 	b := &bytes.Buffer{}
 
@@ -251,39 +236,40 @@ func (t *Token) transformGraphToken(
 		},
 	)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to walk graph")
+		return errors.Wrap(err, "failed to walk graph")
 	}
 
-	return b.String(), nil
+	return nil
 }
 
-func (t *Token) transformTodoToken(
+func (t *Token) renderTodoToken(
+	part *jsonast.AstPart,
 	_ *graph.Node,
 	p graph.Provider,
-) (string, error) {
+) error {
 	filtersHas, err := t.getArgFilterHas()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get has hint filter")
+		return errors.Wrap(err, "failed to get has hint filter")
 	}
 
 	filterValue, err := t.getArgFilterValue()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get value filter")
+		return errors.Wrap(err, "failed to get value filter")
 	}
 
 	includeDone, includeDoneEntries, err := t.getArgInclude()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get include done arg")
+		return errors.Wrap(err, "failed to get include done arg")
 	}
 
 	sortRules, err := t.getArgSort()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get sort arg")
+		return errors.Wrap(err, "failed to get sort arg")
 	}
 
 	todos, err := t.getTodos(p)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get todos")
+		return errors.Wrap(err, "failed to get todos")
 	}
 
 	todos = util.Filter(
@@ -306,21 +292,14 @@ func (t *Token) transformTodoToken(
 	)
 
 	todos = todo.FilterHas(todos, filtersHas)
-
 	todos = todo.FilterValue(todos, filterValue)
-
 	sort.SliceStable(todo.NewSorter(sortRules)(todos))
 
-	return strings.Join(
-			util.Map(
-				todos,
-				func(t *todo.Todo) string {
-					return t.Markdown()
-				},
-			),
-			"\n",
-		),
-		nil
+	for _, t := range todos {
+		t.JSON(part)
+	}
+
+	return nil
 }
 
 //nolint:gocyclo,cyclop

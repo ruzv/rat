@@ -6,6 +6,24 @@
   margin-bottom: 10px;
 }
 
+.todoEntry {
+  background-color: #222222;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  position: relative;
+  border-radius: 5px;
+  margin-bottom: 5px;
+  margin-top: 4px;
+  padding: 2px;
+}
+
+.todoEntryCheckbox {
+  margin: 5px;
+  width: 20px;
+  height: 20px;
+}
+
 .contentSpacer {
   margin-bottom: 30px;
 }
@@ -20,7 +38,7 @@
 .childNodesColumnSpacer {
   float: left;
   width: 20px;
-  height: 10px;
+  height: 20px;
 }
 
 .childNodesColumn {
@@ -29,16 +47,55 @@
   width: calc((100vw - 60px) / 2);
 }
 
-.cb {
-  /* width:100%; */
-  background-color: #272822;
-  padding: 10px;
-  /* padding-top: 2px;
-  padding-bottom: 2px; */
-  margin-top: 10px;
-  margin-bottom: 10px;
+.consoleContainer {
+  padding-top: 0;
+  padding-bottom: 0;
+  padding: 30px;
+  background-color: #111111;
+  border: 3px solid #111111;
   border-radius: 8px;
-  overflow: auto;
-  white-space: nowrap;
+  margin-bottom: 20px;
 }
 
+.consoleRowSpacer {
+  margin-bottom: 10px;
+}
+
+.consoleButton {
+  display: inline-block;
+
+  border: 3px solid #474646;
+  background-color: #474646;
+
+  padding-left: 5px;
+  padding-right: 5px;
+
+  border-radius: 5px;
+
+  font-size: 130%;
+
+  margin-right: 6px;
+}
+
+.container {
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 30px;
+  padding-right: 30px;
+  background-color: #111111;
+  border: 3px solid #111111;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border: 3px solid #841a84;
+}
+
+.clickable:active {
+  border: 3px solid #ffffff;
+}

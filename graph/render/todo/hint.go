@@ -29,8 +29,8 @@ const (
 
 // Hint represents a todo hint. That can have a type and a value.
 type Hint struct {
-	Type  HintType
-	Value any
+	Type  HintType `json:"type"`
+	Value any      `json:"value"`
 }
 
 var hintTypeProcessors = map[HintType]*struct {

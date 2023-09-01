@@ -7,7 +7,6 @@ import (
 	"rat/graph"
 	"rat/graph/render/templ"
 	"rat/graph/render/todo"
-	"rat/graph/token"
 	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 
@@ -45,7 +44,8 @@ func NewRenderer(ts *templ.TemplateStore, p graph.Provider) *Renderer {
 // Render parses nodes content, converts tokens into markdown and renders it to
 // HTML.
 func (r *Renderer) Render(n *graph.Node) string {
-	return r.render(token.TransformContentTokens(n, r.p))
+	return ""
+	// return r.render(token.TransformContentTokens(n, r.p))
 }
 
 func (r *Renderer) render(raw string) string {

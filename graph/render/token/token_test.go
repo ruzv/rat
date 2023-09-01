@@ -44,7 +44,7 @@ func Test_newToken(t *testing.T) {
 		t.Run(strconv.Itoa(idx), func(t *testing.T) {
 			t.Parallel()
 
-			got, err := newToken(tt.args.raw)
+			got, err := NewToken(tt.args.raw)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("newToken() error = %v, wantErr %v", err, tt.wantErr)
 			}

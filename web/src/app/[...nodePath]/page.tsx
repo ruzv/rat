@@ -1,16 +1,15 @@
 "use client";
 
-import { Container, Clickable, ClickableContainer } from "../components";
 import styles from "./styles.module.css";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface NodeAstPart {
   type: string;
   children: NodeAstPart[];
-  attributes: { [key: string]: number | string | boolean };
+  attributes: { [key: string]: any };
 }
 
 interface Node {
@@ -23,11 +22,12 @@ interface Node {
 }
 
 export default function View({ params }: { params: { nodePath: string[] } }) {
-  return <NodeWithChildNodes path={params.nodePath.join("/")} />;
+  return <NodeWithChildNodes pathParts={params.nodePath} />;
 }
 
-function NodeWithChildNodes({ path }: { path: string }) {
+function NodeWithChildNodes({ pathParts }: { pathParts: string[] }) {
   const [node, setNode] = useState<Node | undefined>(undefined);
+  const path = pathParts.join("/");
 
   useEffect(() => {
     fetch(`http://127.0.0.1:8889/graph/nodes/${path}/`)
@@ -36,11 +36,13 @@ function NodeWithChildNodes({ path }: { path: string }) {
   }, []);
 
   if (!node) {
-    return <h1>loading...</h1>;
+    return <> </>;
   }
 
   return (
     <>
+      <Console id={node.id} path={path} pathParts={pathParts} />
+
       <Container>
         <div className={styles.contentSpacer}> </div>
         <NodePart part={node.ast} />
@@ -49,6 +51,67 @@ function NodeWithChildNodes({ path }: { path: string }) {
 
       <ChildNodes childNodePaths={node.childNodePaths} />
     </>
+  );
+}
+
+function Console({
+  id,
+  path,
+  pathParts,
+}: {
+  id: string;
+  path: string;
+  pathParts: string[];
+}) {
+  const router = useRouter();
+
+  return (
+    <div className={styles.consoleContainer}>
+      <div className={styles.consoleRowSpacer}>
+        <ConsoleButton
+          text={id}
+          onClick={() => {
+            navigator.clipboard.writeText(id);
+          }}
+        />
+        <ConsoleButton
+          text={path}
+          onClick={() => {
+            navigator.clipboard.writeText(path);
+          }}
+        />
+      </div>
+      <div>
+        {pathParts.map((part, idx) => {
+          return (
+            <ConsoleButton
+              key={idx}
+              text={part}
+              onClick={() => {
+                router.push(`/${pathParts.slice(0, idx + 1).join("/")}/`);
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ConsoleButton({
+  text,
+  onClick,
+}: {
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={`${styles.consoleButton} ${styles.clickable}`}
+      onClick={onClick}
+    >
+      {text}
+    </div>
   );
 }
 
@@ -62,7 +125,7 @@ function Node({ path }: { path: string }) {
   }, []);
 
   if (!node) {
-    return <h1>loading...</h1>;
+    return <> </>;
   }
 
   return <NodePart part={node.ast} />;
@@ -90,7 +153,7 @@ function ChildNodes({ childNodePaths }: { childNodePaths: string[] }) {
   }, []);
 
   if (!nodes) {
-    return <h1>loading child nodes...</h1>;
+    return <></>;
   }
 
   let leftChildNodes = [];
@@ -157,6 +220,17 @@ function NodePart({ part }: { part: NodeAstPart }) {
       return <Paragraph part={part} />;
     case "span":
       return <span>{part.attributes["text"]}</span>;
+    case "todo":
+      return <Todo part={part} />;
+    case "todo_entry":
+      return <TodoEntry part={part} />;
+    case "html_block":
+      return (
+        <>
+          <p>{part.attributes["text"]}</p>
+        </>
+      );
+
     case "unknown":
       if (part.children === undefined) {
         return (
@@ -212,6 +286,37 @@ function NodePartChildren({ part }: { part: NodeAstPart }) {
 
 function Document({ part }: { part: NodeAstPart }) {
   return <NodePartChildren part={part} />;
+}
+
+function Todo({ part }: { part: NodeAstPart }) {
+  return (
+    <div>
+      {part.attributes["hints"].map(
+        (hint: { type: string; value: any }, idx: number) => {
+          return (
+            <div key={idx}>
+              {" "}
+              {hint.type} {hint.value}{" "}
+            </div>
+          );
+        },
+      )}
+      <NodePartChildren part={part} />
+    </div>
+  );
+}
+
+function TodoEntry({ part }: { part: NodeAstPart }) {
+  return (
+    <div className={styles.todoEntry}>
+      <input
+        className={styles.todoEntryCheckbox}
+        type={"checkbox"}
+        checked={part.attributes["done"] as boolean}
+      />
+      {part.attributes["text"]}
+    </div>
+  );
 }
 
 function Link({ part }: { part: NodeAstPart }) {
@@ -311,6 +416,10 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
 function List({ part }: { part: NodeAstPart }) {
   return (
     <ul>
+      {(part.attributes["ordered"] as boolean) && <p>ordered</p>}
+      {(part.attributes["definition"] as boolean) && <p>definition</p>}
+      {(part.attributes["term"] as boolean) && <p>term</p>}
+
       <NodePartChildren part={part} />
     </ul>
   );
@@ -329,5 +438,30 @@ function Paragraph({ part }: { part: NodeAstPart }) {
     <p>
       <NodePartChildren part={part} />
     </p>
+  );
+}
+
+function Container(props: React.PropsWithChildren<{}>) {
+  return <div className={styles.container}>{props.children}</div>;
+}
+
+function Clickable(props: React.PropsWithChildren<{ onClick: () => void }>) {
+  return (
+    <div className={styles.clickable} onClick={props.onClick}>
+      {props.children}
+    </div>
+  );
+}
+
+function ClickableContainer(
+  props: React.PropsWithChildren<{ onClick: () => void }>,
+) {
+  return (
+    <div
+      className={`${styles.container} ${styles.clickable}`}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </div>
   );
 }
