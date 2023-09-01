@@ -105,11 +105,11 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to read file")
 	}
 
-	content := string(data)
-
 	match := headerBodyRe.FindSubmatch(data)
-	if len(match) == 3 {
-		content = string(match[2])
+	if len(match) != 3 {
+		return nil, errors.Errorf(
+			"failed to match header and body in node %q", string(path),
+		)
 	}
 
 	header := &nodeHeader{}
@@ -123,7 +123,7 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 			ID:       header.ID,
 			Name:     pathutil.NameFromPath(path),
 			Path:     path,
-			Content:  content,
+			Content:  string(match[2]),
 			Template: header.Template,
 		},
 		nil
