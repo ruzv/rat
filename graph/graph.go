@@ -1,8 +1,10 @@
 package graph
 
 import (
+	"strings"
 	"text/template"
 
+	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
@@ -153,7 +155,9 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		totalDepth int
 	)
 
-	err := n.Walk(
+	errs := []error{}
+
+	n.Walk(
 		p,
 		func(depth int, node *Node) (bool, error) {
 			m.Nodes++
@@ -164,7 +168,8 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 			leafs, err := node.GetLeafs(p)
 			if err != nil {
-				return false, errors.Wrap(err, "failed to get leafs")
+				errs = append(errs, errors.Wrap(err, "failed to get leafs"))
+				return false, nil
 			}
 
 			if len(leafs) == 0 {
@@ -184,8 +189,14 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			return true, nil
 		},
 	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk graph")
+	if len(errs) > 0 {
+		return nil, errors.Errorf(
+			"failed to walk graph:\n%s",
+			strings.Join(
+				util.Map(errs, func(err error) string { return err.Error() }),
+				"\n",
+			),
+		)
 	}
 
 	if hasLeafs > 0 {
