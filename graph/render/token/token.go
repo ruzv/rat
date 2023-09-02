@@ -194,57 +194,65 @@ func (t *Token) renderGraphToken(
 		return errors.Wrap(err, "failed to get depth")
 	}
 
-    graphPart := part
+	err = renderGraphTokenWithDepth(part, n, p, depth, 0)
+	if err != nil {
+		return errors.Wrap(err, "failed to walk graph")
+	}
 
-	var f func(graph node *graph.Node, part *jsonast.AstPart, d int) error
-	f = func(node *graph.Node, part *jsonast.AstPart, d int) error {
-		if depth != -1 && d >= depth {
-			return nil
-		}
+	return nil
+}
 
-		children, err := node.GetLeafs(p)
-		if err != nil {
-			return errors.Wrap(err, "failed to get leafs")
-		}
-
-		if len(children) == 0 {
-			return nil
-		}
-
-		listPart := graphPart.AddContainer(
-			&jsonast.AstPart{
-				Type: "list",
-			},
-			true,
-		)
-
-		for _, child := range children {
-			childPart := part.AddContainer(
-				&jsonast.AstPart{
-					Type: "list_item",
-				},
-				true,
-			)
-
-			childPart.AddLeaf(&jsonast.AstPart{
-				Type: "text",
-				Attributes: jsonast.AstAttributes{
-					"text": child.Name,
-				},
-			})
-
-			err := f(child, childPart, d+1)
-			if err != nil {
-				return err
-			}
-		}
-
+func renderGraphTokenWithDepth(
+	part *jsonast.AstPart,
+	n *graph.Node,
+	p graph.Provider,
+	depth, d int,
+) error {
+	if depth != -1 && d >= depth {
 		return nil
 	}
 
-	err = f(n, graphPart, 0)
+	children, err := n.GetLeafs(p)
 	if err != nil {
-		return errors.Wrap(err, "failed to walk graph")
+		return errors.Wrap(err, "failed to get leafs")
+	}
+
+	if len(children) == 0 {
+		return nil
+	}
+
+	listPart := part.AddContainer(
+		&jsonast.AstPart{
+			Type: "list",
+		},
+		true,
+	)
+
+	for _, child := range children {
+		listPart.AddContainer(
+			&jsonast.AstPart{
+				Type: "list_item",
+			},
+			true,
+		).AddLeaf(&jsonast.AstPart{
+			Type: "text",
+			Attributes: jsonast.AstAttributes{
+				"text": child.Name,
+			},
+		})
+		// list
+		//   list_item
+		//     text
+		//   list_item
+		//     text
+		//   list
+		//     list_item
+		//       text
+
+		err := renderGraphTokenWithDepth(listPart, child, p, depth, d+1)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
