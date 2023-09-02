@@ -18,14 +18,15 @@ import (
 
 var (
 	markdownFileRe = regexp.MustCompile(`(.*)\.md`)
-	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?)\.\.\.\n((?:.|\n)*)`)
+	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?\n)---\n((?:.|\n)*)`)
 )
 
 var _ graph.Provider = (*SingleFile)(nil)
 
 type nodeHeader struct {
-	ID       uuid.UUID `yaml:"id"`
-	Template string    `yaml:"template"`
+	ID       uuid.UUID      `yaml:"id"`
+	Template string         `yaml:"template"`
+	Any      map[string]any `yaml:",inline"`
 }
 
 // SingleFile is a graph provider implementation that reads and creates graph
@@ -227,7 +228,7 @@ func (sf *SingleFile) AddLeaf(
 		return nil, errors.Wrap(err, "failed to marshal header")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("---\n%s...\n\n", string(headerData)))
+	_, err = file.WriteString(fmt.Sprintf("---\n%s---\n\n", string(headerData)))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write header")
 	}
