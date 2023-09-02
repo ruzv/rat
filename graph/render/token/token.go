@@ -1,7 +1,6 @@
 package token
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"sort"
@@ -195,46 +194,55 @@ func (t *Token) renderGraphToken(
 		return errors.Wrap(err, "failed to get depth")
 	}
 
-	// graphPart := part.AddContainer(
-	//        &jsonast.AstPart{
-	//            Type: "list",
-	//        },
-	//        true,
-	//    )
-	//
-	// children, err := n.GetLeafs(p)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to get leafs")
-	// }
+    graphPart := part
 
-	b := &bytes.Buffer{}
+	var f func(graph node *graph.Node, part *jsonast.AstPart, d int) error
+	f = func(node *graph.Node, part *jsonast.AstPart, d int) error {
+		if depth != -1 && d >= depth {
+			return nil
+		}
 
-	err = n.Walk(
-		p,
-		func(d int, node *graph.Node) (bool, error) {
-			if d == depth {
-				return false, nil
-			}
+		children, err := node.GetLeafs(p)
+		if err != nil {
+			return errors.Wrap(err, "failed to get leafs")
+		}
 
-			link, err := util.Link(node.Path, node.Name)
-			if err != nil {
-				return false, errors.Wrap(err, "failed to create link")
-			}
+		if len(children) == 0 {
+			return nil
+		}
 
-			_, err = b.WriteString(
-				fmt.Sprintf(
-					"%s- %s \n",
-					strings.Repeat("\t", d),
-					link,
-				),
+		listPart := graphPart.AddContainer(
+			&jsonast.AstPart{
+				Type: "list",
+			},
+			true,
+		)
+
+		for _, child := range children {
+			childPart := part.AddContainer(
+				&jsonast.AstPart{
+					Type: "list_item",
+				},
+				true,
 			)
-			if err != nil {
-				return false, errors.Wrap(err, "failed to write to buffer")
-			}
 
-			return true, nil
-		},
-	)
+			childPart.AddLeaf(&jsonast.AstPart{
+				Type: "text",
+				Attributes: jsonast.AstAttributes{
+					"text": child.Name,
+				},
+			})
+
+			err := f(child, childPart, d+1)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err = f(n, graphPart, 0)
 	if err != nil {
 		return errors.Wrap(err, "failed to walk graph")
 	}

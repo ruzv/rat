@@ -414,12 +414,12 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
 }
 
 function List({ part }: { part: NodeAstPart }) {
+  // {(part.attributes["ordered"] as boolean) && <p>ordered</p>}
+  // {(part.attributes["definition"] as boolean) && <p>definition</p>}
+  // {(part.attributes["term"] as boolean) && <p>term</p>}
+
   return (
     <ul>
-      {(part.attributes["ordered"] as boolean) && <p>ordered</p>}
-      {(part.attributes["definition"] as boolean) && <p>definition</p>}
-      {(part.attributes["term"] as boolean) && <p>term</p>}
-
       <NodePartChildren part={part} />
     </ul>
   );
