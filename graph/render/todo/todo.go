@@ -111,7 +111,7 @@ func Parse(raw string) (*Todo, error) {
 	}, nil
 }
 
-func (t *Todo) JSON(part *jsonast.AstPart) {
+func (t *Todo) Render(part *jsonast.AstPart) {
 	todoPart := part.AddContainer(
 		&jsonast.AstPart{
 			Type: "todo", Attributes: jsonast.AstAttributes{"hints": t.Hints},

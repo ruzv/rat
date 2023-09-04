@@ -10,7 +10,6 @@ import (
 	"rat/graph"
 	"rat/graph/render"
 	"rat/graph/render/jsonast"
-	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/handler/shared"
 
@@ -24,6 +23,7 @@ var log = logging.MustGetLogger("nodeshttp")
 
 type handler struct {
 	ss *shared.Services
+	r  jsonast.Renderer
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -32,6 +32,7 @@ func RegisterRoutes(
 ) error {
 	h := &handler{
 		ss: ss,
+		r:  render.NewJSONRenderer(ss.Graph),
 	}
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()
@@ -54,20 +55,24 @@ func RegisterRoutes(
 	return nil
 }
 
+type response struct {
+	ID         uuid.UUID         `json:"id"`
+	Name       string            `json:"name"`
+	Path       pathutil.NodePath `json:"path"`
+	Length     int               `json:"length"`
+	AST        *jsonast.AstPart  `json:"ast"`
+	ChildNodes []*response       `json:"childNodes,omitempty"`
+}
+
 func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 	n, err := h.getNode(w, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	childNodePaths, err := h.getChildNodes(w, n.Path)
-	if err != nil {
-		return errors.Wrap(err, "failed to get child node paths")
-	}
+	root := jsonast.NewRootAstPart("document")
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	ast, err := render.RenderJSON(n, h.ss.Graph)
+	err = h.r.Render(root, n)
 	if err != nil {
 		shared.WriteError(
 			w,
@@ -78,23 +83,23 @@ func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to render node content to JSON")
 	}
 
+	childNodes, err := h.getChildNodes(w, n.Path)
+	if err != nil {
+		return errors.Wrap(err, "failed to get child node paths")
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	err = shared.WriteResponse(
 		w,
 		http.StatusOK,
-		struct {
-			ID             uuid.UUID           `json:"id"`
-			Name           string              `json:"name"`
-			Path           pathutil.NodePath   `json:"path"`
-			ChildNodePaths []pathutil.NodePath `json:"childNodePaths"`
-			Length         int                 `json:"length"`
-			AST            *jsonast.AstPart    `json:"ast"`
-		}{
-			ID:             n.ID,
-			Name:           n.Name,
-			Path:           n.Path,
-			Length:         len(strings.Split(n.Content, "\n")),
-			ChildNodePaths: childNodePaths,
-			AST:            ast,
+		response{
+			ID:         n.ID,
+			Name:       n.Name,
+			Path:       n.Path,
+			Length:     len(strings.Split(n.Content, "\n")),
+			ChildNodes: childNodes,
+			AST:        root,
 		},
 	)
 	if err != nil {
@@ -145,14 +150,14 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	resp.Node = *n
 	resp.Node.Content = h.ss.Renderer.Render(n)
 
-	if includeLeafs(r) {
-		leafs, err := h.getChildNodes(w, n.Path)
-		if err != nil {
-			return errors.Wrap(err, "failed to get leaf paths")
-		}
-
-		resp.Leafs = leafs
-	}
+	// if includeLeafs(r) {
+	// 	leafs, err := h.getChildNodes(w, n.Path)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "failed to get leaf paths")
+	// 	}
+	//
+	// 	resp.Leafs = leafs
+	// }
 
 	err = shared.WriteResponse(w, http.StatusOK, resp)
 	if err != nil {
@@ -165,25 +170,46 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) getChildNodes(
 	w http.ResponseWriter,
 	path pathutil.NodePath,
-) ([]pathutil.NodePath, error) {
-	childNodes, err := h.ss.Graph.GetLeafs(path)
+) ([]*response, error) {
+	children, err := h.ss.Graph.GetLeafs(path)
 	if err != nil {
 		shared.WriteError(
 			w,
 			http.StatusInternalServerError,
-			"failed to get leafs",
+			"failed to get child nodes",
 		)
 
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
 
-	return util.Map(
+	childNodes := make([]*response, 0, len(children))
+
+	for _, child := range children {
+		root := jsonast.NewRootAstPart("document")
+		err := h.r.Render(root, child)
+		if err != nil {
+			shared.WriteError(
+				w,
+				http.StatusInternalServerError,
+				"failed to render child node",
+			)
+
+			return nil, errors.Wrap(err, "failed to render child node")
+		}
+
+		childNodes = append(
 			childNodes,
-			func(n *graph.Node) pathutil.NodePath {
-				return n.Path
+			&response{
+				ID:     child.ID,
+				Name:   child.Name,
+				Path:   child.Path,
+				Length: len(strings.Split(child.Content, "\n")),
+				AST:    root,
 			},
-		),
-		nil
+		)
+	}
+
+	return childNodes, nil
 }
 
 func includeLeafs(r *http.Request) bool {

@@ -1,5 +1,12 @@
 package jsonast
 
+import "rat/graph"
+
+// Renderer allows rendering nodes markdown content to JSON.
+type Renderer interface {
+	Render(root *AstPart, n *graph.Node) error
+}
+
 // AstAttributes describes a abstract syntax tree part attributes.
 type AstAttributes map[string]any
 
@@ -12,8 +19,8 @@ type AstPart struct {
 }
 
 // NewRootAstPart creates a new root ast part, setting the parent to itself.
-func NewRootAstPart() *AstPart {
-	rootPart := &AstPart{}
+func NewRootAstPart(partType string) *AstPart {
+	rootPart := &AstPart{Type: partType}
 	rootPart.parent = rootPart
 
 	return rootPart

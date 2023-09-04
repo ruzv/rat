@@ -20,8 +20,21 @@ var listTypes = map[ast.ListType]string{
 	ast.ListTypeTerm:       "term",
 }
 
-func RenderJSON(n *graph.Node, p graph.Provider) (*jsonast.AstPart, error) {
-	root := jsonast.NewRootAstPart()
+var _ jsonast.Renderer = (*JSONRenderer)(nil)
+
+type JSONRenderer struct {
+	p graph.Provider
+}
+
+func NewJSONRenderer(p graph.Provider) *JSONRenderer {
+	return &JSONRenderer{
+		p: p,
+	}
+}
+
+func (jr *JSONRenderer) Render(
+	root *jsonast.AstPart, n *graph.Node,
+) error {
 	part := root
 
 	var err error
@@ -44,7 +57,7 @@ func RenderJSON(n *graph.Node, p graph.Provider) (*jsonast.AstPart, error) {
 				parser.SuperSubscript,
 		).Parse([]byte(token.WrapContentTokens(n.Content))),
 		func(node ast.Node, entering bool) ast.WalkStatus {
-			part, err = renderNode(part, n, p, node, entering)
+			part, err = jr.renderNode(part, n, node, entering)
 			if err != nil {
 				return ast.Terminate
 			}
@@ -54,24 +67,21 @@ func RenderJSON(n *graph.Node, p graph.Provider) (*jsonast.AstPart, error) {
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed walk ast and render")
+		return errors.Wrap(err, "failed walk ast and render")
 	}
 
-	return root, nil
+	return nil
 }
 
-func renderNode(
+func (jr *JSONRenderer) renderNode(
 	part *jsonast.AstPart,
 	n *graph.Node,
-	p graph.Provider,
 	node ast.Node,
 	entering bool,
 ) (*jsonast.AstPart, error) {
 	switch node := node.(type) {
 	case *ast.Document:
-		if entering {
-			part.Type = "document"
-		}
+		part = part.AddContainer(&jsonast.AstPart{Type: "document"}, entering)
 	case *ast.Text:
 		part.AddLeaf(
 			&jsonast.AstPart{
@@ -81,6 +91,8 @@ func renderNode(
 				},
 			},
 		)
+	case *ast.HorizontalRule:
+		part.AddLeaf(&jsonast.AstPart{Type: "horizontal_rule"})
 	case *ast.Link:
 		part = part.AddContainer(
 			&jsonast.AstPart{
@@ -93,11 +105,6 @@ func renderNode(
 			entering,
 		)
 	case *ast.List:
-		fmt.Println("LIST", node.ListFlags)
-		fmt.Println("LIST Type term", node.ListFlags&ast.ListTypeTerm)
-		fmt.Println("LIST Type ordered", node.ListFlags&ast.ListTypeOrdered)
-		fmt.Println("LIST Type definition", node.ListFlags&ast.ListTypeDefinition)
-
 		part = part.AddContainer(
 			&jsonast.AstPart{
 				Type: "list",
@@ -146,9 +153,10 @@ func renderNode(
 		if strings.HasPrefix(literal, "<div>") &&
 			strings.HasSuffix(literal, "</div>") &&
 			token.IsToken(raw) {
-			err := renderTokenNode(part, n, p, raw)
+
+			err := token.Render(part, raw, n, jr.p, jr)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to render token node")
+				return nil, errors.Wrap(err, "failed to render token")
 			}
 
 			break
@@ -164,12 +172,15 @@ func renderNode(
 		)
 
 	case *ast.Paragraph:
-		part = part.AddContainer(
-			&jsonast.AstPart{
-				Type: "paragraph",
-			},
-			entering,
-		)
+		_, ok := node.GetParent().(*ast.ListItem)
+		if !ok { // render paragraphs that are not part of lists.
+			part = part.AddContainer(
+				&jsonast.AstPart{
+					Type: "paragraph",
+				},
+				entering,
+			)
+		}
 	case *ast.Code:
 		part.AddLeaf(
 			&jsonast.AstPart{
@@ -213,22 +224,4 @@ func renderNode(
 	}
 
 	return part, nil
-}
-
-func renderTokenNode(
-	part *jsonast.AstPart, n *graph.Node, p graph.Provider, rawToken string,
-) error {
-	t, err := token.NewToken(rawToken)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse token - %q", rawToken)
-	}
-
-	// TODO: pass render function here to allow todos and other shits to have
-	// full markdown access.
-	err = t.Render(part, n, p)
-	if err != nil {
-		return errors.Wrap(err, "failed to transform")
-	}
-
-	return nil
 }
