@@ -35,7 +35,7 @@ func NewIndex(
 }
 
 // Close closes the index.
-func (gi *GraphIndex) Close() error {
+func (*GraphIndex) Close() error {
 	return nil
 }
 
@@ -72,7 +72,7 @@ func (gi *GraphIndex) Search(query string) ([]*graph.Node, error) {
 	return nodes, nil
 }
 
-// Load adds graph nodes to index.
+// Update adds graph nodes to index.
 func (gi *GraphIndex) Update() error {
 	gi.log.Infof("updating index")
 

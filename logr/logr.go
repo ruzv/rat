@@ -112,7 +112,7 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 	}
 
 	// header
-	lr.w.Write([]byte(fmt.Sprintf(
+	lr.w.Write([]byte(fmt.Sprintf( //nolint:errcheck
 		"%s\n",
 		fmt.Sprintf(
 			"%s %s %s",
@@ -122,16 +122,16 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 			),
 			color.New(color.FgMagenta).Sprint(lr.prefix),
 		),
-	))) //nolint:errcheck
+	)))
 
 	for _, part := range strings.Split(fmt.Sprintf(fmtStr, args...), "\n") {
-		lr.w.Write([]byte(fmt.Sprintf(
+		lr.w.Write([]byte(fmt.Sprintf( //nolint:errcheck
 			"%s\n",
 			fmt.Sprintf(
 				"%s %s",
 				logLevelColors[level].accent.Sprintf("▶"),
 				part,
 			),
-		))) //nolint:errcheck
+		)))
 	}
 }
