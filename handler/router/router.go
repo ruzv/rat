@@ -1,84 +1,60 @@
 package router
 
 import (
-	"encoding/json"
-	"io/fs"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
-	"rat/config"
-	"rat/graph"
+	"rat/graph/services"
 	"rat/handler/graphhttp"
-	"rat/handler/shared"
-	"rat/handler/statichttp"
-	"rat/handler/viewhttp"
+	"rat/handler/httputil"
+	"rat/logr"
 
 	"github.com/gorilla/mux"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("router")
-
-// New creates a new router, loads templates and registers handlers for routes.
-func New(
-	conf *config.Config,
-	embeds fs.FS,
+// NewRouter creates a new router, loads templates and registers handlers for
+// routes.
+func NewRouter(
+	log *logr.LogR, gs *services.GraphServices,
 ) (*mux.Router, error) {
+	log = log.Prefix("router")
 	router := mux.NewRouter()
 
 	router.NotFoundHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
-			shared.WriteError(w, http.StatusNotFound, "not found")
+			httputil.WriteError(w, http.StatusNotFound, "not found")
 		},
 	)
 
 	router.MethodNotAllowedHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
-			shared.WriteError(
+			httputil.WriteError(
 				w, http.StatusMethodNotAllowed, "method not allowed",
 			)
 		},
 	)
 
-	templateFS, err := fs.Sub(embeds, "render-templates")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
-	}
+	router.Use(GetAccessLoggerMW(log, false))
 
-	ss, err := shared.NewServices(conf.Graph, templateFS)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create shared services")
-	}
-
-	router.Use(GetAccessLoggerMW(false))
-
-	err = graphhttp.RegisterRoutes(router, ss)
+	err := graphhttp.RegisterRoutes(router, log, gs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
 	}
 
-	err = viewhttp.RegisterRoutes(router, ss)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to register view routes")
-	}
-
-	err = statichttp.RegisterRoutes(router, embeds)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to register static routes")
-	}
-
-	log.Notice("registered routes")
-	logRoutes(router)
-	logMetrics(ss.Graph)
+	logRoutes(log, router)
 
 	return router, nil
 }
 
-func logRoutes(router *mux.Router) {
+func logRoutes(log *logr.LogR, router *mux.Router) {
+	var routes []string
+
 	err := router.Walk(
 		func(
-			route *mux.Route, router *mux.Router, _ []*mux.Route,
+			route *mux.Route, _ *mux.Router, _ []*mux.Route,
 		) error {
 			path, err := route.GetPathTemplate()
 			if err != nil {
@@ -92,79 +68,24 @@ func logRoutes(router *mux.Router) {
 			}
 
 			for _, m := range methods {
-				log.Infof("route %-7s %s", m, path)
+				routes = append(routes, fmt.Sprintf("%-7s %s", m, path))
 			}
 
 			return nil
 		},
 	)
 	if err != nil {
-		log.Error("failed to log routes", err)
-	}
-}
-
-func logMetrics(p graph.Provider) {
-	r, err := p.Root()
-	if err != nil {
-		log.Errorf("failed to log metrics: %s", err.Error())
-
-		return
+		log.Errorf("failed to log routes: %s", err.Error())
 	}
 
-	m, err := r.Metrics(p)
-	if err != nil {
-		log.Errorf("failed to log metrics: %s", err.Error())
-
-		return
-	}
-
-	b, err := json.MarshalIndent(m, "", "    ")
-	if err != nil {
-		log.Errorf("failed to log metrics: %s", err.Error())
-
-		return
-	}
-
-	log.Infof("metrics:\n%s", string(b))
-}
-
-// BufferResponseWriter is a wrapper around http.ResponseWriter that proxies
-// the data ans stores the status code.
-type BufferResponseWriter struct {
-	Code int
-	w    http.ResponseWriter
-}
-
-var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
-
-// Header .
-func (w *BufferResponseWriter) Header() http.Header {
-	return w.w.Header()
-}
-
-// Write .
-func (w *BufferResponseWriter) Write(b []byte) (int, error) {
-	n, err := w.w.Write(b)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to write")
-	}
-
-	return n, nil
-}
-
-// WriteHeader .
-func (w *BufferResponseWriter) WriteHeader(code int) {
-	w.Code = code
-	w.w.WriteHeader(code)
+	log.Infof(strings.Join(routes, "\n"))
 }
 
 // GetAccessLoggerMW returns a middleware that logs the access.
-func GetAccessLoggerMW(all bool) mux.MiddlewareFunc {
+func GetAccessLoggerMW(log *logr.LogR, all bool) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			b := &BufferResponseWriter{
-				w: w,
-			}
+			b := httputil.NewBufferResponseWriter(w)
 
 			startT := time.Now()
 

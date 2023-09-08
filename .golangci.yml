@@ -87,7 +87,8 @@ linters-settings:
   tagliatelle:
     case:
       rules:
-        json: snake
+        json: camel
+        yaml: camel
 
 
 linters:

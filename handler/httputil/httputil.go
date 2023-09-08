@@ -1,25 +1,16 @@
-package shared
+package httputil
 
 import (
 	"bytes"
 	"encoding/json"
-	"io/fs"
 	"net/http"
 
-	"rat/config"
-	"rat/graph"
-	"rat/graph/pathcache"
-	"rat/graph/render"
-	"rat/graph/render/templ"
-	"rat/graph/singlefile"
-	"rat/graph/sync"
-	"rat/graph/util/path"
+	"rat/logr"
 
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("handler-utils")
+var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
 
 type (
 	// MuxHandlerFunc is a handler function for mux.
@@ -28,64 +19,41 @@ type (
 	RatHandlerFunc func(http.ResponseWriter, *http.Request) error
 )
 
-// Services contains services that are shared between handlers.
-type Services struct {
-	Graph     graph.Provider
-	Templates *templ.TemplateStore
-	Renderer  *render.Renderer
-	Syncer    *sync.Syncer
+// BufferResponseWriter is a wrapper around http.ResponseWriter that proxies
+// the data ans stores the status code.
+type BufferResponseWriter struct {
+	Code int
+	w    http.ResponseWriter
 }
 
-// NewServices creates a new Services.
-func NewServices(
-	graphConf *config.GraphConfig,
-	templateFS fs.FS,
-) (*Services, error) {
-	p := singlefile.NewSingleFile(graphConf.Name, graphConf.Path)
-
-	pc := pathcache.NewPathCache(p)
-
-	ts, err := templ.FileTemplateStore(templateFS)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create default template store")
-	}
-
-	s, err := sync.NewSyncer(graphConf.Path, graphConf.Sync)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create syncer")
-	}
-
-	s.Start()
-
-	return &Services{
-		Graph:     pc,
-		Templates: ts,
-		Renderer:  render.NewRenderer(ts, pc),
-		Syncer:    s,
-	}, nil
+// NewBufferResponseWriter creates a new buffered response writer.
+func NewBufferResponseWriter(w http.ResponseWriter) *BufferResponseWriter {
+	return &BufferResponseWriter{w: w}
 }
 
-// GetNode returns a node by path. If path is empty, the root node is returned.
-func (ss *Services) GetNode(path path.NodePath) (*graph.Node, error) {
-	if path == "" {
-		n, err := ss.Graph.Root()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get root node")
-		}
+// Header .
+func (w *BufferResponseWriter) Header() http.Header {
+	return w.w.Header()
+}
 
-		return n, nil
-	}
-
-	n, err := ss.Graph.GetByPath(path)
+// Write .
+func (w *BufferResponseWriter) Write(b []byte) (int, error) {
+	n, err := w.w.Write(b)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get node by path")
+		return 0, errors.Wrap(err, "failed to write")
 	}
 
 	return n, nil
 }
 
+// WriteHeader .
+func (w *BufferResponseWriter) WriteHeader(code int) {
+	w.Code = code
+	w.w.WriteHeader(code)
+}
+
 // Wrap wraps a RatHandlerFunc to be used with mux.
-func Wrap(f RatHandlerFunc) MuxHandlerFunc {
+func Wrap(log *logr.LogR, f RatHandlerFunc) MuxHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := f(w, r)
 		if err != nil {

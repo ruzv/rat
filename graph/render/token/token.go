@@ -85,6 +85,7 @@ func WrapContentTokens(content string) string {
 	return strings.Join(parts, "")
 }
 
+// Render renders a token to JSON AST.
 func Render(
 	root *jsonast.AstPart,
 	rawToken string,

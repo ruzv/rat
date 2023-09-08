@@ -9,16 +9,17 @@ import {
   SearchModal,
 } from "../components/parts";
 
-const ratServer = "http://127.0.0.1:8889";
+// const ratServer = "http://127.0.0.1:8889";
 
 export default function View({ params }: { params: { nodePath: string[] } }) {
   const [node, setNode] = useState<Node | undefined>(undefined);
   const path = params.nodePath.join("/");
 
   useEffect(() => {
-    fetch(`${ratServer}/graph/nodes/${path}/`)
+    fetch(`${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/nodes/${path}/`)
       .then((resp) => resp.json())
-      .then((node) => setNode(node));
+      .then((node) => setNode(node))
+      .catch((err) => console.log(err));
   }, []);
 
   if (!node) {

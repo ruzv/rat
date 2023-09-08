@@ -36,7 +36,7 @@ type Node struct {
 // Metrics groups all nodes metrics.
 type Metrics struct {
 	Nodes      int    `json:"nodes"`
-	FinalNodes int    `json:"final_nodes"`
+	FinalNodes int    `json:"finalNodes"`
 	Depth      metric `json:"depth"`
 	Leafs      metric `json:"leafs"`
 }
@@ -157,7 +157,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 	errs := []error{}
 
-	n.Walk(
+	n.Walk( //nolint:errcheck
 		p,
 		func(depth int, node *Node) (bool, error) {
 			m.Nodes++
@@ -169,6 +169,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			leafs, err := node.GetLeafs(p)
 			if err != nil {
 				errs = append(errs, errors.Wrap(err, "failed to get leafs"))
+
 				return false, nil
 			}
 
@@ -189,6 +190,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			return true, nil
 		},
 	)
+
 	if len(errs) > 0 {
 		return nil, errors.Errorf(
 			"failed to walk graph:\n%s",

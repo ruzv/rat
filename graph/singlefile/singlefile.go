@@ -98,6 +98,14 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	file, err := os.Open(sf.fullPath(path))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errors.Wrapf(
+				graph.ErrNodeNotFound,
+				"failed to open node markdown file: %s",
+				err.Error(),
+			)
+		}
+
 		return nil, errors.Wrap(err, "failed to open node markdown file")
 	}
 
