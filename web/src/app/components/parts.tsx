@@ -4,7 +4,7 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import { default as NextJSLink } from "next/link";
 import styles from "./parts.module.css";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 export function Console({
@@ -484,21 +484,98 @@ function ConsoleButton({
 
 export function SearchModal() {
   const [show, setShow] = useState(false);
+  const [query, setQuery] = useState("");
+  const [submit, setSubmit] = useState(false);
 
-  useHotkeys("ctrl+k", () => setShow(!show), [show]);
-  useHotkeys("meta+k", () => setShow(!show), [show]);
+  useHotkeys(
+    "ctrl+k",
+    () => {
+      if (show) {
+        setQuery("");
+      }
+      setShow(!show);
+    },
+    [show],
+  );
+  useHotkeys(
+    "meta+k",
+    () => {
+      if (show) {
+        setQuery("");
+      }
+      setShow(!show);
+    },
+    [show],
+  );
+  useHotkeys(
+    "esc",
+    () => {
+      setShow(false);
+      setQuery("");
+    },
+    [show],
+  );
 
   return (
     <>
       {show && (
         <Modal>
-          <h1> caw </h1>
-          <h1> caw </h1>
-          <h1> caw </h1>
-          <h1> caw </h1>
+          <Input
+            handleClose={() => {
+              setShow(false);
+              setQuery("");
+            }}
+            handleChange={setQuery}
+            handleSubmit={() => {
+              setSubmit(true);
+            }}
+          />
+          <SearchResults query={query} submit={submit} />
         </Modal>
       )}
     </>
+  );
+}
+
+function SearchResults({ query, submit }: { query: string; submit: boolean }) {
+  if (query === "") {
+    return <></>;
+  }
+
+  interface Response {
+    results: string[];
+  }
+
+  const [response, setResponse] = useState<Response | undefined>(undefined);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/search/`, {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    })
+      .then((resp) => resp.json())
+      .then((resp) => setResponse(resp));
+  }, [query]);
+
+  if (!response || response.results.length === 0) {
+    return <></>;
+  }
+
+  if (submit) {
+    const router = useRouter();
+    router.push(`/${response.results[0]}/`);
+  }
+
+  return (
+    <div className={styles.searchResults}>
+      {response.results.map((result, idx) => {
+        return (
+          <div className={styles.searchResult} key={idx}>
+            {result}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -507,5 +584,40 @@ function Modal(props: React.PropsWithChildren<{}>) {
     <div className={styles.modal}>
       <div className={styles.modalMargins}>{props.children}</div>
     </div>
+  );
+}
+
+function Input({
+  handleClose,
+  handleChange,
+  handleSubmit,
+}: {
+  handleClose: () => void;
+  handleChange: (value: string) => void;
+  handleSubmit: () => void;
+}) {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      handleClose();
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleSubmit();
+      }}
+    >
+      <input
+        className={styles.input}
+        type={"text"}
+        autoFocus
+        onKeyDown={handleKeyDown}
+        onChange={(event) => {
+          handleChange(event.target.value);
+        }}
+      />
+    </form>
   );
 }

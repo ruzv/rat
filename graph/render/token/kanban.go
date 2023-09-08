@@ -54,7 +54,10 @@ func (t *Token) renderKanban(
 				true,
 			)
 
-			r.Render(cardPart, child)
+			err := r.Render(cardPart, child)
+			if err != nil {
+				return errors.Wrap(err, "failed to render child node")
+			}
 		}
 	}
 

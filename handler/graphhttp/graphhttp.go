@@ -6,9 +6,12 @@ import (
 	"regexp"
 
 	"rat/graph"
+	"rat/graph/services"
+	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/handler/graphhttp/nodeshttp"
-	"rat/handler/shared"
+	"rat/handler/httputil"
+	"rat/logr"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
@@ -16,30 +19,35 @@ import (
 )
 
 type handler struct {
-	ss *shared.Services
+	log *logr.LogR
+
+	gs *services.GraphServices
 }
 
 // RegisterRoutes registers graph routes on given router.
-func RegisterRoutes(router *mux.Router, ss *shared.Services) error {
+func RegisterRoutes(
+	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
+) error {
 	h := &handler{
-		ss: ss,
+		log: log.Prefix("graphhttp"),
+		gs:  gs,
 	}
 
 	graphRouter := router.PathPrefix("/graph").Subrouter()
 
-	graphRouter.HandleFunc("/index/", shared.Wrap(h.index)).
-		Methods(http.MethodGet)
+	graphRouter.HandleFunc("/search/", httputil.Wrap(h.log, h.search)).
+		Methods(http.MethodPost)
 
 	idRe := regexp.MustCompile(
 		`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`,
 	)
 
-	graphRouter.HandleFunc(
-		fmt.Sprintf("/move/{id:%s}", idRe.String()), shared.Wrap(h.move),
+	graphRouter.HandleFunc(fmt.Sprintf(
+		"/move/{id:%s}", idRe.String()), httputil.Wrap(h.log, h.move),
 	).
 		Methods(http.MethodPost)
 
-	err := nodeshttp.RegisterRoutes(graphRouter, ss)
+	err := nodeshttp.RegisterRoutes(graphRouter, h.log, gs)
 	if err != nil {
 		return errors.Wrap(err, "failed to register nodes routes")
 	}
@@ -47,35 +55,41 @@ func RegisterRoutes(router *mux.Router, ss *shared.Services) error {
 	return nil
 }
 
-func (h *handler) index(w http.ResponseWriter, _ *http.Request) error {
-	root, err := h.ss.Graph.Root()
+func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
+	body, err := httputil.Body[struct {
+		Query string `json:"query"`
+	}](w, r)
 	if err != nil {
-		shared.WriteError(
-			w, http.StatusInternalServerError, "failed to get root node",
-		)
-
-		return errors.Wrap(err, "failed to get root")
+		return errors.Wrap(err, "failed to get body")
 	}
 
-	paths := []string{string(root.Path)}
+	res, err := h.gs.Index.Search(body.Query)
+	if err != nil {
+		httputil.WriteError(
+			w, http.StatusInternalServerError, "failed to search",
+		)
 
-	err = root.Walk(
-		h.ss.Graph,
-		func(_ int, n *graph.Node) (bool, error) {
-			paths = append(paths, string(n.Path))
+		return errors.Wrap(err, "failed to search index")
+	}
 
-			return true, nil
+	type response struct {
+		Results []string `json:"results"`
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	err = httputil.WriteResponse(
+		w,
+		http.StatusOK,
+		response{
+			Results: util.Map(
+				res,
+				func(n *graph.Node) string {
+					return string(n.Path)
+				},
+			),
 		},
 	)
-	if err != nil {
-		shared.WriteError(
-			w, http.StatusInternalServerError, "failed to walk graph",
-		)
-
-		return errors.Wrap(err, "failed to walk graph")
-	}
-
-	err = shared.WriteResponse(w, http.StatusOK, paths)
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
@@ -86,37 +100,37 @@ func (h *handler) index(w http.ResponseWriter, _ *http.Request) error {
 func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
 	id, err := uuid.FromString(mux.Vars(r)["id"])
 	if err != nil {
-		shared.WriteError(
+		httputil.WriteError(
 			w, http.StatusBadRequest, "invalid node id",
 		)
 
 		return errors.Wrap(err, "failed to parse node id")
 	}
 
-	body, err := shared.Body[struct {
-		NewPath string `json:"new_path" binding:"required"`
+	body, err := httputil.Body[struct {
+		NewPath string `json:"newPath" binding:"required"`
 	}](w, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	err = h.ss.Graph.Move(id, pathutil.NodePath(body.NewPath))
+	err = h.gs.Graph.Move(id, pathutil.NodePath(body.NewPath))
 	if err != nil {
-		shared.WriteError(
+		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to move node",
 		)
 
 		return errors.Wrap(err, "failed to move node")
 	}
 
-	n, err := h.ss.Graph.GetByID(id)
+	n, err := h.gs.Graph.GetByID(id)
 	if err != nil {
-		shared.WriteError(
+		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to get node",
 		)
 	}
 
-	err = shared.WriteResponse(w, http.StatusOK, n)
+	err = httputil.WriteResponse(w, http.StatusOK, n)
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}

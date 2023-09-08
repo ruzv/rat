@@ -111,6 +111,7 @@ func Parse(raw string) (*Todo, error) {
 	}, nil
 }
 
+// Render renders a todo into a JSON AST representation.
 func (t *Todo) Render(part *jsonast.AstPart) {
 	todoPart := part.AddContainer(
 		&jsonast.AstPart{

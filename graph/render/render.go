@@ -1,286 +1,231 @@
 package render
 
 import (
-	"io"
+	"fmt"
 	"strings"
 
 	"rat/graph"
-	"rat/graph/render/templ"
-	"rat/graph/render/todo"
-	"rat/graph/util"
-	pathutil "rat/graph/util/path"
+	"rat/graph/render/jsonast"
+	"rat/graph/render/token"
 
-	"github.com/gofrs/uuid"
-	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 )
 
-var log = logging.MustGetLogger("render")
-
-// Renderer allows rendering nodes markdown content to HTML.
-type Renderer struct {
-	ts   *templ.TemplateStore
-	p    graph.Provider
-	rend *html.Renderer
+// listTypes maps ast.ListType to string.
+var listTypes = map[ast.ListType]string{
+	ast.ListTypeOrdered:    "ordered",
+	ast.ListTypeDefinition: "definition",
+	ast.ListTypeTerm:       "term",
 }
 
-// NewRenderer creates a new Renderer.
-func NewRenderer(ts *templ.TemplateStore, p graph.Provider) *Renderer {
-	r := &Renderer{
-		ts:   ts,
-		p:    p,
-		rend: &html.Renderer{}, // allocate, temp value
+var _ jsonast.Renderer = (*JSONRenderer)(nil)
+
+// JSONRenderer renders a nodes markdown content to JSON representation of the
+// markdown AST.
+type JSONRenderer struct {
+	p graph.Provider
+}
+
+// NewJSONRenderer creates a new JSONRenderer.
+func NewJSONRenderer(p graph.Provider) *JSONRenderer {
+	return &JSONRenderer{
+		p: p,
 	}
-
-	*r.rend = *html.NewRenderer(html.RendererOptions{RenderNodeHook: r.hook()})
-
-	return r
 }
 
-// Render parses nodes content, converts tokens into markdown and renders it to
-// HTML.
-func (r *Renderer) Render(n *graph.Node) string {
-	return ""
-	// return r.render(token.TransformContentTokens(n, r.p))
-}
+// Render renders the markdown content of the specified node to JSON.
+func (jr *JSONRenderer) Render(
+	root *jsonast.AstPart, n *graph.Node,
+) error {
+	part := root
 
-func (r *Renderer) render(raw string) string {
-	return string(
-		markdown.ToHTML(
-			[]byte(raw),
-			parser.NewWithExtensions(
-				parser.NoIntraEmphasis|
-					parser.Tables|
-					parser.FencedCode|
-					parser.Autolink|
-					parser.Strikethrough|
-					parser.SpaceHeadings|
-					parser.HeadingIDs|
-					parser.BackslashLineBreak|
-					parser.DefinitionLists|
-					parser.MathJax|
-					parser.LaxHTMLBlocks|
-					parser.AutoHeadingIDs|
-					parser.Attributes|
-					parser.SuperSubscript,
-			),
-			r.rend,
-		),
-	)
-}
+	var err error
 
-func (r *Renderer) hook() html.RenderNodeFunc {
-	return func(
-		w io.Writer, node ast.Node, entering bool,
-	) (ast.WalkStatus, bool) {
-		ws, e, err := func() (ast.WalkStatus, bool, error) {
-			switch n := node.(type) {
-			case *ast.CodeBlock:
-				if string(n.Info) == "todo" {
-					return r.renderTodo(w, string(n.Literal))
-				}
-
-				return r.renderCodeBlock(w, string(n.Literal))
-			case *ast.Code:
-				return r.renderCode(w, string(n.Literal))
-			case *ast.Link:
-				return r.renderLink(w, n, entering)
-			case *ast.HTMLBlock:
-				if strings.Contains(string(n.Literal), `id="kanban"`) {
-					return r.renderKanban(w, string(n.Literal))
-				}
-
-				return ast.GoToNext, false, nil
-			default:
-				// false - didn't enter current ast.Node
-				return ast.GoToNext, false, nil
+	ast.WalkFunc(
+		parser.NewWithExtensions(
+			parser.NoIntraEmphasis|
+				parser.Tables|
+				parser.FencedCode|
+				parser.Autolink|
+				parser.Strikethrough|
+				parser.SpaceHeadings|
+				parser.HeadingIDs|
+				parser.BackslashLineBreak|
+				parser.DefinitionLists|
+				parser.MathJax|
+				parser.LaxHTMLBlocks|
+				parser.AutoHeadingIDs|
+				parser.Attributes|
+				parser.SuperSubscript,
+		).Parse([]byte(token.WrapContentTokens(n.Content))),
+		func(node ast.Node, entering bool) ast.WalkStatus {
+			part, err = jr.renderNode(part, n, node, entering)
+			if err != nil {
+				return ast.Terminate
 			}
-		}()
-		if err != nil {
-			log.Error("failed to render node", err)
-		}
 
-		return ws, e
-	}
-}
-
-func (r *Renderer) renderKanban(w io.Writer, content string) (
-	ast.WalkStatus, bool, error,
-) {
-	parts := strings.Split(strings.Trim(content, "<>"), ">")
-	if len(parts) != 2 {
-		return ast.GoToNext, false, errors.New("failed to extract column IDs")
-	}
-
-	parts = strings.Split(parts[1], "<")
-	if len(parts) != 2 {
-		return ast.GoToNext, false, errors.New("failed to extract column IDs")
-	}
-
-	rawCols := strings.Split(parts[0], ",")
-	colData := make([]templ.KanbanTemplColumnData, 0, len(rawCols))
-
-	for idx, rawCol := range rawCols {
-		id, err := uuid.FromString(rawCol)
-		if err != nil {
-			return ast.GoToNext,
-				false,
-				errors.Wrap(err, "failed to parse kanban column id")
-		}
-
-		n, err := r.p.GetByID(id)
-		if err != nil {
-			return ast.GoToNext,
-				false,
-				errors.Wrap(err, "failed to get kanban column node")
-		}
-
-		leafs, err := n.GetLeafs(r.p)
-		if err != nil {
-			return ast.GoToNext,
-				false,
-				errors.Wrap(err, "failed to get kanban column leafs")
-		}
-
-		colData = append(
-			colData,
-			templ.KanbanTemplColumnData{
-				Index: idx + 1,
-				Name:  n.Name,
-				Path:  string(n.Path),
-				Cards: util.Map(
-					leafs,
-					func(n *graph.Node) templ.KanbanTemplCardData {
-						return templ.KanbanTemplCardData{
-							ID:      n.ID.String(),
-							Name:    n.Name,
-							Content: r.Render(n),
-						}
-					},
-				),
-			},
-		)
-	}
-
-	err := r.ts.Kanban(w, colData)
-	if err != nil {
-		return ast.GoToNext, false, errors.Wrap(err, "failed to render kanban")
-	}
-
-	return ast.GoToNext, true, nil
-}
-
-func (r *Renderer) renderLink(
-	w io.Writer, n *ast.Link, entering bool,
-) (ast.WalkStatus, bool, error) {
-	if len(n.Children) != 1 {
-		// unknown structure, let gomarkdown handle it
-		return ast.GoToNext, false, errors.New("unknown link structure")
-	}
-
-	// skip exiting only for structures we know how to handle
-	if !entering {
-		return ast.GoToNext, false, nil
-	}
-
-	link := string(n.Destination)
-	name := string(n.Children[0].AsLeaf().Literal)
-
-	id, err := uuid.FromString(link)
-	if err == nil {
-		n, err := r.p.GetByID(id)
-		if err != nil {
-			return ast.GoToNext, false, errors.Wrap(err, "failed to get node")
-		}
-
-		link, err = pathutil.URL(n.Path)
-		if err != nil {
-			return ast.GoToNext,
-				false,
-				errors.Wrap(err, "failed to get node path")
-		}
-
-		if len(strings.TrimSpace(name)) == 0 {
-			name = n.Name
-		}
-	}
-
-	err = r.ts.Link(
-		w,
-		templ.LinkTemplData{
-			Link: link,
-			Name: name,
+			return ast.GoToNext
 		},
 	)
+
 	if err != nil {
-		return ast.GoToNext, false, errors.Wrap(err, "failed to render link")
+		return errors.Wrap(err, "failed walk ast and render")
 	}
 
-	return ast.SkipChildren, true, nil
+	return nil
 }
 
-func (r *Renderer) renderCodeBlock(
-	w io.Writer, raw string,
-) (ast.WalkStatus, bool, error) {
-	lines := strings.Split(raw, "\n")
-	if len(lines) != 0 {
-		lines = lines[:len(lines)-1] // last line is always empty
-	}
-
-	err := r.ts.CodeBlock(w, lines)
-	if err != nil {
-		return ast.GoToNext,
-			false,
-			errors.Wrap(err, "failed to render code block")
-	}
-
-	return ast.GoToNext, true, nil
-}
-
-func (r *Renderer) renderCode(
-	w io.Writer, raw string,
-) (ast.WalkStatus, bool, error) {
-	err := r.ts.Code(w, raw)
-	if err != nil {
-		return ast.GoToNext, false, errors.Wrap(err, "failed to render code")
-	}
-
-	return ast.GoToNext, true, nil
-}
-
-func (r *Renderer) renderTodo(
-	w io.Writer, raw string,
-) (ast.WalkStatus, bool, error) {
-	t, err := todo.Parse(raw)
-	if err != nil {
-		return ast.GoToNext, false, errors.Wrap(err, "failed to parse todo")
-	}
-
-	err = r.ts.Todo(
-		w,
-		util.Map(
-			t.OrderEntries(),
-			func(e *todo.TodoEntry) templ.TodoEntryTemplData {
-				return templ.TodoEntryTemplData{
-					Done:    e.Done,
-					Content: r.render(e.Text),
-				}
+//nolint:cyclop,gocyclo
+func (jr *JSONRenderer) renderNode(
+	part *jsonast.AstPart,
+	n *graph.Node,
+	node ast.Node,
+	entering bool,
+) (*jsonast.AstPart, error) {
+	switch node := node.(type) {
+	case *ast.Document:
+		part = part.AddContainer(&jsonast.AstPart{Type: "document"}, entering)
+	case *ast.Text:
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "text",
+				Attributes: jsonast.AstAttributes{
+					"text": string(node.Literal),
+				},
 			},
-		),
-		util.Map(
-			t.OrderHints(),
-			func(h *todo.Hint) string {
-				return h.HTML()
+		)
+	case *ast.HorizontalRule:
+		part.AddLeaf(&jsonast.AstPart{Type: "horizontal_rule"})
+	case *ast.Link:
+		part = part.AddContainer(
+			&jsonast.AstPart{
+				Type: "link",
+				Attributes: jsonast.AstAttributes{
+					"destination": string(node.Destination),
+					"title":       string(node.Title),
+				},
 			},
-		),
-	)
-	if err != nil {
-		return ast.GoToNext, false, errors.Wrap(err, "failed to render todo")
+			entering,
+		)
+	case *ast.List:
+		part = part.AddContainer(
+			&jsonast.AstPart{
+				Type: "list",
+				Attributes: jsonast.AstAttributes{
+					"ordered":    node.ListFlags&ast.ListTypeOrdered != 0,
+					"definition": node.ListFlags&ast.ListTypeDefinition != 0,
+					"term":       node.ListFlags&ast.ListTypeTerm != 0,
+				},
+			},
+			entering,
+		)
+	case *ast.ListItem:
+		part = part.AddContainer(
+			&jsonast.AstPart{
+				Type: "list_item",
+				Attributes: jsonast.AstAttributes{
+					"type": listTypes[node.ListFlags],
+				},
+			},
+			entering,
+		)
+	case *ast.Heading:
+		part = part.AddContainer(
+			&jsonast.AstPart{
+				Type: "heading",
+				Attributes: jsonast.AstAttributes{
+					"level": node.Level,
+				},
+			},
+			entering,
+		)
+	case *ast.HTMLSpan:
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "span",
+				Attributes: jsonast.AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+	case *ast.HTMLBlock:
+		literal := string(node.Literal)
+		raw := strings.TrimPrefix(literal, "<div>")
+		raw = strings.TrimSuffix(raw, "</div>")
+
+		if strings.HasPrefix(literal, "<div>") &&
+			strings.HasSuffix(literal, "</div>") &&
+			token.IsToken(raw) {
+			err := token.Render(part, raw, n, jr.p, jr)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to render token")
+			}
+
+			break
+		}
+
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "html_block",
+				Attributes: jsonast.AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+
+	case *ast.Paragraph:
+		_, ok := node.GetParent().(*ast.ListItem)
+		if !ok { // render paragraphs that are not part of lists.
+			part = part.AddContainer(
+				&jsonast.AstPart{
+					Type: "paragraph",
+				},
+				entering,
+			)
+		}
+	case *ast.Code:
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "code",
+				Attributes: jsonast.AstAttributes{
+					"text": string(node.Literal),
+				},
+			},
+		)
+	case *ast.CodeBlock:
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "code_block",
+				Attributes: jsonast.AstAttributes{
+					"text": string(node.Literal),
+					"info": string(node.Info),
+				},
+			},
+		)
+	default:
+		if node.AsLeaf() == nil { // container
+			part = part.AddContainer(
+				&jsonast.AstPart{
+					Type: "unknown",
+					Attributes: jsonast.AstAttributes{
+						"text": fmt.Sprintf("%T", node),
+					},
+				},
+				entering,
+			)
+		} else {
+			part.AddLeaf(
+				&jsonast.AstPart{
+					Type: "unknown",
+					Attributes: jsonast.AstAttributes{
+						"text": fmt.Sprintf("%T", node),
+					},
+				},
+			)
+		}
 	}
 
-	return ast.GoToNext, true, nil
+	return part, nil
 }
