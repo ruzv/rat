@@ -23,16 +23,12 @@
 
 .consoleContainer {
   padding-top: 0;
-  padding-bottom: 0;
   padding: 30px;
+  padding-bottom: 24px;
   background-color: #111111;
   border: 3px solid #111111;
   border-radius: 8px;
   margin-bottom: 20px;
-}
-
-.consoleRowSpacer {
-  margin-top: 10px;
 }
 
 /* parts */
@@ -41,6 +37,7 @@
   background-color: #5a5a5a;
   border: none;
   height: 4px;
+  border-radius: 5px;
 }
 
 .code {
@@ -68,6 +65,7 @@
 }
 
 .todoEntry {
+  overflow-wrap: anywhere;
   background-color: #222222;
   display: flex;
   justify-content: left;
@@ -97,6 +95,13 @@
   margin: 0;
 }
 
+.table,
+.tableRow,
+.tableData {
+  border: 3px solid #8e8e8e;
+  border-collapse: collapse;
+}
+
 .container {
   padding-top: 0;
   padding-bottom: 0;
@@ -115,9 +120,20 @@
   margin-top: 10px;
 }
 
+.graphviz {
+  justify-content: center;
+  display: flex;
+  margin-bottom: 8px;
+}
+.graphviz > svg {
+  border-radius: 5px;
+}
+
 /* components */
 
 .consoleButton {
+  overflow-wrap: anywhere;
+
   display: inline-block;
   border: 3px solid #474646;
   background-color: #474646;
@@ -126,6 +142,7 @@
   border-radius: 5px;
   font-size: 130%;
   margin-right: 6px;
+  margin-bottom: 6px;
 }
 
 .clickable {

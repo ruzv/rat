@@ -83,6 +83,8 @@ func (gi *GraphIndex) Update() error {
 		return errors.Wrap(err, "failed to get root node")
 	}
 
+	gi.paths = append(gi.paths, r.Path.String())
+
 	err = r.Walk(
 		gi.p,
 		func(_ int, node *graph.Node) (bool, error) {

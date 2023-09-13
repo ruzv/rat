@@ -4,18 +4,20 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import { default as NextJSLink } from "next/link";
 import styles from "./parts.module.css";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useAtom } from "jotai";
+import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
+import { graphviz } from "d3-graphviz";
 
-export function Console({
-  id,
-  path,
-  pathParts,
-}: {
-  id: string;
-  path: string;
-  pathParts: string[];
-}) {
+export function Console({ id }: { id: string }) {
+  const [nodePath, _] = useAtom(nodePathAtom);
+  if (!nodePath) {
+    return <></>;
+  }
+
+  const pathParts = nodePath.split("/");
+
   const router = useRouter();
 
   return (
@@ -28,13 +30,13 @@ export function Console({
           }}
         />
         <ConsoleButton
-          text={path}
+          text={nodePath}
           onClick={() => {
-            navigator.clipboard.writeText(path);
+            navigator.clipboard.writeText(nodePath);
           }}
         />
       </div>
-      <div className={styles.consoleRowSpacer}>
+      <div>
         {pathParts.map((part, idx) => {
           return (
             <ConsoleButton
@@ -51,20 +53,44 @@ export function Console({
   );
 }
 
-export function NodeContent({ node }: { node: Node }) {
+export function NodeContent() {
+  const [ast, _] = useAtom(nodeAstAtom);
+
+  if (!ast) {
+    return <></>;
+  }
+
   return (
     <NodeContainer>
       <div className={styles.contentSpacer}> </div>
-      <NodePart part={node.ast} />
+      <NodePart part={ast} />
       <div className={styles.contentSpacer}> </div>
     </NodeContainer>
   );
 }
 
-export function ChildNodes({ childNodes }: { childNodes: Node[] }) {
-  if (childNodes === undefined || childNodes.length === 0) {
+export function ChildNodes() {
+  const [childNodes, _] = useAtom(childNodesAtom);
+
+  if (!childNodes || childNodes.length === 0) {
     return <></>;
   }
+
+  return <ChildNodesColumns childNodes={childNodes} />;
+}
+
+function ChildNodesColumns({ childNodes }: { childNodes: Node[] }) {
+  childNodes.sort((a, b) => {
+    if (a.name < b.name) {
+      return -1;
+    } else if (a.name > b.name) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
+
+  // TODO: store the sorted nodes mby.
 
   let leftChildNodes = [];
   let leftChildNodesLength = 0;
@@ -91,18 +117,24 @@ export function ChildNodes({ childNodes }: { childNodes: Node[] }) {
 }
 
 function ChildNodesColumn({ childNodes }: { childNodes: Node[] }) {
+  return (
+    <div className={styles.childNodesColumn}>
+      {childNodes.map((node) => (
+        <ChildNode key={node.id} node={node} />
+      ))}
+    </div>
+  );
+}
+
+function ChildNode({ node }: { node: Node }) {
   const router = useRouter();
 
   return (
-    <div className={styles.childNodesColumn}>
-      {childNodes.map((node, idx) => (
-        <ChildNodeContainer onClick={() => router.push(`/${node.path}/`)}>
-          <div className={styles.contentSpacer}> </div>
-          <NodePart key={idx} part={node.ast} />
-          <div className={styles.contentSpacer}> </div>
-        </ChildNodeContainer>
-      ))}
-    </div>
+    <ChildNodeContainer onClick={() => router.push(`/${node.path}/`)}>
+      <div className={styles.contentSpacer}></div>
+      <NodePart part={node.ast} />
+      <div className={styles.contentSpacer}></div>
+    </ChildNodeContainer>
   );
 }
 
@@ -148,6 +180,32 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <KanbanColumn part={part} />;
     case "kanban_card":
       return <KanbanCard part={part} />;
+    case "graphviz":
+      return <Graphviz dot={part.attributes["text"]} />;
+    case "table":
+      return (
+        <table className={styles.table}>
+          <NodePartChildren part={part} />
+        </table>
+      );
+    case "table_header":
+      return <NodePartChildren part={part} />;
+    case "table_body":
+      return <NodePartChildren part={part} />;
+
+    case "table_row":
+      return (
+        <tr className={styles.tableRow}>
+          <NodePartChildren part={part} />
+        </tr>
+      );
+    case "table_cell":
+      return (
+        <td className={styles.tableData}>
+          <NodePartChildren part={part} />
+        </td>
+      );
+
     case "unknown":
       if (part.children === undefined) {
         return (
@@ -241,7 +299,7 @@ function Heading({ part }: { part: NodeAstPart }) {
 
 function Code({ part }: { part: NodeAstPart }) {
   return (
-    <code className={styles.code}> {part.attributes["text"] as string} </code>
+    <code className={styles.code}>{part.attributes["text"] as string}</code>
   );
 }
 
@@ -328,6 +386,19 @@ function Paragraph({ part }: { part: NodeAstPart }) {
 function Todo({ part }: { part: NodeAstPart }) {
   return (
     <div>
+      <TodoHints part={part} />
+      <NodePartChildren part={part} />
+    </div>
+  );
+}
+
+function TodoHints({ part }: { part: NodeAstPart }) {
+  if (!part.attributes["hints"]) {
+    return <></>;
+  }
+
+  return (
+    <>
       {part.attributes["hints"].map(
         (hint: { type: string; value: any }, idx: number) => {
           return (
@@ -337,8 +408,7 @@ function Todo({ part }: { part: NodeAstPart }) {
           );
         },
       )}
-      <NodePartChildren part={part} />
-    </div>
+    </>
   );
 }
 
@@ -383,6 +453,28 @@ function KanbanCard({ part }: { part: NodeAstPart }) {
       <NodePartChildren part={part} />
     </KanbanCardContainer>
   );
+}
+
+let graphvizIDCounter = 0;
+const graphvizID = () => `graphviz${graphvizIDCounter++}`;
+
+function Graphviz({ dot }: { dot: string }) {
+  const id = useMemo(graphvizID, []);
+
+  useEffect(() => {
+    try {
+      graphviz(`#${id}`, {
+        fit: true,
+        // height: 500,
+        // width: 500,
+        zoom: false,
+      }).renderDot(dot);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [dot]);
+
+  return <div className={styles.graphviz} id={id} />;
 }
 
 function NodePartChildren({ part }: { part: NodeAstPart }) {
@@ -437,33 +529,22 @@ function KanbanCardContainer(
   );
 }
 
-function Container(
-  props: React.PropsWithChildren<{
-    className: string | undefined;
-    onClick: () => void | undefined;
-  }>,
-) {
-  let className = styles.container;
-  let onClick = () => {};
-
-  if (props.className) {
-    className += ` ${props.className}`;
-  }
-
-  if (onClick) {
-    onClick = props.onClick;
-  }
+function Container({
+  className = "",
+  onClick = () => {},
+  children,
+}: React.PropsWithChildren<{
+  className: string | undefined;
+  onClick?: () => void;
+}>) {
+  className += ` ${styles.container}`;
 
   return (
     <div className={className} onClick={onClick}>
-      {props.children}
+      {children}
     </div>
   );
 }
-Container.defaultProps = {
-  className: undefined,
-  onClick: undefined,
-};
 
 function ConsoleButton({
   text,
@@ -479,6 +560,80 @@ function ConsoleButton({
     >
       {text}
     </div>
+  );
+}
+
+export function NewNodeModal() {
+  const [nodePath, _] = useAtom(nodePathAtom);
+  const [childNodes, setChildNodes] = useAtom(childNodesAtom);
+
+  const [show, setShow] = useState(false);
+  const [name, setName] = useState("");
+
+  if (!nodePath) {
+    return <></>;
+  }
+
+  useHotkeys(
+    "ctrl+shift+k",
+    () => {
+      setName("");
+      setShow(!show);
+    },
+    [show],
+  );
+  useHotkeys(
+    "meta+shift+k",
+    () => {
+      setName("");
+      setShow(!show);
+    },
+    [show],
+  );
+  useHotkeys(
+    "esc",
+    () => {
+      setShow(false);
+      setName("");
+    },
+    [show],
+  );
+
+  return (
+    <>
+      {show && (
+        <Modal>
+          <Input
+            handleClose={() => {
+              setShow(false);
+              setName("");
+            }}
+            handleChange={setName}
+            handleSubmit={() => {
+              setShow(false);
+              setName("");
+
+              fetch(
+                `${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/nodes/${nodePath}/`,
+                {
+                  method: "POST",
+                  body: JSON.stringify({ name: name }),
+                },
+              )
+                .then((resp) => resp.json())
+                .then((node: Node) => {
+                  if (!childNodes) {
+                    setChildNodes([node]);
+                    return;
+                  }
+
+                  setChildNodes([...childNodes, node]);
+                });
+            }}
+          />
+        </Modal>
+      )}
+    </>
   );
 }
 

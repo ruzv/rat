@@ -6,7 +6,9 @@ import (
 
 	"rat/graph"
 	"rat/graph/render/jsonast"
+	"rat/graph/render/todo"
 	"rat/graph/render/token"
+	"rat/logr"
 
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/parser"
@@ -25,13 +27,15 @@ var _ jsonast.Renderer = (*JSONRenderer)(nil)
 // JSONRenderer renders a nodes markdown content to JSON representation of the
 // markdown AST.
 type JSONRenderer struct {
-	p graph.Provider
+	p   graph.Provider
+	log *logr.LogR
 }
 
 // NewJSONRenderer creates a new JSONRenderer.
-func NewJSONRenderer(p graph.Provider) *JSONRenderer {
+func NewJSONRenderer(p graph.Provider, log *logr.LogR) *JSONRenderer {
 	return &JSONRenderer{
-		p: p,
+		p:   p,
+		log: log.Prefix("json-renderer"),
 	}
 }
 
@@ -186,6 +190,8 @@ func (jr *JSONRenderer) renderNode(
 			)
 		}
 	case *ast.Code:
+		jr.log.Infof("%q", string(node.Literal))
+
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "code",
@@ -195,15 +201,60 @@ func (jr *JSONRenderer) renderNode(
 			},
 		)
 	case *ast.CodeBlock:
-		part.AddLeaf(
-			&jsonast.AstPart{
-				Type: "code_block",
-				Attributes: jsonast.AstAttributes{
-					"text": string(node.Literal),
-					"info": string(node.Info),
+		switch string(node.Info) {
+		case "graphviz":
+			part.AddLeaf(
+				&jsonast.AstPart{
+					Type: "graphviz",
+					Attributes: jsonast.AstAttributes{
+						"text": string(node.Literal),
+					},
 				},
-			},
+			)
+		case "todo":
+			t, err := todo.Parse(string(node.Literal))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse todo")
+			}
+
+			t.Render(part)
+		default:
+			part.AddLeaf(
+				&jsonast.AstPart{
+					Type: "code_block",
+					Attributes: jsonast.AstAttributes{
+						"text": string(node.Literal),
+						"info": string(node.Info),
+					},
+				},
+			)
+		}
+	case *ast.Table:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "table"},
+			entering,
 		)
+	case *ast.TableHeader:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "table_header"},
+			entering,
+		)
+	case *ast.TableBody:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "table_body"},
+			entering,
+		)
+	case *ast.TableRow:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "table_row"},
+			entering,
+		)
+	case *ast.TableCell:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "table_cell"},
+			entering,
+		)
+
 	default:
 		if node.AsLeaf() == nil { // container
 			part = part.AddContainer(

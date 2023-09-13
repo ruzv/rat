@@ -32,7 +32,7 @@ func RegisterRoutes(
 	h := &handler{
 		log: log,
 		gs:  gs,
-		r:   render.NewJSONRenderer(gs.Graph),
+		r:   render.NewJSONRenderer(gs.Graph, log),
 	}
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()
@@ -124,7 +124,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	_, err = n.AddLeaf(h.gs.Graph, body.Name)
+	child, err := n.AddLeaf(h.gs.Graph, body.Name)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
@@ -133,7 +133,35 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to create node")
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	root := jsonast.NewRootAstPart("document")
+
+	err = h.r.Render(root, child)
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"failed to render node content to JSON",
+		)
+
+		return errors.Wrap(err, "failed to render node content to JSON")
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	err = httputil.WriteResponse(
+		w,
+		http.StatusOK,
+		response{
+			ID:     child.ID,
+			Name:   child.Name,
+			Path:   child.Path,
+			Length: len(strings.Split(n.Content, "\n")),
+			AST:    root,
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write response")
+	}
 
 	return nil
 }
