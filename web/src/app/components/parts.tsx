@@ -11,14 +11,14 @@ import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
 import { graphviz } from "d3-graphviz";
 
 export function Console({ id }: { id: string }) {
+  const router = useRouter();
+
   const [nodePath, _] = useAtom(nodePathAtom);
   if (!nodePath) {
     return <></>;
   }
 
   const pathParts = nodePath.split("/");
-
-  const router = useRouter();
 
   return (
     <div className={styles.consoleContainer}>
@@ -204,6 +204,12 @@ export function NodePart({ part }: { part: NodeAstPart }) {
         <td className={styles.tableData}>
           <NodePartChildren part={part} />
         </td>
+      );
+    case "strong":
+      return (
+        <strong>
+          <NodePartChildren part={part} />
+        </strong>
       );
 
     case "unknown":
@@ -472,7 +478,7 @@ function Graphviz({ dot }: { dot: string }) {
     } catch (error) {
       console.error(error);
     }
-  }, [dot]);
+  }, [dot, id]);
 
   return <div className={styles.graphviz} id={id} />;
 }
@@ -570,10 +576,6 @@ export function NewNodeModal() {
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
 
-  if (!nodePath) {
-    return <></>;
-  }
-
   useHotkeys(
     "ctrl+shift+k",
     () => {
@@ -598,6 +600,10 @@ export function NewNodeModal() {
     },
     [show],
   );
+
+  if (!nodePath) {
+    return <></>;
+  }
 
   return (
     <>
@@ -693,15 +699,12 @@ export function SearchModal() {
 }
 
 function SearchResults({ query, submit }: { query: string; submit: boolean }) {
-  if (query === "") {
-    return <></>;
-  }
-
   interface Response {
     results: string[];
   }
 
   const [response, setResponse] = useState<Response | undefined>(undefined);
+  const router = useRouter();
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/search/`, {
@@ -712,12 +715,15 @@ function SearchResults({ query, submit }: { query: string; submit: boolean }) {
       .then((resp) => setResponse(resp));
   }, [query]);
 
+  if (query === "") {
+    return <></>;
+  }
+
   if (!response || response.results.length === 0) {
     return <></>;
   }
 
   if (submit) {
-    const router = useRouter();
     router.push(`/${response.results[0]}/`);
   }
 

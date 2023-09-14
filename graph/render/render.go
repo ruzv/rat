@@ -254,7 +254,11 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{Type: "table_cell"},
 			entering,
 		)
-
+	case *ast.Strong:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "strong"},
+			entering,
+		)
 	default:
 		if node.AsLeaf() == nil { // container
 			part = part.AddContainer(

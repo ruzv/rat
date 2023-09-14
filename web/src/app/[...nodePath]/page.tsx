@@ -9,7 +9,7 @@ import {
   SearchModal,
   NewNodeModal,
 } from "../components/parts";
-import { Provider, useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import {
   nodeAtom,
   nodePathAtom,
@@ -19,9 +19,9 @@ import {
 
 export default function View({ params }: { params: { nodePath: string[] } }) {
   const [node, setNode] = useAtom(nodeAtom);
-  const [_, setNodeAst] = useAtom(nodeAstAtom);
-  const [__, setChildNodes] = useAtom(childNodesAtom);
-  const [___, setNodePath] = useAtom(nodePathAtom);
+  const setNodeAst = useSetAtom(nodeAstAtom);
+  const setChildNodes = useSetAtom(childNodesAtom);
+  const setNodePath = useSetAtom(nodePathAtom);
 
   const path = params.nodePath.join("/");
 
@@ -35,7 +35,7 @@ export default function View({ params }: { params: { nodePath: string[] } }) {
         setNodePath(node.path);
       })
       .catch((err) => console.log(err));
-  }, []);
+  }, [path, setNode, setNodeAst, setChildNodes, setNodePath]);
 
   if (!node) {
     return <> </>;
