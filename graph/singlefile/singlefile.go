@@ -8,12 +8,11 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"rat/graph"
-	pathutil "rat/graph/util/path"
-
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
 )
 
 var (
@@ -88,7 +87,9 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 	}
 
 	if !found {
-		return nil, graph.ErrNodeNotFound
+		return nil, errors.Wrapf(
+			graph.ErrNodeNotFound, "failed to find node by id %s", id.String(),
+		)
 	}
 
 	return n, nil

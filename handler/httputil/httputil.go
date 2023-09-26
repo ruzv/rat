@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"rat/logr"
-
 	"github.com/pkg/errors"
+	"rat/logr"
 )
 
 var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
@@ -95,10 +94,12 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 }
 
 // Body reads the requests body as a specified struct.
+//
+//nolint:ireturn
 func Body[T any](
 	w http.ResponseWriter,
 	r *http.Request,
-) (T, error) { //nolint:ireturn
+) (T, error) {
 	defer r.Body.Close()
 
 	var body, empty T

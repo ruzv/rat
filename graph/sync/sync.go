@@ -4,13 +4,12 @@ import (
 	"sync"
 	"time"
 
-	"rat/config"
-	"rat/logr"
-
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/pkg/errors"
+	"rat/config"
+	"rat/logr"
 )
 
 // Syncer is a git syncer.
@@ -87,7 +86,7 @@ func (s *Syncer) Start() {
 
 // Stop stops the sync ticker and goroutine, cleans up allocated resources.
 func (s *Syncer) Stop() {
-	// TODO: stop should wait for sync to finish.
+	// NOTE: stop should wait for sync to finish.
 	s.stop <- struct{}{}
 }
 

@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
-
-	"github.com/pkg/errors"
 )
 
 func (t *Token) renderGraph(

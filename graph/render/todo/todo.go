@@ -6,12 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/op/go-logging"
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/util"
-
-	"github.com/op/go-logging"
-	"github.com/pkg/errors"
 )
 
 var todoRe = regexp.MustCompile(

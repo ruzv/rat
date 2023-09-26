@@ -1,12 +1,11 @@
 package index
 
 import (
+	"github.com/pkg/errors"
+	"github.com/sahilm/fuzzy"
 	"rat/graph"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
-
-	"github.com/pkg/errors"
-	"github.com/sahilm/fuzzy"
 )
 
 // GraphIndex describes a graphs index.

@@ -89,6 +89,8 @@
   background-color: rgb(7, 7, 7);
   padding: 10px;
   border-radius: 8px;
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .kanbanColumnTitle {

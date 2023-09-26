@@ -4,11 +4,10 @@ import (
 	"strings"
 	"text/template"
 
-	"rat/graph/util"
-	pathutil "rat/graph/util/path"
-
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
+	"rat/graph/util"
+	pathutil "rat/graph/util/path"
 )
 
 // ErrNodeNotFound is returned when a node is not found.

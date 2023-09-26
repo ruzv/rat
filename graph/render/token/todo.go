@@ -4,13 +4,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gofrs/uuid"
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
 	"rat/graph/util"
-
-	"github.com/gofrs/uuid"
-	"github.com/pkg/errors"
 )
 
 func (t *Token) renderTodo(

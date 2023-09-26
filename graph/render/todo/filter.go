@@ -3,9 +3,8 @@ package todo
 import (
 	"strings"
 
-	"rat/graph/util"
-
 	"github.com/pkg/errors"
+	"rat/graph/util"
 )
 
 // FilterRule represents a single filtering rule of multiple todos.

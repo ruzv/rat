@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"rat/graph/services"
 	"rat/handler/graphhttp"
 	"rat/handler/httputil"
 	"rat/logr"
-
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 // NewRouter creates a new router, loads templates and registers handlers for

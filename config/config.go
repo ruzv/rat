@@ -4,12 +4,11 @@ import (
 	"os"
 	"time"
 
-	pathutil "rat/graph/util/path"
-	"rat/logr"
-
 	"github.com/pkg/errors"
 	"gopkg.in/validator.v2"
 	"gopkg.in/yaml.v2"
+	pathutil "rat/graph/util/path"
+	"rat/logr"
 )
 
 // Config is the configuration for the application.

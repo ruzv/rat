@@ -6,11 +6,10 @@ import (
 	"strings"
 	"text/scanner"
 
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/util"
-
-	"github.com/pkg/errors"
 )
 
 const (

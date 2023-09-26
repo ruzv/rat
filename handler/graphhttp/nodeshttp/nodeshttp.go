@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gofrs/uuid"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render"
 	"rat/graph/render/jsonast"
@@ -13,10 +16,6 @@ import (
 	pathutil "rat/graph/util/path"
 	"rat/handler/httputil"
 	"rat/logr"
-
-	"github.com/gofrs/uuid"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 type handler struct {

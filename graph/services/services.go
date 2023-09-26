@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 
+	"github.com/pkg/errors"
 	"rat/config"
 	"rat/graph"
 	"rat/graph/index"
@@ -10,8 +11,6 @@ import (
 	"rat/graph/singlefile"
 	"rat/graph/sync"
 	"rat/logr"
-
-	"github.com/pkg/errors"
 )
 
 // GraphServices contains service components of a graph.

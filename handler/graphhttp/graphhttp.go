@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/gofrs/uuid"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/services"
 	"rat/graph/util"
@@ -12,10 +15,6 @@ import (
 	"rat/handler/graphhttp/nodeshttp"
 	"rat/handler/httputil"
 	"rat/logr"
-
-	"github.com/gofrs/uuid"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 type handler struct {

@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gomarkdown/markdown/ast"
+	"github.com/gomarkdown/markdown/parser"
+	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
 	"rat/graph/render/token"
 	"rat/logr"
-
-	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/parser"
-	"github.com/pkg/errors"
 )
 
 // listTypes maps ast.ListType to string.
@@ -223,7 +222,7 @@ func (jr *JSONRenderer) renderNode(
 				&jsonast.AstPart{
 					Type: "code_block",
 					Attributes: jsonast.AstAttributes{
-						"text": string(node.Literal),
+						"text": strings.TrimSpace(string(node.Literal)),
 						"info": string(node.Info),
 					},
 				},

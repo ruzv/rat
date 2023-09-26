@@ -3,11 +3,10 @@ package token
 import (
 	"strings"
 
-	"rat/graph"
-	"rat/graph/render/jsonast"
-
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
+	"rat/graph"
+	"rat/graph/render/jsonast"
 )
 
 func (t *Token) renderKanban(
