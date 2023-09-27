@@ -1,18 +1,19 @@
+import React from "react";
 import { Node, NodeAstPart } from "./node";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { default as NextJSLink } from "next/link";
 import styles from "./parts.module.css";
-import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
 import { graphviz } from "d3-graphviz";
 
-export function Console({ id }: { id: string }) {
-  const router = useRouter();
+function navigate(path: string) {
+  window.location.href = path;
+}
 
+export function Console({ id }: { id: string }) {
   const [nodePath, _] = useAtom(nodePathAtom);
   if (!nodePath) {
     return <></>;
@@ -43,7 +44,7 @@ export function Console({ id }: { id: string }) {
               key={idx}
               text={part}
               onClick={() => {
-                router.push(`/${pathParts.slice(0, idx + 1).join("/")}/`);
+                navigate(`/view/${pathParts.slice(0, idx + 1).join("/")}`);
               }}
             />
           );
@@ -92,9 +93,9 @@ function ChildNodesColumns({ childNodes }: { childNodes: Node[] }) {
 
   // TODO: store the sorted nodes mby.
 
-  let leftChildNodes = [];
+  let leftChildNodes: Node[] = [];
   let leftChildNodesLength = 0;
-  let rightChildNodes = [];
+  let rightChildNodes: Node[] = [];
   let rightChildNodesLength = 0;
 
   for (const n of childNodes) {
@@ -127,10 +128,15 @@ function ChildNodesColumn({ childNodes }: { childNodes: Node[] }) {
 }
 
 function ChildNode({ node }: { node: Node }) {
-  const router = useRouter();
+  const setNodePath = useSetAtom(nodePathAtom);
 
   return (
-    <ChildNodeContainer onClick={() => router.push(`/${node.path}/`)}>
+    <ChildNodeContainer
+      onClick={() => {
+        setNodePath(node.path);
+        window.history.pushState({}, "", `/view/${node.path}`);
+      }}
+    >
       <div className={styles.contentSpacer}></div>
       <NodePart part={node.ast} />
       <div className={styles.contentSpacer}></div>
@@ -352,12 +358,9 @@ function Link({ part }: { part: NodeAstPart }) {
 
 function GraphLink({ part }: { part: NodeAstPart }) {
   return (
-    <NextJSLink
-      className={styles.link}
-      href={part.attributes["destination"] as string}
-    >
+    <a className={styles.link} href={part.attributes["destination"] as string}>
       {part.attributes["title"]}
-    </NextJSLink>
+    </a>
   );
 }
 
@@ -704,7 +707,6 @@ function SearchResults({ query, submit }: { query: string; submit: boolean }) {
   }
 
   const [response, setResponse] = useState<Response | undefined>(undefined);
-  const router = useRouter();
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/search/`, {
@@ -724,7 +726,7 @@ function SearchResults({ query, submit }: { query: string; submit: boolean }) {
   }
 
   if (submit) {
-    router.push(`/${response.results[0]}/`);
+    navigate(`/view/${response.results[0]}`);
   }
 
   return (

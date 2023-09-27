@@ -11,6 +11,7 @@ import (
 	"rat/graph/services"
 	"rat/handler/graphhttp"
 	"rat/handler/httputil"
+	"rat/handler/viewhttp"
 	"rat/logr"
 )
 
@@ -41,6 +42,11 @@ func NewRouter(
 	err := graphhttp.RegisterRoutes(router, log, gs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
+	}
+
+	err = viewhttp.RegisterRoutes(router, log)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to register web routes")
 	}
 
 	logRoutes(log, router)
