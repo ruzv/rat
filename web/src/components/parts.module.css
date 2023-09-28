@@ -1,0 +1,207 @@
+.contentSpacer {
+  margin-bottom: 30px;
+}
+
+.childNodesContainer {
+  content: "";
+  display: table;
+  clear: both;
+  width: 100%;
+}
+
+.childNodesColumnSpacer {
+  float: left;
+  width: 20px;
+  height: 20px;
+}
+
+.childNodesColumn {
+  float: left;
+  /* body margin (left, right) + spacer */
+  width: calc((100vw - 60px) / 2);
+}
+
+.consoleContainer {
+  padding-top: 0;
+  padding: 30px;
+  padding-bottom: 24px;
+  background-color: #111111;
+  border: 3px solid #111111;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* parts */
+
+.horizontalRule {
+  background-color: #5a5a5a;
+  border: none;
+  height: 4px;
+  border-radius: 5px;
+}
+
+.code {
+  background-color: #474646;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.codeblock {
+  border-radius: 5px;
+}
+
+.link {
+  overflow-wrap: anywhere;
+}
+
+.link:link {
+  color: #f3715d;
+}
+
+.link:visited {
+  color: #f3715d;
+}
+
+.todoEntry {
+  overflow-wrap: anywhere;
+  background-color: #222222;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  position: relative;
+  border-radius: 5px;
+  margin-bottom: 5px;
+  margin-top: 4px;
+  padding: 2px;
+}
+
+.todoEntryCheckbox {
+  margin: 5px;
+  width: 20px;
+  height: 20px;
+}
+
+.kanban {
+  display: grid;
+  column-gap: 10px;
+  background-color: rgb(7, 7, 7);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.kanbanColumnTitle {
+  margin: 0;
+}
+
+.table,
+.tableRow,
+.tableData {
+  border: 3px solid #8e8e8e;
+  border-collapse: collapse;
+}
+
+.container {
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 30px;
+  padding-right: 30px;
+  background-color: #111111;
+  border: 3px solid #111111;
+  border-radius: 8px;
+}
+
+.nodeContainerSpacer {
+  margin-bottom: 20px;
+}
+
+.kanbanCardContainerSpacer {
+  margin-top: 10px;
+}
+
+.graphviz {
+  justify-content: center;
+  display: flex;
+  margin-bottom: 8px;
+}
+.graphviz > svg {
+  border-radius: 5px;
+}
+
+/* components */
+
+.consoleButton {
+  overflow-wrap: anywhere;
+
+  display: inline-block;
+  border: 3px solid #474646;
+  background-color: #474646;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 5px;
+  font-size: 130%;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border: 3px solid #841a84;
+}
+
+.clickable:active {
+  border: 3px solid #ffffff;
+}
+
+.modal {
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  left: 0;
+  top: 0;
+  /* Full width */
+  width: 100%;
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0, 0, 0); /* Fallback color */
+  background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+}
+
+.modalMargins {
+  margin: 80px;
+  background-color: #1c1c1c;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 3px solid #474646;
+  background-color: #474646;
+  color: #acacac;
+  font-size: 20px;
+  font-family: "Roboto Mono", monospace;
+  border-radius: 5px;
+  padding: 5px;
+}
+.input:focus {
+  outline: none;
+  border: 3px solid #841a84;
+}
+
+.searchResults {
+  /* padding: 5px; */
+  /* padding-bottom: 0; */
+}
+
+.searchResult {
+  padding: 5px;
+  margin: 4px;
+  overflow-wrap: anywhere;
+}

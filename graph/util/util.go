@@ -3,9 +3,8 @@ package util
 import (
 	"fmt"
 
-	pathutil "rat/graph/util/path"
-
 	"github.com/pkg/errors"
+	pathutil "rat/graph/util/path"
 )
 
 // ReverseSlice reverses a slice.

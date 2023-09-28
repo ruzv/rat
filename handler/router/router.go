@@ -5,70 +5,61 @@ import (
 	"net/http"
 	"time"
 
-	"rat/config"
-	"rat/handler/graphhttp"
-	"rat/handler/shared"
-	"rat/handler/statichttp"
-	"rat/handler/viewhttp"
-
 	"github.com/gorilla/mux"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
+	"rat/graph/services"
+	"rat/handler/graphhttp"
+	"rat/handler/httputil"
+	"rat/handler/viewhttp"
+	"rat/logr"
 )
 
-var log = logging.MustGetLogger("router")
-
-// New creates a new router, loads templates and registers handlers for routes.
-func New(
-	conf *config.Config,
-	embeds fs.FS,
+// NewRouter creates a new router, loads templates and registers handlers for
+// routes.
+func NewRouter(
+	log *logr.LogR, gs *services.GraphServices, webStaticContent fs.FS,
 ) (*mux.Router, error) {
+	log = log.Prefix("router")
 	router := mux.NewRouter()
 
 	router.NotFoundHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
-			shared.WriteError(w, http.StatusNotFound, "not found")
+			httputil.WriteError(w, http.StatusNotFound, "not found")
 		},
 	)
 
 	router.MethodNotAllowedHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
-			shared.WriteError(
+			httputil.WriteError(
 				w, http.StatusMethodNotAllowed, "method not allowed",
 			)
 		},
 	)
 
-	templateFS, err := fs.Sub(embeds, "render-templates")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
-	}
+	router.Use(GetAccessLoggerMW(log, false))
 
-	ss, err := shared.NewServices(conf.Graph, templateFS)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create shared services")
-	}
-
-	router.Use(GetAccessLoggerMW(false))
-
-	err = graphhttp.RegisterRoutes(router, ss)
+	err := graphhttp.RegisterRoutes(router, log, gs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
 	}
 
-	err = viewhttp.RegisterRoutes(router, ss)
+	err = viewhttp.RegisterRoutes(router, log, webStaticContent)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to register view routes")
+		return nil, errors.Wrap(err, "failed to register web routes")
 	}
 
-	err = statichttp.RegisterRoutes(router, embeds)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to register static routes")
-	}
+	logRoutes(log, router)
 
-	err = router.Walk(
+	return router, nil
+}
+
+func logRoutes(log *logr.LogR, router *mux.Router) {
+	lg := log.Group(logr.LogLevelInfo)
+	defer lg.Close()
+
+	err := router.Walk(
 		func(
-			route *mux.Route, router *mux.Router, ancestors []*mux.Route,
+			route *mux.Route, _ *mux.Router, _ []*mux.Route,
 		) error {
 			path, err := route.GetPathTemplate()
 			if err != nil {
@@ -82,58 +73,22 @@ func New(
 			}
 
 			for _, m := range methods {
-				log.Infof("route %-7s %s", m, path)
+				lg.Log("%-7s %s", m, path)
 			}
 
 			return nil
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk routes")
+		log.Errorf("failed to log routes: %s", err.Error())
 	}
-
-	log.Notice("registered routes")
-
-	return router, nil
-}
-
-// BufferResponseWriter is a wrapper around http.ResponseWriter that proxies
-// the data ans stores the status code.
-type BufferResponseWriter struct {
-	Code int
-	w    http.ResponseWriter
-}
-
-var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
-
-// Header .
-func (w *BufferResponseWriter) Header() http.Header {
-	return w.w.Header()
-}
-
-// Write .
-func (w *BufferResponseWriter) Write(b []byte) (int, error) {
-	n, err := w.w.Write(b)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to write")
-	}
-
-	return n, nil
-}
-
-// WriteHeader .
-func (w *BufferResponseWriter) WriteHeader(code int) {
-	w.Code = code
-	w.w.WriteHeader(code)
 }
 
 // GetAccessLoggerMW returns a middleware that logs the access.
-func GetAccessLoggerMW(all bool) mux.MiddlewareFunc {
+func GetAccessLoggerMW(log *logr.LogR, all bool) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			b := &BufferResponseWriter{
-				w: w,
-			}
+			b := httputil.NewBufferResponseWriter(w)
 
 			startT := time.Now()
 

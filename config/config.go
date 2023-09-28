@@ -4,17 +4,18 @@ import (
 	"os"
 	"time"
 
-	pathutil "rat/graph/util/path"
-
 	"github.com/pkg/errors"
 	"gopkg.in/validator.v2"
 	"gopkg.in/yaml.v2"
+	pathutil "rat/graph/util/path"
+	"rat/logr"
 )
 
 // Config is the configuration for the application.
 type Config struct {
-	Port  int          `yaml:"port" validate:"min=1"`
-	Graph *GraphConfig `yaml:"graph" validate:"nonnil"`
+	Port     int           `yaml:"port" validate:"min=1"`
+	Graph    *GraphConfig  `yaml:"graph" validate:"nonnil"`
+	LogLevel logr.LogLevel `yaml:"logLevel"`
 }
 
 // GraphConfig is the configuration for the graph.

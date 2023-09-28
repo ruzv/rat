@@ -1,17 +1,16 @@
 package todo
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"rat/graph"
-	"rat/graph/util"
-
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
+	"rat/graph"
+	"rat/graph/render/jsonast"
+	"rat/graph/util"
 )
 
 var todoRe = regexp.MustCompile(
@@ -111,29 +110,25 @@ func Parse(raw string) (*Todo, error) {
 	}, nil
 }
 
-// Markdown returns the markdown representation of the todo list.
-func (t *Todo) Markdown() string {
-	return fmt.Sprintf(
-		"```todo\n%s\n%s\n```",
-		strings.Join(
-			util.Map(
-				t.Hints,
-				func(h *Hint) string {
-					return h.markdown()
-				},
-			),
-			"\n",
-		),
-		strings.Join(
-			util.Map(
-				t.Entries,
-				func(e *TodoEntry) string {
-					return e.markdown()
-				},
-			),
-			"\n",
-		),
+// Render renders a todo into a JSON AST representation.
+func (t *Todo) Render(part *jsonast.AstPart) {
+	todoPart := part.AddContainer(
+		&jsonast.AstPart{
+			Type: "todo", Attributes: jsonast.AstAttributes{"hints": t.Hints},
+		},
+		true,
 	)
+	for _, e := range t.Entries {
+		todoPart.AddLeaf(
+			&jsonast.AstPart{
+				Type: "todo_entry",
+				Attributes: jsonast.AstAttributes{
+					"done": e.Done,
+					"text": e.Text,
+				},
+			},
+		)
+	}
 }
 
 // OrderHints sorts t.Hints by a predefined order, and returns it.

@@ -1,7 +1,6 @@
 package todo
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -36,12 +35,4 @@ func parseEntry(lines []string) (*TodoEntry, error) {
 		Done: done,
 		Text: text[1:],
 	}, nil
-}
-
-func (te *TodoEntry) markdown() string {
-	if te.Done {
-		return fmt.Sprintf("x %s", te.Text)
-	}
-
-	return fmt.Sprintf("- %s", te.Text)
 }

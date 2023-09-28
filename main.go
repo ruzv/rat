@@ -11,23 +11,98 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"rat/args"
 	"rat/config"
+	"rat/graph/services"
 	"rat/handler/router"
-
-	"github.com/op/go-logging"
-	"github.com/pkg/errors"
+	"rat/logr"
 )
 
-//go:embed embed
-var binaryEmbeds embed.FS
+// Rat describes the rat server.
+type Rat struct {
+	log *logr.LogR
+	gs  *services.GraphServices
+	s   *http.Server
+}
 
-var log = logging.MustGetLogger("rat")
+//go:embed web/build/*
+var embedStaticContent embed.FS
+
+// NewRat creates a new rat server.
+func NewRat(cmdArgs *args.Args) (*Rat, error) {
+	conf, err := config.Load(cmdArgs.ConfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load config")
+	}
+
+	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
+
+	gs, err := services.NewGraphServices(log, conf.Graph)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create graph services")
+	}
+
+	webStaticContent, err := fs.Sub(embedStaticContent, "web/build")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create sub fs from embed")
+	}
+
+	r, err := router.NewRouter(log, gs, webStaticContent)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create new router")
+	}
+
+	return &Rat{
+		log: log.Prefix("server"),
+		gs:  gs,
+		s: &http.Server{
+			Handler:      r,
+			Addr:         fmt.Sprintf(":%d", conf.Port),
+			WriteTimeout: 15 * time.Second,
+			ReadTimeout:  15 * time.Second,
+		},
+	}, nil
+}
+
+// Serve starts the rat server. Blocks.
+func (r *Rat) Serve() {
+	for {
+		r.log.Infof("serving on %s", r.s.Addr)
+
+		err := r.s.ListenAndServe()
+		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+
+			r.log.Errorf("failed to listen and server: %s", err.Error())
+		}
+	}
+}
+
+// Stop stops the rat server.
+func (r *Rat) Stop() error {
+	r.log.Infof("stopping rat server")
+
+	err := r.s.Shutdown(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to stop server")
+	}
+
+	r.log.Infof("stopping rat services")
+
+	err = r.gs.Close()
+	if err != nil {
+		return errors.Wrap(err, "failed to close graph services")
+	}
+
+	return nil
+}
 
 func main() {
 	err := run()
 	if err != nil {
-		log.Error(err)
 		panic(err)
 	}
 }
@@ -38,12 +113,12 @@ func run() error {
 		return nil
 	}
 
-	server, err := setupServer(cmdArgs)
+	rat, err := NewRat(cmdArgs)
 	if err != nil {
-		return errors.Wrap(err, "failed to setup server")
+		return errors.Wrap(err, "failed to create rat")
 	}
 
-	go startServer(server)
+	go rat.Serve()
 
 	quit := make(chan os.Signal, 1)
 
@@ -53,130 +128,12 @@ func run() error {
 
 	defer close(quit)
 
-	err = stopServer(server)
+	err = rat.Stop()
 	if err != nil {
-		return errors.Wrap(err, "failed to stop server")
+		return errors.Wrap(err, "failed to stop rat")
 	}
+
+	rat.log.Infof("bye")
 
 	return nil
-}
-
-func startServer(server *http.Server) {
-	log.Notice("starting rat server")
-
-	err := server.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Error("failed to listen and server", err)
-
-		return
-	}
-}
-
-func setupServer(cmdArgs *args.Args) (*http.Server, error) {
-	initLogger()
-
-	embeds, err := getEmbeds(cmdArgs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get embeds")
-	}
-
-	conf, err := config.Load(cmdArgs.ConfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load config")
-	}
-
-	log.Infof("have config")
-
-	r, err := router.New(conf, embeds)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create new router")
-	}
-
-	log.Infof("have router")
-
-	server := http.Server{
-		Handler:      r,
-		Addr:         fmt.Sprintf(":%d", conf.Port),
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	log.Notice("server setup on port", conf.Port)
-
-	return &server, nil
-}
-
-func stopServer(server *http.Server) error {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		5*time.Second,
-	)
-	defer cancel()
-
-	err := server.Shutdown(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to shutdown server")
-	}
-
-	log.Infof("rat server stopped")
-
-	return nil
-}
-
-func initLogger() {
-	logging.SetBackend(
-		logging.NewBackendFormatter(
-			logging.NewLogBackend(os.Stdout, "", 0),
-			logging.MustStringFormatter(
-				`%{color}%{time:15:04:05.0000} `+
-					`%{level:.4s} %{id:03x} %{module}.%{longfunc} `+
-					`▶%{color:reset} %{message}`,
-			),
-		),
-	)
-}
-
-func getEmbeds(cmdArgs *args.Args) (fs.FS, error) {
-	var (
-		embeds fs.FS
-		err    error
-	)
-
-	if cmdArgs.Embed {
-		log.Notice("using binary embedded file system")
-
-		embeds, err = fs.Sub(&binaryEmbeds, "embed")
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get embeds")
-		}
-	} else {
-		log.Notice("using file system")
-
-		embeds = os.DirFS("embed")
-	}
-
-	log.Notice("embedded files")
-
-	err = fs.WalkDir(
-		embeds,
-		".",
-		func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-
-			if d.IsDir() {
-				return nil
-			}
-
-			log.Info(path)
-
-			return nil
-		},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk static files")
-	}
-
-	return embeds, nil
 }
