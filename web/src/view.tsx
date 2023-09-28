@@ -7,6 +7,7 @@ import {
   ChildNodes,
   SearchModal,
   NewNodeModal,
+  ratAPIBaseURL,
 } from "./components/parts";
 import { useAtom, useSetAtom } from "jotai";
 import {
@@ -15,36 +16,27 @@ import {
   nodeAstAtom,
   childNodesAtom,
 } from "./components/atoms";
+import { useLoaderData } from "react-router-dom";
 
 function View() {
   const [node, setNode] = useAtom(nodeAtom);
   const setNodeAst = useSetAtom(nodeAstAtom);
   const setChildNodes = useSetAtom(childNodesAtom);
-  const [nodePath, setNodePath] = useAtom(nodePathAtom);
+  const setNodePath = useSetAtom(nodePathAtom);
 
-  // const path = window.location.pathname.replace(/^\/view\//, "");
-
-  // const url = "http://localhost:8889/graph/nodes/notes/";
-  // console.log(path);
-  // console.log(url);
+  const path = useLoaderData(); // path from router
 
   useEffect(() => {
-    // if (!nodePath) {
-    //   setNodePath(window.location.pathname.replace(/^\/view\//, ""));
-    // }
-
-    const url = `http://localhost:8889/graph/nodes/${nodePath}/`;
-
-    fetch(url)
+    fetch(`${ratAPIBaseURL()}/graph/nodes/${path}/`)
       .then((resp) => resp.json())
       .then((node: Node) => {
         setNode(node);
         setNodeAst(node.ast);
         setChildNodes(node.childNodes);
-        // setNodePath(node.path);
+        setNodePath(node.path);
       })
       .catch((err) => console.log(err));
-  }, [nodePath, setNode, setNodeAst, setChildNodes, setNodePath]);
+  }, [path, setNode, setNodeAst, setChildNodes, setNodePath]);
 
   if (!node) {
     return <> </>;

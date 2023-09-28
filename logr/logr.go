@@ -14,7 +14,7 @@ type LogLevel int
 
 // Constant block describes log levels.
 const (
-	LogLevelDebug = iota
+	LogLevelDebug LogLevel = iota
 	LogLevelInfo
 	LogLevelWarn
 	LogLevelError
@@ -27,33 +27,11 @@ var logLevelNames = []string{
 	"ERROR",
 }
 
-// var logLevelColors = []*color.Color{
-// 	color.New(color.FgHiBlue),
-// 	color.New(color.FgGreen),
-// 	color.New(color.FgHiYellow),
-// 	color.New(color.FgHiRed),
-// }
-
-var logLevelColors = []struct {
-	accent *color.Color
-	base   *color.Color
-}{
-	{
-		color.New(color.FgHiBlue),
-		color.New(color.FgBlue),
-	},
-	{
-		color.New(color.FgGreen),
-		color.New(color.FgGreen),
-	},
-	{
-		color.New(color.FgHiYellow),
-		color.New(color.FgYellow),
-	},
-	{
-		color.New(color.FgRed),
-		color.New(color.FgRed),
-	},
+var logLevelColors = []*color.Color{
+	color.New(color.FgHiBlue),
+	color.New(color.FgGreen),
+	color.New(color.FgHiYellow),
+	color.New(color.FgRed),
 }
 
 // debug 0
@@ -106,6 +84,27 @@ func (lr *LogR) Errorf(fmtStr string, args ...any) {
 	lr.log(LogLevelError, fmtStr, args...)
 }
 
+type LogGroup struct {
+	lr    *LogR
+	level LogLevel
+	parts []string
+}
+
+func (lr *LogR) Group(level LogLevel) *LogGroup {
+	return &LogGroup{
+		lr:    lr,
+		level: level,
+	}
+}
+
+func (lg *LogGroup) Log(fmtStr string, args ...any) {
+	lg.parts = append(lg.parts, fmt.Sprintf(fmtStr, args...))
+}
+
+func (lg *LogGroup) Close() {
+	lg.lr.log(lg.level, strings.Join(lg.parts, "\n"))
+}
+
 func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 	if level < lr.level {
 		return
@@ -116,7 +115,7 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 		"%s\n",
 		fmt.Sprintf(
 			"%s %s %s",
-			logLevelColors[level].accent.Sprintf("%-5s", logLevelNames[level]),
+			logLevelColors[level].Sprintf("%-5s", logLevelNames[level]),
 			color.New(color.FgCyan).Sprintf(
 				"%s", time.Now().Format("02-01-2006 15:04:05.00000"),
 			),
@@ -129,7 +128,7 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 			"%s\n",
 			fmt.Sprintf(
 				"%s %s",
-				logLevelColors[level].accent.Sprintf("▶"),
+				logLevelColors[level].Sprintf("▶"),
 				part,
 			),
 		)))

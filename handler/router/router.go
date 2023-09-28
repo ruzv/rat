@@ -1,9 +1,8 @@
 package router
 
 import (
-	"fmt"
+	"io/fs"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -18,7 +17,7 @@ import (
 // NewRouter creates a new router, loads templates and registers handlers for
 // routes.
 func NewRouter(
-	log *logr.LogR, gs *services.GraphServices,
+	log *logr.LogR, gs *services.GraphServices, webStaticContent fs.FS,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")
 	router := mux.NewRouter()
@@ -44,7 +43,7 @@ func NewRouter(
 		return nil, errors.Wrap(err, "failed to register graph routes")
 	}
 
-	err = viewhttp.RegisterRoutes(router, log)
+	err = viewhttp.RegisterRoutes(router, log, webStaticContent)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register web routes")
 	}
@@ -55,7 +54,8 @@ func NewRouter(
 }
 
 func logRoutes(log *logr.LogR, router *mux.Router) {
-	var routes []string
+	lg := log.Group(logr.LogLevelInfo)
+	defer lg.Close()
 
 	err := router.Walk(
 		func(
@@ -73,7 +73,7 @@ func logRoutes(log *logr.LogR, router *mux.Router) {
 			}
 
 			for _, m := range methods {
-				routes = append(routes, fmt.Sprintf("%-7s %s", m, path))
+				lg.Log("%-7s %s", m, path)
 			}
 
 			return nil
@@ -82,8 +82,6 @@ func logRoutes(log *logr.LogR, router *mux.Router) {
 	if err != nil {
 		log.Errorf("failed to log routes: %s", err.Error())
 	}
-
-	log.Infof(strings.Join(routes, "\n"))
 }
 
 // GetAccessLoggerMW returns a middleware that logs the access.

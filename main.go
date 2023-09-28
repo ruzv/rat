@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +26,9 @@ type Rat struct {
 	s   *http.Server
 }
 
+//go:embed web/build/*
+var embedStaticContent embed.FS
+
 // NewRat creates a new rat server.
 func NewRat(cmdArgs *args.Args) (*Rat, error) {
 	conf, err := config.Load(cmdArgs.ConfigPath)
@@ -38,7 +43,12 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 		return nil, errors.Wrap(err, "failed to create graph services")
 	}
 
-	r, err := router.NewRouter(log, gs)
+	webStaticContent, err := fs.Sub(embedStaticContent, "web/build")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create sub fs from embed")
+	}
+
+	r, err := router.NewRouter(log, gs, webStaticContent)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new router")
 	}

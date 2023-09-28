@@ -189,8 +189,6 @@ func (jr *JSONRenderer) renderNode(
 			)
 		}
 	case *ast.Code:
-		jr.log.Infof("%q", string(node.Literal))
-
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "code",

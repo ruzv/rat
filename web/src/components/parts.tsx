@@ -5,16 +5,24 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import styles from "./parts.module.css";
 import { useState, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
 import { graphviz } from "d3-graphviz";
+import { useNavigate } from "react-router-dom";
 
-function navigate(path: string) {
-  window.location.href = path;
+export function ratAPIBaseURL() {
+  if (process.env.NODE_ENV === "production") {
+    // enables use of relative path when app is embedded in rat server.
+    return "";
+  }
+
+  return process.env.REACT_APP_RAT_API_BASE_URL;
 }
 
 export function Console({ id }: { id: string }) {
-  const [nodePath, _] = useAtom(nodePathAtom);
+  const nodePath = useAtomValue(nodePathAtom);
+  const navigate = useNavigate();
+
   if (!nodePath) {
     return <></>;
   }
@@ -55,7 +63,7 @@ export function Console({ id }: { id: string }) {
 }
 
 export function NodeContent() {
-  const [ast, _] = useAtom(nodeAstAtom);
+  const ast = useAtomValue(nodeAstAtom);
 
   if (!ast) {
     return <></>;
@@ -71,7 +79,7 @@ export function NodeContent() {
 }
 
 export function ChildNodes() {
-  const [childNodes, _] = useAtom(childNodesAtom);
+  const childNodes = useAtomValue(childNodesAtom);
 
   if (!childNodes || childNodes.length === 0) {
     return <></>;
@@ -128,13 +136,12 @@ function ChildNodesColumn({ childNodes }: { childNodes: Node[] }) {
 }
 
 function ChildNode({ node }: { node: Node }) {
-  const setNodePath = useSetAtom(nodePathAtom);
+  const navigate = useNavigate();
 
   return (
     <ChildNodeContainer
       onClick={() => {
-        setNodePath(node.path);
-        window.history.pushState({}, "", `/view/${node.path}`);
+        navigate(`/view/${node.path}`);
       }}
     >
       <div className={styles.contentSpacer}></div>
@@ -573,7 +580,7 @@ function ConsoleButton({
 }
 
 export function NewNodeModal() {
-  const [nodePath, _] = useAtom(nodePathAtom);
+  const nodePath = useAtomValue(nodePathAtom);
   const [childNodes, setChildNodes] = useAtom(childNodesAtom);
 
   const [show, setShow] = useState(false);
@@ -622,13 +629,10 @@ export function NewNodeModal() {
               setShow(false);
               setName("");
 
-              fetch(
-                `${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/nodes/${nodePath}/`,
-                {
-                  method: "POST",
-                  body: JSON.stringify({ name: name }),
-                },
-              )
+              fetch(`${ratAPIBaseURL()}/graph/nodes/${nodePath}/`, {
+                method: "POST",
+                body: JSON.stringify({ name: name }),
+              })
                 .then((resp) => resp.json())
                 .then((node: Node) => {
                   if (!childNodes) {
@@ -648,15 +652,12 @@ export function NewNodeModal() {
 
 export function SearchModal() {
   const [show, setShow] = useState(false);
-  const [query, setQuery] = useState("");
-  const [submit, setSubmit] = useState(false);
+  const [results, setResults] = useState<string[]>([]);
+  const navigate = useNavigate();
 
   useHotkeys(
     "ctrl+k",
     () => {
-      if (show) {
-        setQuery("");
-      }
       setShow(!show);
     },
     [show],
@@ -664,9 +665,6 @@ export function SearchModal() {
   useHotkeys(
     "meta+k",
     () => {
-      if (show) {
-        setQuery("");
-      }
       setShow(!show);
     },
     [show],
@@ -675,7 +673,6 @@ export function SearchModal() {
     "esc",
     () => {
       setShow(false);
-      setQuery("");
     },
     [show],
   );
@@ -687,51 +684,35 @@ export function SearchModal() {
           <Input
             handleClose={() => {
               setShow(false);
-              setQuery("");
             }}
-            handleChange={setQuery}
+            handleChange={(query) => {
+              fetch(`${ratAPIBaseURL()}/graph/search/`, {
+                method: "POST",
+                body: JSON.stringify({ query: query }),
+              })
+                .then((resp) => resp.json())
+                .then((resp) => setResults(resp.results));
+            }}
             handleSubmit={() => {
-              setSubmit(true);
+              if (results.length === 0) {
+                return;
+              }
+
+              navigate(`/view/${results[0]}`);
+              setShow(false);
             }}
           />
-          <SearchResults query={query} submit={submit} />
+          <SearchResults results={results} />
         </Modal>
       )}
     </>
   );
 }
 
-function SearchResults({ query, submit }: { query: string; submit: boolean }) {
-  interface Response {
-    results: string[];
-  }
-
-  const [response, setResponse] = useState<Response | undefined>(undefined);
-
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_RAT_SERVER_URL}/graph/search/`, {
-      method: "POST",
-      body: JSON.stringify({ query: query }),
-    })
-      .then((resp) => resp.json())
-      .then((resp) => setResponse(resp));
-  }, [query]);
-
-  if (query === "") {
-    return <></>;
-  }
-
-  if (!response || response.results.length === 0) {
-    return <></>;
-  }
-
-  if (submit) {
-    navigate(`/view/${response.results[0]}`);
-  }
-
+function SearchResults({ results }: { results: string[] }) {
   return (
     <div className={styles.searchResults}>
-      {response.results.map((result, idx) => {
+      {results.map((result, idx) => {
         return (
           <div className={styles.searchResult} key={idx}>
             {result}
