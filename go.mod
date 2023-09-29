@@ -9,7 +9,6 @@ require (
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gomarkdown/markdown v0.0.0-20220731190611-dcdaee8e7a53
 	github.com/gorilla/mux v1.8.0
-	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/errors v0.9.1
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/spf13/cobra v1.7.0

@@ -1,142 +1,203 @@
----
+# version: 1.54.1
+# everything should be sorted in alphabetical order
+
 run:
-  deadline: 2m
+  timeout: 1m
   allow-parallel-runners: true
 
-severity:
-  default-severity: critical  # info, minor, major, critical, blocker
-
 linters-settings:
+  decorder:
+    dec-order:
+      - const
+      - var
+      - type
+      - func
+    disable-dec-order-check: false
+    disable-init-func-first-check: false
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  gocritic:
+    disabled-checks:
+      - unnamedResult
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated
+
+  gocyclo:
+    min-complexity: 10
+
+  # goheader:
+  #   template: |-
+  #     ** Zabbix
+  #     ** Copyright (C) 2001-{{YEAR}} Zabbix SIA
+  #     **
+  #     ** This program is free software; you can redistribute it and/or modify
+  #     ** it under the terms of the GNU General Public License as published by
+  #     ** the Free Software Foundation; either version 2 of the License, or
+  #     ** (at your option) any later version.
+  #     **
+  #     ** This program is distributed in the hope that it will be useful,
+  #     ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+  #     ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  #     ** GNU General Public License for more details.
+  #     **
+  #     ** You should have received a copy of the GNU General Public License
+  #     ** along with this program; if not, write to the Free Software
+  #     ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+  #     *
+
+  gomodguard:
+    blocked:
+      modules:
+        - io/ioutil:
+      local_replace_directives: false
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+
+  interfacebloat:
+    max: 6
+
+  lll:
+    line-length: 80
+    tab-width: 4
+
+  makezero:
+    always: true
+
+  revive:
+    enable-all-rules: true
+    severity: error
+    rules:
+      # settings
+      - name: argument-limit
+        arguments:
+          - 5
+
+      - name: comment-spacings
+        arguments:
+          - nolint
+
+      - name: exported
+        arguments:
+          - checkPrivateReceivers
+          - disableStutteringCheck
+
+      - name: function-result-limit
+        arguments:
+          - 4
+
+      - name: max-public-structs
+        arguments:
+          - 5
+
+      # disabled
+      - name: add-constant
+        disabled: true
+      - name: argument-limit
+        disabled: true
+      - name: banned-characters
+        disabled: true
+      - name: cognitive-complexity
+        disabled: true
+      - name: confusing-naming
+        disabled: true
+      - name: confusing-results
+        disabled: true
+      - name: cyclomatic
+        disabled: true
+      - name: error-strings ## for zbx
+        disabled: true
+      - name: file-header
+        disabled: true
+      - name: flag-parameter
+        disabled: true
+      - name: function-length
+        disabled: true
+      - name: import-shadowing
+        disabled: true
+      - name: line-length-limit
+        disabled: true
+      - name: unhandled-error
+        disabled: true
+
   tagalign:
+    align: false
     order:
-      - json
       - yaml
+      - json
       - yml
       - toml
       - mapstructure
       - binding
       - validate
 
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: github.com/jfcg/sorty$
-          - pkg: io/ioutil
-          - pkg: github.com/aws/aws-sdk-go/*
-          - pkg: github.com/satori/go.uuid
-          - pkg: github.com/satori/uuid
-  gocyclo:
-    min-complexity: 10
-  grouper:
-    const-require-single-const: true
-    import-require-single-import: true
-  lll:
-    line-length: 80
-    tab-width: 4
-  revive:
-    enable-all-rules: true
-    severity: error
-    rules:
-      # settings
-      - name: exported
-        arguments:
-          - checkPrivateReceivers
-          - disableStutteringCheck
-      - name: comment-spacings
-        arguments:
-          - nolint
-          - in
-          - readonly
-          - swagger
-          - required
-          - enum
-      # disabled
-      - name: argument-limit
-        disabled: true
-      - name: cognitive-complexity
-        disabled: true
-      - name: function-result-limit
-        disabled: true
-      - name: function-length
-        disabled: true
-      - name: cyclomatic
-        disabled: true
-      - name: max-public-structs
-        disabled: true
-      - name: file-header
-        disabled: true
-      - name: banned-characters
-        disabled: true
-      - name: line-length-limit
-        disabled: true
-      - name: unhandled-error
-        disabled: true
-      - name: add-constant
-        disabled: true
-      - name: confusing-naming
-        disabled: true
-      - name: confusing-results
-        disabled: true
-      - name: nested-structs
-        disabled: true
-      - name: flag-parameter
-        disabled: true
-      - name: import-shadowing
-        disabled: true
-  tagliatelle:
-    case:
-      rules:
-        json: camel
-        yaml: camel
-
-
 linters:
   enable-all: true
   disable:
-    - tagalign
-    - gomnd
-    - gomoddirectives
-    # default disabled linters
-    - dupl
-    - exhaustive
+    # gomodguard is better
+    - depguard
+
+    # always check marshal errors
+    - errchkjson
+
+    # allow use go default zero values .
     - exhaustruct
-    - exhaustivestruct
+
+    # cyclomatic complexity checkers already enforce limit on function length.
+    # no need to count lines.
     - funlen
-    - gci
+
+    # conflicts with gci and goimports. the formatter should still be used, only
+    # lint can't enforce it.
     - gofumpt
-    - gochecknoglobals
-    - gochecknoinits
-    - godox
+
+    # conflicts with gofumpt and gci. the tool still should be used but gci
+    # needs be the last formatter.
+    - goimports
+
+    # const one = 1 - just no
+    - gomnd
+
+    # don't use shorthand ifs
     - ifshort
+
+    # broken
     - ireturn
+
+    # revive warns about this
+    - nakedret
+
+    # having one length vars is fine.
     - varnamelen
-    # deprecated linters
+
+    # TODO: COMMENT
+    - testpackage
+
+    # deprecated
     - deadcode
+    - exhaustivestruct
     - golint
+    - ifshort
     - interfacer
     - maligned
     - nosnakecase
     - scopelint
     - structcheck
     - varcheck
-  fast: false
 
 issues:
-  include:
-    - EXC0012
-    - EXC0014
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gofmt
-        # default unit test disabled linters
-        - containedctx
-        - cyclop
-        - errcheck
-        - forcetypeassert
-        - gocognit
-        - gocyclo
-        - gosec
-        - maintidx
-        - testpackage
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+severity:
+  default-severity: error

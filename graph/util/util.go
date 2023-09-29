@@ -9,7 +9,7 @@ import (
 
 // ReverseSlice reverses a slice.
 func ReverseSlice[T any](a []T) []T {
-	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 { //nolint:lll
+	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 { //nolint:lll // can't split.
 		a[left], a[right] = a[right], a[left]
 	}
 
@@ -28,9 +28,10 @@ func Link(path pathutil.NodePath, name string) (string, error) {
 
 // Map applies a function to all todo entries.
 func Map[T, R any](s []T, f func(T) R) []R {
-	r := make([]R, len(s))
-	for i, v := range s {
-		r[i] = f(v)
+	r := make([]R, 0, len(s))
+
+	for _, v := range s {
+		r = append(r, f(v))
 	}
 
 	return r

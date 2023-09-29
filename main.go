@@ -19,15 +19,15 @@ import (
 	"rat/logr"
 )
 
+//go:embed web/build/*
+var embedStaticContent embed.FS
+
 // Rat describes the rat server.
 type Rat struct {
 	log *logr.LogR
 	gs  *services.GraphServices
 	s   *http.Server
 }
-
-//go:embed web/build/*
-var embedStaticContent embed.FS
 
 // NewRat creates a new rat server.
 func NewRat(cmdArgs *args.Args) (*Rat, error) {

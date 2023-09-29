@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@types/d3-graphviz": "^2.6.8",
     "@types/node": "^16.18.54",
     "@types/react": "^18.2.22",

@@ -69,7 +69,7 @@ func logRoutes(log *logr.LogR, router *mux.Router) {
 			methods, err := route.GetMethods()
 			if err != nil {
 				// route does not have a methods.
-				return nil //nolint:nilerr
+				return nil //nolint:nilerr // ignore.
 			}
 
 			for _, m := range methods {

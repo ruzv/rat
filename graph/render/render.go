@@ -14,13 +14,6 @@ import (
 	"rat/logr"
 )
 
-// listTypes maps ast.ListType to string.
-var listTypes = map[ast.ListType]string{
-	ast.ListTypeOrdered:    "ordered",
-	ast.ListTypeDefinition: "definition",
-	ast.ListTypeTerm:       "term",
-}
-
 var _ jsonast.Renderer = (*JSONRenderer)(nil)
 
 // JSONRenderer renders a nodes markdown content to JSON representation of the
@@ -80,7 +73,7 @@ func (jr *JSONRenderer) Render(
 	return nil
 }
 
-//nolint:cyclop,gocyclo
+//nolint:cyclop,gocyclo // big switch.
 func (jr *JSONRenderer) renderNode(
 	part *jsonast.AstPart,
 	n *graph.Node,
@@ -129,7 +122,11 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{
 				Type: "list_item",
 				Attributes: jsonast.AstAttributes{
-					"type": listTypes[node.ListFlags],
+					"type": map[ast.ListType]string{
+						ast.ListTypeOrdered:    "ordered",
+						ast.ListTypeDefinition: "definition",
+						ast.ListTypeTerm:       "term",
+					}[node.ListFlags],
 				},
 			},
 			entering,

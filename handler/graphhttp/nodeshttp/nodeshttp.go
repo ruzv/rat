@@ -24,6 +24,15 @@ type handler struct {
 	r   jsonast.Renderer
 }
 
+type response struct {
+	ID         uuid.UUID         `json:"id"`
+	Name       string            `json:"name"`
+	Path       pathutil.NodePath `json:"path"`
+	Length     int               `json:"length"`
+	AST        *jsonast.AstPart  `json:"ast"`
+	ChildNodes []*response       `json:"childNodes,omitempty"`
+}
+
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
 	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
@@ -40,7 +49,7 @@ func RegisterRoutes(
 		Methods(http.MethodPost)
 
 	pathRe := regexp.MustCompile(
-		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
+		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll // can't split.
 	)
 
 	nodeRouter := nodesRouter.
@@ -54,15 +63,6 @@ func RegisterRoutes(
 		Methods(http.MethodPost)
 
 	return nil
-}
-
-type response struct {
-	ID         uuid.UUID         `json:"id"`
-	Name       string            `json:"name"`
-	Path       pathutil.NodePath `json:"path"`
-	Length     int               `json:"length"`
-	AST        *jsonast.AstPart  `json:"ast"`
-	ChildNodes []*response       `json:"childNodes,omitempty"`
 }
 
 func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
