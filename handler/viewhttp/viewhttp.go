@@ -16,7 +16,7 @@ import (
 )
 
 var pathRe = regexp.MustCompile(
-	`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll
+	`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll // does not make sense to split.
 )
 
 type handler struct {

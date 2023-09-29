@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
@@ -17,9 +16,9 @@ var todoRe = regexp.MustCompile(
 	"\x60\x60\x60todo\n((?:(?:.*)\n)*?)\x60\x60\x60",
 )
 
-var log = logging.MustGetLogger("graph.render.todo")
-
 // Todo represents a todo list.
+//
+//nolint:godox // false positive.
 type Todo struct {
 	Entries []*TodoEntry
 	Hints   []*Hint
@@ -27,7 +26,7 @@ type Todo struct {
 
 // ParseNode parses a todo lists from a node.
 func ParseNode(n *graph.Node) ([]*Todo, error) {
-	var todos []*Todo //nolint:prealloc
+	var todos []*Todo //nolint:prealloc // unknown size.
 
 	matches := todoRe.FindAllStringSubmatch(n.Content, -1)
 	for _, match := range matches {
@@ -88,8 +87,6 @@ func Parse(raw string) (*Todo, error) {
 			h, err := parseHint(sf.Pop())
 			if err != nil {
 				if errors.Is(err, errUnknownHint) {
-					log.Warningf("unknown hint - %q: %s", line, err.Error())
-
 					continue
 				}
 
@@ -100,8 +97,6 @@ func Parse(raw string) (*Todo, error) {
 
 			continue
 		}
-
-		log.Warningf("unknown line - %q", sf.Pop())
 	}
 
 	return &Todo{

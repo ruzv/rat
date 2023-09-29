@@ -156,7 +156,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 	errs := []error{}
 
-	n.Walk( //nolint:errcheck
+	err := n.Walk(
 		p,
 		func(depth int, node *Node) (bool, error) {
 			m.Nodes++
@@ -189,6 +189,9 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 			return true, nil
 		},
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to walk")
+	}
 
 	if len(errs) > 0 {
 		return nil, errors.Errorf(

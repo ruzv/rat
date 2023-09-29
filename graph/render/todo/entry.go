@@ -16,7 +16,7 @@ type TodoEntry struct {
 func parseEntry(lines []string) (*TodoEntry, error) {
 	text := strings.Join(lines, "\n")
 
-	if len(text) == 0 {
+	if text == "" {
 		return nil, errors.New("empty todo entry")
 	}
 

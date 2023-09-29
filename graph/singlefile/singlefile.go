@@ -156,7 +156,8 @@ func (sf *SingleFile) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to read dir")
 	}
 
-	var leafNodes []*graph.Node //nolint:prealloc
+	//nolint:prealloc // len(dir entries) != child nodes
+	var leafNodes []*graph.Node
 
 	for _, leafFile := range leafFiles {
 		if leafFile.IsDir() {
@@ -212,7 +213,7 @@ func (sf *SingleFile) AddLeaf(
 		parent.Path.String(),
 	)
 
-	err = os.Mkdir(dirPath, 0755)
+	err = os.Mkdir(dirPath, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return nil, errors.Wrap(err, "failed to create dir")
 	}
@@ -237,7 +238,7 @@ func (sf *SingleFile) AddLeaf(
 		return nil, errors.Wrap(err, "failed to marshal header")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("---\n%s---\n\n", string(headerData)))
+	_, err = fmt.Fprintf(file, "---\n%s---\n\n", string(headerData))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write header")
 	}

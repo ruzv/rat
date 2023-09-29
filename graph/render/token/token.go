@@ -27,7 +27,7 @@ const (
 
 var (
 	errUnknownTokenType = errors.New("unknown token type")
-	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))\/>`)
+	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))/>`)
 )
 
 // TokenType describes rat token types.
@@ -111,7 +111,7 @@ func Render(
 
 // parse attempts to parse a new woken from raw string.
 //
-//nolint:cyclop,gocyclo
+//nolint:cyclop,gocyclo //TODO: fix.
 func parse(raw string) (*Token, error) {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))

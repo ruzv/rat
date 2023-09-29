@@ -30,12 +30,12 @@ func NewBufferResponseWriter(w http.ResponseWriter) *BufferResponseWriter {
 	return &BufferResponseWriter{w: w}
 }
 
-// Header .
+// Header returns the header.
 func (w *BufferResponseWriter) Header() http.Header {
 	return w.w.Header()
 }
 
-// Write .
+// Write writes the data to the buffer.
 func (w *BufferResponseWriter) Write(b []byte) (int, error) {
 	n, err := w.w.Write(b)
 	if err != nil {
@@ -45,7 +45,7 @@ func (w *BufferResponseWriter) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-// WriteHeader .
+// WriteHeader sets the status code.
 func (w *BufferResponseWriter) WriteHeader(code int) {
 	w.Code = code
 	w.w.WriteHeader(code)
@@ -73,14 +73,18 @@ func WriteResponse(w http.ResponseWriter, code int, body any) error {
 	}
 
 	w.WriteHeader(code)
-	w.Write(b.Bytes()) //nolint:errcheck
+
+	_, err = w.Write(b.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "failed to write body")
+	}
 
 	return nil
 }
 
 // WriteError writes an error to the response.
 func WriteError(w http.ResponseWriter, code int, message string) {
-	WriteResponse( //nolint:errcheck
+	WriteResponse( //nolint:errcheck // don't introduce double error handling.
 		w,
 		code,
 		struct {
@@ -94,8 +98,6 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 }
 
 // Body reads the requests body as a specified struct.
-//
-//nolint:ireturn
 func Body[T any](
 	w http.ResponseWriter,
 	r *http.Request,

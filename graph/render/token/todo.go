@@ -71,7 +71,7 @@ func (t *Token) renderTodo(
 	return nil
 }
 
-//nolint:gocyclo,cyclop
+//nolint:gocyclo,cyclop //TODO: fix
 func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 	includeSources, excludeSources, err := t.getArgSources()
 	if err != nil {
@@ -150,7 +150,7 @@ func (t *Token) getArgSources() ([]uuid.UUID, []uuid.UUID, error) {
 
 	parts := strings.Split(columnsArg, ",")
 
-	var ( //nolint:prealloc
+	var ( //nolint:prealloc // unknown sizes.
 		include []uuid.UUID
 		exclude []uuid.UUID
 	)

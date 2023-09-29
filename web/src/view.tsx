@@ -34,6 +34,8 @@ function View() {
         setNodeAst(node.ast);
         setChildNodes(node.childNodes);
         setNodePath(node.path);
+
+        document.title = node.name;
       })
       .catch((err) => console.log(err));
   }, [path, setNode, setNodeAst, setChildNodes, setNodePath]);

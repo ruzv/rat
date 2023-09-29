@@ -7,10 +7,31 @@ import (
 	"rat/graph/util"
 )
 
+const (
+	// Equal represents an equal operator.
+	Equal Operator = "="
+	// Less represents a less operator.
+	Less Operator = "<"
+	// Greater represents a greater operator.
+	Greater Operator = ">"
+)
+
+// Operator represents a filtering by value operator.
+type Operator string
+
 // FilterRule represents a single filtering rule of multiple todos.
 type FilterRule struct {
 	Type HintType
 	Has  bool
+}
+
+// FilterValueRule represents a single filtering rule of multiple todos that
+// will check if a certain hints value is equal, less or greater than a given
+// value.
+type FilterValueRule struct {
+	Type     HintType
+	Operator Operator
+	Value    any
 }
 
 // ParseFilterRule parses a filter rule from a raw string.
@@ -45,27 +66,6 @@ func FilterHas(todos []*Todo, rules []*FilterRule) []*Todo {
 	}
 
 	return todos
-}
-
-// Operator represents a filtering by value operator.
-type Operator string
-
-const (
-	// Equal represents an equal operator.
-	Equal Operator = "="
-	// Less represents a less operator.
-	Less Operator = "<"
-	// Greater represents a greater operator.
-	Greater Operator = ">"
-)
-
-// FilterValueRule represents a single filtering rule of multiple todos that
-// will check if a certain hints value is equal, less or greater than a given
-// value.
-type FilterValueRule struct {
-	Type     HintType
-	Operator Operator
-	Value    any
 }
 
 // ParseFilterValueRule parses a filter value rule from a raw string.
