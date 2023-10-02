@@ -20,7 +20,13 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '1.21'
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
       - uses: actions/checkout@v3
+      - name: build web
+        working-directory: web
+        run: npm build
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
