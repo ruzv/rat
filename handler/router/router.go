@@ -5,15 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"rat/config"
-	auth "rat/handler/authhttp"
-	"rat/handler/graphhttp"
-	"rat/handler/shared"
-	"rat/handler/statichttp"
-	"rat/handler/viewhttp"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph/services"
+	auth "rat/handler/authhttp"
 	"rat/handler/graphhttp"
 	"rat/handler/httputil"
 	"rat/handler/viewhttp"
@@ -42,14 +37,9 @@ func NewRouter(
 		},
 	)
 
-	auth.RegisterRoutes(router, conf.Graph.Auth)
+	auth.RegisterRoutes(router, log, conf.Graph.Auth)
 
-	templateFS, err := fs.Sub(embeds, "render-templates")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get render-templates sub fs")
-	}
-
-    router.Use(GetAccessLoggerMW(log, false))
+	router.Use(GetAccessLoggerMW(log, false))
 
 	err := graphhttp.RegisterRoutes(router, log, gs)
 	if err != nil {

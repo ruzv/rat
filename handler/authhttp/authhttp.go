@@ -5,14 +5,14 @@ import (
 	"strings"
 	"time"
 
-	"rat/config"
-	"rat/handler/shared"
-
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
+	"rat/config"
+	"rat/handler/httputil"
+	"rat/logr"
 )
 
 var log = logging.MustGetLogger("authhttp")
@@ -22,7 +22,9 @@ type handler struct {
 }
 
 // RegisterRoutes registers view routes on given router.
-func RegisterRoutes(router *mux.Router, conf *config.AuthConfig) {
+func RegisterRoutes(
+	router *mux.Router, log *logr.LogR, conf *config.AuthConfig,
+) {
 	h := &handler{
 		conf: conf,
 	}
@@ -31,14 +33,14 @@ func RegisterRoutes(router *mux.Router, conf *config.AuthConfig) {
 		Subrouter().
 		StrictSlash(true)
 
-	authRouter.HandleFunc("/", shared.Wrap(h.auth)).
+	authRouter.HandleFunc("/", httputil.Wrap(log, h.auth)).
 		Methods(http.MethodGet)
 }
 
 func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		shared.WriteError(
+		httputil.WriteError(
 			w,
 			http.StatusBadRequest,
 			"failed to parse Authorization header as basic auth",
@@ -48,7 +50,7 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if h.conf.Username != username {
-		shared.WriteError(
+		httputil.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"failed to authenticate user",
@@ -61,7 +63,7 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 		[]byte(h.conf.PasswordHash), []byte(password),
 	)
 	if err != nil {
-		shared.WriteError(
+		httputil.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"failed to authenticate user",
@@ -78,14 +80,14 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 		},
 	).SignedString([]byte(h.conf.Secret))
 	if err != nil {
-		shared.WriteError(
+		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to sign token",
 		)
 
 		return errors.Wrap(err, "failed to sign token")
 	}
 
-	err = shared.WriteResponse(
+	err = httputil.WriteResponse(
 		w,
 		http.StatusOK,
 		struct {
@@ -107,7 +109,7 @@ func AuthMW() mux.MiddlewareFunc {
 			headerParts := strings.Fields(r.Header.Get("Authorization"))
 			if len(headerParts) != 2 ||
 				strings.ToLower(headerParts[0]) != "bearer" {
-				shared.WriteError(
+				httputil.WriteError(
 					w, http.StatusBadRequest, "invalid Authorization header",
 				)
 
@@ -117,11 +119,11 @@ func AuthMW() mux.MiddlewareFunc {
 			token, err := jwt.Parse(
 				headerParts[1],
 				func(token *jwt.Token) (interface{}, error) {
-                    // return secret
-                }
+					return nil, nil
+					// return secret
+				},
 				jwt.WithValidMethods([]string{"HS512"}),
 			)
-
 		})
 	}
 }
