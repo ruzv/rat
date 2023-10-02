@@ -1,26 +1,24 @@
 package todo
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"rat/graph"
-	"rat/graph/util"
-
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
+	"rat/graph"
+	"rat/graph/render/jsonast"
+	"rat/graph/util"
 )
 
 var todoRe = regexp.MustCompile(
 	"\x60\x60\x60todo\n((?:(?:.*)\n)*?)\x60\x60\x60",
 )
 
-var log = logging.MustGetLogger("graph.render.todo")
-
 // Todo represents a todo list.
+//
+//nolint:godox // false positive.
 type Todo struct {
 	Entries []*TodoEntry
 	Hints   []*Hint
@@ -28,7 +26,7 @@ type Todo struct {
 
 // ParseNode parses a todo lists from a node.
 func ParseNode(n *graph.Node) ([]*Todo, error) {
-	var todos []*Todo //nolint:prealloc
+	var todos []*Todo //nolint:prealloc // unknown size.
 
 	matches := todoRe.FindAllStringSubmatch(n.Content, -1)
 	for _, match := range matches {
@@ -89,8 +87,6 @@ func Parse(raw string) (*Todo, error) {
 			h, err := parseHint(sf.Pop())
 			if err != nil {
 				if errors.Is(err, errUnknownHint) {
-					log.Warningf("unknown hint - %q: %s", line, err.Error())
-
 					continue
 				}
 
@@ -101,8 +97,6 @@ func Parse(raw string) (*Todo, error) {
 
 			continue
 		}
-
-		log.Warningf("unknown line - %q", sf.Pop())
 	}
 
 	return &Todo{
@@ -111,29 +105,25 @@ func Parse(raw string) (*Todo, error) {
 	}, nil
 }
 
-// Markdown returns the markdown representation of the todo list.
-func (t *Todo) Markdown() string {
-	return fmt.Sprintf(
-		"```todo\n%s\n%s\n```",
-		strings.Join(
-			util.Map(
-				t.Hints,
-				func(h *Hint) string {
-					return h.markdown()
-				},
-			),
-			"\n",
-		),
-		strings.Join(
-			util.Map(
-				t.Entries,
-				func(e *TodoEntry) string {
-					return e.markdown()
-				},
-			),
-			"\n",
-		),
+// Render renders a todo into a JSON AST representation.
+func (t *Todo) Render(part *jsonast.AstPart) {
+	todoPart := part.AddContainer(
+		&jsonast.AstPart{
+			Type: "todo", Attributes: jsonast.AstAttributes{"hints": t.Hints},
+		},
+		true,
 	)
+	for _, e := range t.Entries {
+		todoPart.AddLeaf(
+			&jsonast.AstPart{
+				Type: "todo_entry",
+				Attributes: jsonast.AstAttributes{
+					"done": e.Done,
+					"text": e.Text,
+				},
+			},
+		)
+	}
 }
 
 // OrderHints sorts t.Hints by a predefined order, and returns it.

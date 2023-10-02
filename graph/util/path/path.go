@@ -49,7 +49,7 @@ func (p NodePath) Depth() int {
 
 // JoinName adds the supplied name to the end of the supplied path.
 func (p NodePath) JoinName(name string) NodePath {
-	return NodePath(strings.Join([]string{string(p), name}, "/"))
+	return NodePath(string(p) + "/" + name)
 }
 
 // NameFromPath returns name of node from its path.
@@ -101,12 +101,12 @@ func ParentPath(path NodePath) NodePath {
 
 // JoinName adds the supplied name to the end of the supplied path.
 func JoinName(parent NodePath, name string) NodePath {
-	return NodePath(strings.Join([]string{string(parent), name}, "/"))
+	return NodePath(string(parent) + "/" + name)
 }
 
 // JoinPath adds first and second paths together.
 func JoinPath(first, second NodePath) NodePath {
-	return NodePath(strings.Join([]string{string(first), string(second)}, "/"))
+	return NodePath(string(first) + "/" + string(second))
 }
 
 // URL returns a URL to a node with given path.

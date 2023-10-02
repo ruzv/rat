@@ -3,11 +3,10 @@ package pathcache
 import (
 	"sync"
 
-	"rat/graph"
-	pathutil "rat/graph/util/path"
-
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
 )
 
 var _ graph.Provider = (*PathCache)(nil)

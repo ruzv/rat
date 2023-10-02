@@ -4,19 +4,17 @@ import (
 	"sync"
 	"time"
 
-	"rat/config"
-
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/op/go-logging"
 	"github.com/pkg/errors"
+	"rat/config"
+	"rat/logr"
 )
-
-var log = logging.MustGetLogger("sync")
 
 // Syncer is a git syncer.
 type Syncer struct {
+	log           *logr.LogR
 	interval      time.Duration
 	repo          *git.Repository
 	auth          *ssh.PublicKeys
@@ -26,10 +24,13 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer.
-func NewSyncer(repoDir string, conf *config.SyncConfig) (*Syncer, error) {
+func NewSyncer(
+	log *logr.LogR, repoDir string, conf *config.SyncConfig,
+) (*Syncer, error) {
 	var (
 		err error
 		s   = &Syncer{
+			log:      log.Prefix("syncer"),
 			interval: conf.Interval,
 			trigger:  make(chan struct{}),
 			stop:     make(chan struct{}),
@@ -77,7 +78,7 @@ func (s *Syncer) Start() {
 			}
 
 			if err != nil {
-				log.Errorf("failed to sync graph: %s", err.Error())
+				s.log.Errorf("failed to sync graph: %s", err.Error())
 			}
 		}
 	}()
@@ -85,6 +86,7 @@ func (s *Syncer) Start() {
 
 // Stop stops the sync ticker and goroutine, cleans up allocated resources.
 func (s *Syncer) Stop() {
+	// NOTE: stop should wait for sync to finish.
 	s.stop <- struct{}{}
 }
 

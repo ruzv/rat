@@ -1,7 +1,6 @@
 package todo
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -17,7 +16,7 @@ type TodoEntry struct {
 func parseEntry(lines []string) (*TodoEntry, error) {
 	text := strings.Join(lines, "\n")
 
-	if len(text) == 0 {
+	if text == "" {
 		return nil, errors.New("empty todo entry")
 	}
 
@@ -36,12 +35,4 @@ func parseEntry(lines []string) (*TodoEntry, error) {
 		Done: done,
 		Text: text[1:],
 	}, nil
-}
-
-func (te *TodoEntry) markdown() string {
-	if te.Done {
-		return fmt.Sprintf("x %s", te.Text)
-	}
-
-	return fmt.Sprintf("- %s", te.Text)
 }

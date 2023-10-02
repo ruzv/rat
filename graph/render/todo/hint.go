@@ -9,9 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// HintType describes todo hint types.
-type HintType string
-
 const (
 	// None is a hint type that does not provide any hints.
 	None HintType = "none"
@@ -27,12 +24,22 @@ const (
 	Tags HintType = "tags"
 )
 
+var errUnknownHint = errors.New("unknown hint type")
+
+// HintType describes todo hint types.
+type HintType string
+
 // Hint represents a todo hint. That can have a type and a value.
 type Hint struct {
-	Type  HintType
-	Value any
+	Type  HintType `json:"type"`
+	Value any      `json:"value"`
 }
 
+type comparableValue interface {
+	int | time.Duration
+}
+
+//nolint:gochecknoglobals,decorder // TODO: fix.
 var hintTypeProcessors = map[HintType]*struct {
 	parse            func(string) (any, error)
 	parseFilterValue func(string) (any, error)
@@ -205,8 +212,6 @@ var hintTypeProcessors = map[HintType]*struct {
 	},
 }
 
-var errUnknownHint = errors.New("unknown hint type")
-
 func parseHint(line string) (*Hint, error) {
 	parts := strings.Split(line, "=")
 
@@ -277,7 +282,7 @@ func (h *Hint) markdown() string {
 
 // Value returns the value of the hint as the given type. Returns an empty
 // value of type T if hint is nil or hint value is not of type T.
-func Value[T any](h *Hint) T {
+func Value[T any](h *Hint) T { //nolint:ireturn // false positive.
 	var empty T
 
 	if h == nil {
@@ -290,10 +295,6 @@ func Value[T any](h *Hint) T {
 	}
 
 	return v
-}
-
-type comparableValue interface {
-	int | time.Duration
 }
 
 func equal[T comparableValue](self, other any) bool {

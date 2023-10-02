@@ -1,12 +1,13 @@
 package graph
 
 import (
+	"strings"
 	"text/template"
-
-	pathutil "rat/graph/util/path"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
+	"rat/graph/util"
+	pathutil "rat/graph/util/path"
 )
 
 // ErrNodeNotFound is returned when a node is not found.
@@ -29,6 +30,19 @@ type Node struct {
 	Path     pathutil.NodePath `json:"path"`
 	Content  string            `json:"content"`
 	Template string            `json:"template"`
+}
+
+// Metrics groups all nodes metrics.
+type Metrics struct {
+	Nodes      int    `json:"nodes"`
+	FinalNodes int    `json:"finalNodes"`
+	Depth      metric `json:"depth"`
+	Leafs      metric `json:"leafs"`
+}
+
+type metric struct {
+	Max int     `json:"max"`
+	Avg float64 `json:"avg"`
 }
 
 // GetLeafs returns all leafs of node.
@@ -131,19 +145,6 @@ func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
 	return getTemplate(n)
 }
 
-// Metrics groups all nodes metrics.
-type Metrics struct {
-	Nodes      int    `json:"nodes"`
-	FinalNodes int    `json:"final_nodes"`
-	Depth      metric `json:"depth"`
-	Leafs      metric `json:"leafs"`
-}
-
-type metric struct {
-	Max int     `json:"max"`
-	Avg float64 `json:"avg"`
-}
-
 // Metrics calculates metrics for node.
 func (n *Node) Metrics(p Provider) (*Metrics, error) {
 	var (
@@ -152,6 +153,8 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		totalLeafs int
 		totalDepth int
 	)
+
+	errs := []error{}
 
 	err := n.Walk(
 		p,
@@ -164,7 +167,9 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 
 			leafs, err := node.GetLeafs(p)
 			if err != nil {
-				return false, errors.Wrap(err, "failed to get leafs")
+				errs = append(errs, errors.Wrap(err, "failed to get leafs"))
+
+				return false, nil
 			}
 
 			if len(leafs) == 0 {
@@ -185,7 +190,17 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to walk graph")
+		return nil, errors.Wrap(err, "failed to walk")
+	}
+
+	if len(errs) > 0 {
+		return nil, errors.Errorf(
+			"failed to walk graph:\n%s",
+			strings.Join(
+				util.Map(errs, func(err error) string { return err.Error() }),
+				"\n",
+			),
+		)
 	}
 
 	if hasLeafs > 0 {

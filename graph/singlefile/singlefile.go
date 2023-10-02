@@ -8,24 +8,24 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"rat/graph"
-	pathutil "rat/graph/util/path"
-
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	"rat/graph"
+	pathutil "rat/graph/util/path"
 )
 
 var (
 	markdownFileRe = regexp.MustCompile(`(.*)\.md`)
-	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?)---\n((?:.|\n)*)`)
+	headerBodyRe   = regexp.MustCompile(`---\n((?:.|\n)*?\n)---\n((?:.|\n)*)`)
 )
 
 var _ graph.Provider = (*SingleFile)(nil)
 
 type nodeHeader struct {
-	ID       uuid.UUID `yaml:"id"`
-	Template string    `yaml:"template"`
+	ID       uuid.UUID      `yaml:"id"`
+	Template string         `yaml:"template"`
+	Any      map[string]any `yaml:",inline"`
 }
 
 // SingleFile is a graph provider implementation that reads and creates graph
@@ -87,7 +87,9 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 	}
 
 	if !found {
-		return nil, graph.ErrNodeNotFound
+		return nil, errors.Wrapf(
+			graph.ErrNodeNotFound, "failed to find node by id %s", id.String(),
+		)
 	}
 
 	return n, nil
@@ -97,6 +99,14 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	file, err := os.Open(sf.fullPath(path))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errors.Wrapf(
+				graph.ErrNodeNotFound,
+				"failed to open node markdown file: %s",
+				err.Error(),
+			)
+		}
+
 		return nil, errors.Wrap(err, "failed to open node markdown file")
 	}
 
@@ -107,13 +117,14 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 
 	match := headerBodyRe.FindSubmatch(data)
 	if len(match) != 3 {
-		// TODO: handle this error, generate id
-		return nil, errors.New("invalid header")
+		return nil, errors.Errorf(
+			"failed to match header and body in node %q", string(path),
+		)
 	}
 
 	header := &nodeHeader{}
 
-	err = yaml.Unmarshal(match[1], header)
+	err = yaml.Unmarshal(data, header)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal header as yaml")
 	}
@@ -145,7 +156,8 @@ func (sf *SingleFile) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to read dir")
 	}
 
-	var leafNodes []*graph.Node //nolint:prealloc
+	//nolint:prealloc // len(dir entries) != child nodes
+	var leafNodes []*graph.Node
 
 	for _, leafFile := range leafFiles {
 		if leafFile.IsDir() {
@@ -201,7 +213,7 @@ func (sf *SingleFile) AddLeaf(
 		parent.Path.String(),
 	)
 
-	err = os.Mkdir(dirPath, 0755)
+	err = os.Mkdir(dirPath, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return nil, errors.Wrap(err, "failed to create dir")
 	}
@@ -226,7 +238,7 @@ func (sf *SingleFile) AddLeaf(
 		return nil, errors.Wrap(err, "failed to marshal header")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("---\n%s\n---\n", string(headerData)))
+	_, err = fmt.Fprintf(file, "---\n%s---\n\n", string(headerData))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write header")
 	}

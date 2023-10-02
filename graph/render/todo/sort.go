@@ -7,12 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// SortRule represents a single rule for ordering multiple todos.
-type SortRule struct {
-	Key     string
-	Reverse bool
-}
-
+//nolint:gochecknoglobals // TODO: fix.
 var sortRules = map[string]*struct {
 	equal func(t1, t2 *Todo) bool
 	less  func(t1, t2 *Todo) bool
@@ -53,6 +48,12 @@ var sortRules = map[string]*struct {
 			return p1 < p2
 		},
 	},
+}
+
+// SortRule represents a single rule for ordering multiple todos.
+type SortRule struct {
+	Key     string
+	Reverse bool
 }
 
 // ParseSortRule parses a sort rule from a string.
