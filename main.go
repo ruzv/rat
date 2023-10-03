@@ -22,6 +22,8 @@ import (
 //go:embed web/build/*
 var embedStaticContent embed.FS
 
+var version = ""
+
 // Rat describes the rat server.
 type Rat struct {
 	log *logr.LogR
@@ -108,7 +110,7 @@ func main() {
 }
 
 func run() error {
-	cmdArgs, ok := args.Load()
+	cmdArgs, ok := args.Load(version)
 	if !ok {
 		return nil
 	}
