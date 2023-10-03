@@ -55,11 +55,11 @@ fi
 if [ "$SERVER" = "true" ]; then
     if [ "$BUILD" = "true" ]; then
         echo "building server"
-        go build || exit 1
+        go build -ldflags "-X main.version=$(git describe --tags)" || exit 1
     fi
 
     if [ "$INSTALL" = "true" ]; then
         echo "installing server"
-        go install || exit 1
+        go install -ldflags "-X main.version=$(git describe --tags)" || exit 1
     fi
 fi
