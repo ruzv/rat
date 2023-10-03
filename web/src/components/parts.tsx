@@ -9,6 +9,48 @@ import { useAtom, useAtomValue } from "jotai";
 import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
 import { graphviz } from "d3-graphviz";
 import { useNavigate } from "react-router-dom";
+import {
+  useDroppable,
+  useDraggable,
+  DndContext,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import _ from "lodash";
+
+import { CSS } from "@dnd-kit/utilities";
+
+function Droppable({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id: id });
+
+  return <div ref={setNodeRef}>{children}</div>;
+}
+
+function Draggable({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: id,
+  });
+  const style = {
+    transform: CSS.Translate.toString(transform),
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </div>
+  );
+}
 
 export function ratAPIBaseURL() {
   if (process.env.NODE_ENV === "production") {
@@ -431,17 +473,21 @@ function TodoHints({ part }: { part: NodeAstPart }) {
 function TodoEntry({ part }: { part: NodeAstPart }) {
   return (
     <div className={styles.todoEntry}>
-      <input
-        className={styles.todoEntryCheckbox}
-        type={"checkbox"}
-        checked={part.attributes["done"] as boolean}
-      />
-      {part.attributes["text"]}
+      <div>
+        <input
+          className={styles.todoEntryCheckbox}
+          type={"checkbox"}
+          checked={part.attributes["done"] as boolean}
+        />
+      </div>
+      <div>{part.attributes["text"]}</div>
     </div>
   );
 }
 
 function Kanban({ part }: { part: NodeAstPart }) {
+  const [kanbanPart, setKanbanPart] = useState(part);
+
   return (
     <div
       className={styles.kanban}
@@ -449,25 +495,99 @@ function Kanban({ part }: { part: NodeAstPart }) {
         gridTemplateColumns: `repeat(${part.children.length}, minmax(0, 1fr))`,
       }}
     >
-      <NodePartChildren part={part} />
+      <DndContext onDragEnd={handleDragEnd}>
+        <NodePartChildren part={kanbanPart} />
+      </DndContext>
     </div>
   );
+
+  function handleDragEnd(event: DragEndEvent) {
+    if (!event.over) {
+      return;
+    }
+    let cardID = event.active.id;
+    let columnID = event.over.id;
+    let targetCardIdx = -1;
+    let newKanbanPart = _.cloneDeep(kanbanPart);
+    let srcColumn, destColumn, targetCard: NodeAstPart | undefined;
+
+    for (
+      let columnIdx = 0;
+      columnIdx < newKanbanPart.children.length;
+      columnIdx++
+    ) {
+      if (newKanbanPart.children[columnIdx].attributes["id"] !== columnID) {
+        continue;
+      }
+
+      destColumn = newKanbanPart.children[columnIdx];
+    }
+
+    for (
+      let columnIdx = 0;
+      columnIdx < newKanbanPart.children.length;
+      columnIdx++
+    ) {
+      const column = newKanbanPart.children[columnIdx];
+
+      if (!column.children) {
+        column.children = [];
+      }
+
+      for (let cardIdx = 0; cardIdx < column.children.length; cardIdx++) {
+        const card = column.children[cardIdx];
+
+        if (card.attributes["id"] !== cardID) {
+          continue;
+        }
+
+        srcColumn = column;
+        targetCard = column.children[cardIdx];
+        targetCardIdx = cardIdx;
+      }
+    }
+
+    if (!destColumn || !srcColumn || !targetCard) {
+      return;
+    }
+
+    if (srcColumn === destColumn) {
+      return;
+    }
+
+    destColumn.children.push(targetCard);
+    srcColumn.children.splice(targetCardIdx, 1);
+
+    fetch(`${ratAPIBaseURL()}/graph/move/${targetCard.attributes["id"]}`, {
+      method: "POST",
+      body: JSON.stringify({
+        newPath: `${destColumn.attributes["path"]}/${targetCard.attributes["name"]}`,
+      }),
+    });
+
+    setKanbanPart(newKanbanPart);
+    console.log("done");
+  }
 }
 
 function KanbanColumn({ part }: { part: NodeAstPart }) {
   return (
-    <div>
-      <h1 className={styles.kanbanColumnTitle}>{part.attributes["title"]}</h1>
-      <NodePartChildren part={part} />
-    </div>
+    <Droppable id={part.attributes["id"]}>
+      <div>
+        <h1 className={styles.kanbanColumnTitle}>{part.attributes["name"]}</h1>
+        <NodePartChildren part={part} />
+      </div>
+    </Droppable>
   );
 }
 
 function KanbanCard({ part }: { part: NodeAstPart }) {
   return (
-    <KanbanCardContainer onClick={() => {}}>
-      <NodePartChildren part={part} />
-    </KanbanCardContainer>
+    <Draggable id={part.attributes["id"]}>
+      <KanbanCardContainer onClick={() => {}}>
+        <NodePartChildren part={part} />
+      </KanbanCardContainer>
+    </Draggable>
   );
 }
 

@@ -44,7 +44,7 @@ func RegisterRoutes(
 	graphRouter.HandleFunc(fmt.Sprintf(
 		"/move/{id:%s}", idRe.String()), httputil.Wrap(h.log, h.move),
 	).
-		Methods(http.MethodPost)
+		Methods(http.MethodPost, http.MethodOptions)
 
 	err := nodeshttp.RegisterRoutes(graphRouter, h.log, gs)
 	if err != nil {
@@ -55,6 +55,8 @@ func RegisterRoutes(
 }
 
 func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	body, err := httputil.Body[struct {
 		Query string `json:"query"`
 	}](w, r)
@@ -74,8 +76,6 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 	type response struct {
 		Results []string `json:"results"`
 	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	err = httputil.WriteResponse(
 		w,
@@ -97,6 +97,12 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method == http.MethodOptions {
+		return nil
+	}
+
 	id, err := uuid.FromString(mux.Vars(r)["id"])
 	if err != nil {
 		httputil.WriteError(

@@ -41,7 +41,9 @@ func (t *Token) renderKanban(
 			&jsonast.AstPart{
 				Type: "kanban_column",
 				Attributes: jsonast.AstAttributes{
-					"title": n.Name,
+					"id":   n.ID.String(),
+					"name": n.Name,
+					"path": n.Path.String(),
 				},
 			},
 			true,
@@ -49,7 +51,14 @@ func (t *Token) renderKanban(
 
 		for _, child := range children {
 			cardPart := colPart.AddContainer(
-				&jsonast.AstPart{Type: "kanban_card"},
+				&jsonast.AstPart{
+					Type: "kanban_card",
+					Attributes: jsonast.AstAttributes{
+						"id":   child.ID.String(),
+						"name": child.Name,
+						"path": child.Path.String(),
+					},
+				},
 				true,
 			)
 
