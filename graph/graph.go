@@ -1,12 +1,8 @@
 package graph
 
 import (
-	"bytes"
 	"sort"
-	"strconv"
 	"strings"
-	"text/template"
-	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
@@ -41,12 +37,6 @@ type NodeHeader struct {
 	Weight   int            `yaml:"weight,omitempty"`
 	Template *NodeTemplate  `yaml:"template,omitempty"`
 	Any      map[string]any `yaml:",inline"`
-}
-
-// NodeTemplate describes a template data of a node.
-type NodeTemplate struct {
-	Weight  string `yaml:"weight,omitempty"`
-	Content string `yaml:"content,omitempty"`
 }
 
 // Metrics groups all nodes metrics.
@@ -95,9 +85,11 @@ func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
 
 // AddLeaf new node as child with name.
 func (n *Node) AddLeaf(p Provider, name string) (*Node, error) {
-	sub, err := n.newSub(p, name)
+	sub, err := n.sub(p, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create new sub node")
+		return nil, errors.Wrapf(
+			err, "failed to create new sub node %q for %q", name, n.Path,
+		)
 	}
 
 	err = p.Write(sub)
@@ -293,7 +285,7 @@ func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
 	return childNodes, nil
 }
 
-func (n *Node) newSub(p Provider, name string) (*Node, error) {
+func (n *Node) sub(p Provider, name string) (*Node, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate id")
@@ -304,48 +296,16 @@ func (n *Node) newSub(p Provider, name string) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to get template")
 	}
 
-	contentBuf := &bytes.Buffer{}
+	td := NewTemplateData(name)
 
-	contentTemplate, err := template.New("").Parse(templ.Content)
+	content, err := templ.FillContent(td)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse content template")
+		return nil, errors.Wrap(err, "failed to fill content")
 	}
 
-	year, week := time.Now().ISOWeek()
-
-	templateData := struct {
-		Name string
-		Year int
-		Week int
-	}{
-		Name: name,
-		Year: year,
-		Week: week,
-	}
-
-	err = contentTemplate.Execute(contentBuf, templateData)
+	weight, err := templ.FillWeight(td)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute template")
-	}
-
-	w, err := strconv.Atoi(templ.Weight)
-	if err != nil {
-		weightTemplate, err := template.New("").Parse(templ.Weight)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse weight template")
-		}
-
-		weightBuf := &bytes.Buffer{}
-
-		err = weightTemplate.Execute(weightBuf, templateData)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to execute weight template")
-		}
-
-		w, err = strconv.Atoi(weightBuf.String())
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert weight to int")
-		}
+		return nil, errors.Wrap(err, "failed to fill weight")
 	}
 
 	return &Node{
@@ -353,8 +313,8 @@ func (n *Node) newSub(p Provider, name string) (*Node, error) {
 		Path: n.Path.JoinName(name),
 		Header: NodeHeader{
 			ID:     id,
-			Weight: w,
+			Weight: weight,
 		},
-		Content: contentBuf.String(),
+		Content: content,
 	}, nil
 }
