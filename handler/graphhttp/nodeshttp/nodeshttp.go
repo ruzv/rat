@@ -84,7 +84,7 @@ func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to render node content to JSON")
 	}
 
-	childNodes, err := h.getChildNodes(w, n.Path)
+	childNodes, err := h.getChildNodes(w, n)
 	if err != nil {
 		return errors.Wrap(err, "failed to get child node paths")
 	}
@@ -95,7 +95,7 @@ func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
 		w,
 		http.StatusOK,
 		response{
-			ID:         n.ID,
+			ID:         n.Header.ID,
 			Name:       n.Name,
 			Path:       n.Path,
 			Length:     len(strings.Split(n.Content, "\n")),
@@ -151,7 +151,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		w,
 		http.StatusOK,
 		response{
-			ID:     child.ID,
+			ID:     child.Header.ID,
 			Name:   child.Name,
 			Path:   child.Path,
 			Length: len(strings.Split(n.Content, "\n")),
@@ -167,9 +167,9 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 func (h *handler) getChildNodes(
 	w http.ResponseWriter,
-	path pathutil.NodePath,
+	n *graph.Node,
 ) ([]*response, error) {
-	children, err := h.gs.Graph.GetLeafs(path)
+	children, err := n.GetLeafs(h.gs.Graph)
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -199,7 +199,7 @@ func (h *handler) getChildNodes(
 		childNodes = append(
 			childNodes,
 			&response{
-				ID:     child.ID,
+				ID:     child.Header.ID,
 				Name:   child.Name,
 				Path:   child.Path,
 				Length: len(strings.Split(child.Content, "\n")),

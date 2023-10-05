@@ -98,11 +98,10 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 }
 
 // Body reads the requests body as a specified struct.
-func Body[T any](
-	w http.ResponseWriter,
-	r *http.Request,
-) (T, error) {
-	defer r.Body.Close()
+//
+//nolint:ireturn // false positive.
+func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	defer r.Body.Close() //nolint:errcheck // ignore.
 
 	var body, empty T
 

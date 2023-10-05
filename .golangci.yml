@@ -18,6 +18,9 @@ linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
+    exclude-functions:
+      - Close
+
 
   gocritic:
     disabled-checks:
@@ -32,31 +35,15 @@ linters-settings:
   gocyclo:
     min-complexity: 10
 
-  # goheader:
-  #   template: |-
-  #     ** Zabbix
-  #     ** Copyright (C) 2001-{{YEAR}} Zabbix SIA
-  #     **
-  #     ** This program is free software; you can redistribute it and/or modify
-  #     ** it under the terms of the GNU General Public License as published by
-  #     ** the Free Software Foundation; either version 2 of the License, or
-  #     ** (at your option) any later version.
-  #     **
-  #     ** This program is distributed in the hope that it will be useful,
-  #     ** but WITHOUT ANY WARRANTY; without even the implied warranty of
-  #     ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  #     ** GNU General Public License for more details.
-  #     **
-  #     ** You should have received a copy of the GNU General Public License
-  #     ** along with this program; if not, write to the Free Software
-  #     ** Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-  #     *
-
   gomodguard:
     blocked:
       modules:
         - io/ioutil:
       local_replace_directives: false
+
+  gosec:
+    excludes:
+      - G104 # error check
 
   govet:
     enable-all: true
@@ -90,7 +77,7 @@ linters-settings:
       - name: exported
         arguments:
           - checkPrivateReceivers
-          - disableStutteringCheck
+      #     - disableStutteringCheck
 
       - name: function-result-limit
         arguments:
@@ -127,11 +114,18 @@ linters-settings:
         disabled: true
       - name: line-length-limit
         disabled: true
+      - name: package-comments
+        disabled: true
       - name: unhandled-error
         disabled: true
 
+  stylecheck:
+    checks:
+      - all
+      - -ST1000
+
   tagalign:
-    align: false
+    align: false # could be true if https://github.com/momaek/formattag is used.
     order:
       - yaml
       - json
@@ -141,6 +135,18 @@ linters-settings:
       - binding
       - validate
 
+  tagliatelle:
+    case:
+      rules:
+        json: camel
+        yaml: camel
+        xml: camel
+        bson: camel
+        avro: snake
+        mapstructure: kebab
+        env: upperSnake
+        envconfig: upperSnake
+
 linters:
   enable-all: true
   disable:
@@ -149,6 +155,9 @@ linters:
 
     # always check marshal errors
     - errchkjson
+
+    # triggers on switches with default case.
+    - exhaustive
 
     # allow use go default zero values .
     - exhaustruct
@@ -171,17 +180,18 @@ linters:
     # don't use shorthand ifs
     - ifshort
 
-    # broken
+    # false positives on generics
     - ireturn
 
     # revive warns about this
     - nakedret
 
+    # current unit test situation is bad enough as is. no need to introduce new
+    # unit testing practices.
+    - testpackage
+
     # having one length vars is fine.
     - varnamelen
-
-    # TODO: COMMENT
-    - testpackage
 
     # deprecated
     - deadcode
@@ -196,6 +206,7 @@ linters:
     - varcheck
 
 issues:
+  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
 

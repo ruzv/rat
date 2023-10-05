@@ -1,7 +1,6 @@
 package singlefile
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -21,12 +20,6 @@ var (
 )
 
 var _ graph.Provider = (*SingleFile)(nil)
-
-type nodeHeader struct {
-	ID       uuid.UUID      `yaml:"id"`
-	Template string         `yaml:"template"`
-	Any      map[string]any `yaml:",inline"`
-}
 
 // SingleFile is a graph provider implementation that reads and creates graph
 // nodes as standalone markdown files as opposed to FileSystem implementation
@@ -48,11 +41,85 @@ type SingleFile struct {
 func NewSingleFile(
 	rootNodePath pathutil.NodePath,
 	graphPath string,
-) *SingleFile {
-	return &SingleFile{
+) (*SingleFile, error) {
+	sf := &SingleFile{
 		rootNodePath: rootNodePath,
 		graphPath:    graphPath,
 	}
+
+	_, err := os.Stat(sf.fullPath(sf.rootNodePath))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, errors.Wrap(err, "failed to stat root node file")
+		}
+
+		err := os.MkdirAll(sf.graphPath, 0o750)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create graph dir")
+		}
+
+		id, err := uuid.NewV4()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate id")
+		}
+
+		err = sf.Write(
+			&graph.Node{
+				Name: string(rootNodePath),
+				Path: rootNodePath,
+				Header: graph.NodeHeader{
+					ID:     id,
+					Weight: 0,
+					Template: &graph.NodeTemplate{
+						Content: "{{ .Name }}",
+					},
+				},
+				Content: "welcome to rat",
+			},
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to write root node")
+		}
+	}
+
+	return sf, nil
+}
+
+func (sf *SingleFile) Write(node *graph.Node) error {
+	dirPath := sf.graphPath
+
+	if node.Path.Depth() != 1 {
+		dirPath = filepath.Join(
+			sf.graphPath,
+			string(node.Path.ParentPath()),
+		)
+	}
+
+	err := os.Mkdir(dirPath, 0o750)
+	if err != nil && !os.IsExist(err) {
+		return errors.Wrap(err, "failed to create dir")
+	}
+
+	file, err := os.Create(sf.fullPath(node.Path))
+	if err != nil {
+		return errors.Wrap(err, "failed to create file")
+	}
+
+	defer file.Close() //nolint:errcheck // ignore.
+
+	headerData, err := yaml.Marshal(node.Header)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal header")
+	}
+
+	_, err = fmt.Fprintf(
+		file, "---\n%s---\n\n%s", string(headerData), node.Content,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write node file")
+	}
+
+	return nil
 }
 
 // GetByID returns a node by its id.
@@ -62,7 +129,7 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 		return nil, errors.Wrap(err, "failed to get root node")
 	}
 
-	if r.ID == id {
+	if r.Header.ID == id {
 		return r, nil
 	}
 
@@ -74,7 +141,7 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 	err = r.Walk(
 		sf,
 		func(_ int, node *graph.Node) (bool, error) {
-			if node.ID == id {
+			if node.Header.ID == id {
 				n = node
 				found = true
 			}
@@ -122,19 +189,18 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 		)
 	}
 
-	header := &nodeHeader{}
+	header := graph.NodeHeader{}
 
-	err = yaml.Unmarshal(data, header)
+	err = yaml.Unmarshal(data, &header)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal header as yaml")
 	}
 
 	return &graph.Node{
-			ID:       header.ID,
-			Name:     pathutil.NameFromPath(path),
-			Path:     path,
-			Content:  string(match[2]),
-			Template: header.Template,
+			Name:    pathutil.NameFromPath(path),
+			Path:    path,
+			Header:  header,
+			Content: string(match[2]),
 		},
 		nil
 }
@@ -178,83 +244,6 @@ func (sf *SingleFile) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 	}
 
 	return leafNodes, nil
-}
-
-// AddLeaf adds a new leaf to a node.
-func (sf *SingleFile) AddLeaf(
-	parent *graph.Node, name string,
-) (*graph.Node, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate id")
-	}
-
-	templ, err := parent.GetTemplate(sf)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get template")
-	}
-
-	contentBuf := &bytes.Buffer{}
-
-	err = templ.Execute(
-		contentBuf,
-		struct {
-			Name string
-		}{
-			Name: name,
-		},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to execute template")
-	}
-
-	dirPath := filepath.Join(
-		sf.graphPath,
-		parent.Path.String(),
-	)
-
-	err = os.Mkdir(dirPath, 0o755)
-	if err != nil && !os.IsExist(err) {
-		return nil, errors.Wrap(err, "failed to create dir")
-	}
-
-	fullPath := filepath.Join(
-		sf.graphPath,
-		parent.Path.String(),
-		fmt.Sprintf("%s.md", name),
-	)
-
-	file, err := os.Create(fullPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create file")
-	}
-
-	headerData, err := yaml.Marshal(
-		nodeHeader{
-			ID: id,
-		},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal header")
-	}
-
-	_, err = fmt.Fprintf(file, "---\n%s---\n\n", string(headerData))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to write header")
-	}
-
-	_, err = file.Write(contentBuf.Bytes())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to write content")
-	}
-
-	return &graph.Node{
-			ID:      id,
-			Name:    name,
-			Path:    parent.Path.JoinName(name),
-			Content: contentBuf.String(),
-		},
-		nil
 }
 
 // Move moves a node to a new path.

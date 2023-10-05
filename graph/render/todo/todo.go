@@ -20,7 +20,7 @@ var todoRe = regexp.MustCompile(
 //
 //nolint:godox // false positive.
 type Todo struct {
-	Entries []*TodoEntry
+	Entries []*Entry
 	Hints   []*Hint
 }
 
@@ -55,7 +55,7 @@ func Parse(raw string) (*Todo, error) {
 	)
 
 	var (
-		entries []*TodoEntry
+		entries []*Entry
 		hints   []*Hint
 	)
 
@@ -147,7 +147,7 @@ func (t *Todo) OrderHints() []*Hint {
 }
 
 // OrderEntries sorts t.Entries putting not done entries first, and returns it.
-func (t *Todo) OrderEntries() []*TodoEntry {
+func (t *Todo) OrderEntries() []*Entry {
 	sort.SliceStable(
 		t.Entries,
 		func(i, j int) bool {
@@ -221,7 +221,7 @@ func (t *Todo) Done() bool {
 
 // RemoveDoneEntries removes all done entries from t.Entries.
 func (t *Todo) RemoveDoneEntries() {
-	var entries []*TodoEntry
+	var entries []*Entry
 
 	for _, e := range t.Entries {
 		if !e.Done {
