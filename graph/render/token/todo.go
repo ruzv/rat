@@ -94,7 +94,7 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 		}
 
 		for _, exNode := range exNodes {
-			excludedNodes[exNode.ID] = true
+			excludedNodes[exNode.Header.ID] = true
 		}
 	}
 
@@ -120,7 +120,7 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 		err = inNode.Walk(
 			p,
 			func(_ int, node *graph.Node) (bool, error) {
-				if excludedNodes[node.ID] {
+				if excludedNodes[node.Header.ID] {
 					return false, nil
 				}
 

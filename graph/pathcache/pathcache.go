@@ -57,8 +57,8 @@ func (pc *PathCache) GetByID(id uuid.UUID) (*graph.Node, error) {
 		return n, nil
 	}
 
-	if n.ID != id { // node changed, but path is the same
-		pc.cache[n.ID] = n.Path
+	if n.Header.ID != id { // node changed, but path is the same
+		pc.cache[n.Header.ID] = n.Path
 
 		n, err := pc.p.GetByID(id)
 		if err != nil {
@@ -81,7 +81,7 @@ func (pc *PathCache) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	}
 
 	pc.cacheMu.Lock()
-	pc.cache[n.ID] = n.Path
+	pc.cache[n.Header.ID] = n.Path
 	pc.cacheMu.Unlock()
 
 	return n, nil
@@ -96,42 +96,11 @@ func (pc *PathCache) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 
 	pc.cacheMu.Lock()
 	for _, n := range leafs {
-		pc.cache[n.ID] = n.Path
+		pc.cache[n.Header.ID] = n.Path
 	}
 	pc.cacheMu.Unlock()
 
 	return leafs, nil
-}
-
-// AddLeaf adds a leaf to the graph. Caches the newly added nodes path.
-func (pc *PathCache) AddLeaf(
-	parent *graph.Node,
-	name string,
-) (*graph.Node, error) {
-	n, err := pc.p.AddLeaf(parent, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to add leaf")
-	}
-
-	pc.cacheMu.Lock()
-	pc.cache[n.ID] = n.Path
-	pc.cacheMu.Unlock()
-
-	return n, nil
-}
-
-// Root returns the root node.
-func (pc *PathCache) Root() (*graph.Node, error) {
-	n, err := pc.p.Root()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get root")
-	}
-
-	pc.cacheMu.Lock()
-	pc.cache[n.ID] = n.Path
-	pc.cacheMu.Unlock()
-
-	return n, nil
 }
 
 // Move moves a node to a new path. Caches the moved nodes path.
@@ -149,4 +118,31 @@ func (pc *PathCache) Move(id uuid.UUID, path pathutil.NodePath) error {
 	pc.cacheMu.Unlock()
 
 	return nil
+}
+
+func (pc *PathCache) Write(n *graph.Node) error {
+	err := pc.p.Write(n)
+	if err != nil {
+		return errors.Wrap(err, "failed to write node")
+	}
+
+	pc.cacheMu.Lock()
+	pc.cache[n.Header.ID] = n.Path
+	pc.cacheMu.Unlock()
+
+	return nil
+}
+
+// Root returns the root node.
+func (pc *PathCache) Root() (*graph.Node, error) {
+	n, err := pc.p.Root()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get root")
+	}
+
+	pc.cacheMu.Lock()
+	pc.cache[n.Header.ID] = n.Path
+	pc.cacheMu.Unlock()
+
+	return n, nil
 }

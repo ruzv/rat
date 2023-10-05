@@ -6,14 +6,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TodoEntry represents a single todo entry.
-type TodoEntry struct {
+// Entry represents a single todo entry.
+type Entry struct {
 	Done bool
 	Text string
 }
 
 // parseEntry parses a single todo entry from a list of lines.
-func parseEntry(lines []string) (*TodoEntry, error) {
+func parseEntry(lines []string) (*Entry, error) {
 	text := strings.Join(lines, "\n")
 
 	if text == "" {
@@ -31,7 +31,7 @@ func parseEntry(lines []string) (*TodoEntry, error) {
 		return nil, errors.Errorf("invalid todo entry - %q", text)
 	}
 
-	return &TodoEntry{
+	return &Entry{
 		Done: done,
 		Text: text[1:],
 	}, nil

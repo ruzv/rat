@@ -83,13 +83,13 @@ func RegisterRoutes(
 func (h *handler) serveFile(
 	name string,
 ) func(w http.ResponseWriter, r *http.Request) error {
-	return func(w http.ResponseWriter, r *http.Request) error {
+	return func(w http.ResponseWriter, _ *http.Request) error {
 		file, err := h.wsc.Open(name)
 		if err != nil {
 			return errors.Wrap(err, "failed to open index.html")
 		}
 
-		defer file.Close()
+		defer file.Close() //nolint:errcheck // ignore.
 
 		contentType := mime.TypeByExtension(filepath.Ext(name))
 		if contentType == "" {

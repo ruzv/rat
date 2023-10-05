@@ -22,7 +22,7 @@ import (
 //go:embed web/build/*
 var embedStaticContent embed.FS
 
-var version = ""
+var version = "dev"
 
 // Rat describes the rat server.
 type Rat struct {

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -22,7 +23,7 @@ type Config struct {
 type GraphConfig struct {
 	Name pathutil.NodePath `yaml:"name" validate:"nonzero"`
 	Path string            `yaml:"path" validate:"nonzero"`
-	Sync *SyncConfig       `yaml:"sync" validate:"nonnil"`
+	Sync *SyncConfig       `yaml:"sync"`
 }
 
 // SyncConfig defines configuration params for periodically syncing graph to a
@@ -35,16 +36,16 @@ type SyncConfig struct {
 
 // Load loads the configuration from a file.
 func Load(path string) (*Config, error) {
-	f, err := os.Open(path)
+	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
 
-	defer f.Close()
+	defer file.Close() //nolint:errcheck // ignore.
 
 	c := &Config{}
 
-	err = yaml.NewDecoder(f).Decode(c)
+	err = yaml.NewDecoder(file).Decode(c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode config")
 	}

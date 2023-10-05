@@ -1,8 +1,8 @@
 package graph
 
 import (
+	"sort"
 	"strings"
-	"text/template"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
@@ -18,18 +18,25 @@ type Provider interface {
 	GetByID(id uuid.UUID) (*Node, error)
 	GetByPath(path pathutil.NodePath) (*Node, error)
 	GetLeafs(path pathutil.NodePath) ([]*Node, error)
-	AddLeaf(parent *Node, name string) (*Node, error)
 	Move(id uuid.UUID, path pathutil.NodePath) error
+	Write(node *Node) error
 	Root() (*Node, error)
 }
 
 // Node describes a single node.
 type Node struct {
-	ID       uuid.UUID         `json:"id"`
-	Name     string            `json:"name"`
-	Path     pathutil.NodePath `json:"path"`
-	Content  string            `json:"content"`
-	Template string            `json:"template"`
+	Name    string            `json:"name"`
+	Path    pathutil.NodePath `json:"path"`
+	Header  NodeHeader        `json:"header"`
+	Content string            `json:"content"`
+}
+
+// NodeHeader describes info stored in nodes header.
+type NodeHeader struct {
+	ID       uuid.UUID      `yaml:"id"`
+	Weight   int            `yaml:"weight,omitempty"`
+	Template *NodeTemplate  `yaml:"template,omitempty"`
+	Any      map[string]any `yaml:",inline"`
 }
 
 // Metrics groups all nodes metrics.
@@ -52,17 +59,45 @@ func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
 
+	sort.SliceStable(
+		leafs,
+		func(i, j int) bool {
+			// 0 no weight sort by name
+			// 1 - n sort by weight ascending
+			if leafs[i].Header.Weight != 0 && leafs[j].Header.Weight != 0 {
+				return leafs[i].Header.Weight < leafs[j].Header.Weight
+			}
+
+			if leafs[i].Header.Weight == 0 && leafs[j].Header.Weight == 0 {
+				return leafs[i].Name < leafs[j].Name
+			}
+
+			if leafs[i].Header.Weight == 0 {
+				return false
+			}
+
+			return true
+		},
+	)
+
 	return leafs, nil
 }
 
 // AddLeaf new node as child with name.
 func (n *Node) AddLeaf(p Provider, name string) (*Node, error) {
-	node, err := p.AddLeaf(n, name)
+	sub, err := n.sub(p, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to add node")
+		return nil, errors.Wrapf(
+			err, "failed to create new sub node %q for %q", name, n.Path,
+		)
 	}
 
-	return node, nil
+	err = p.Write(sub)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to write node")
+	}
+
+	return sub, nil
 }
 
 // Walk to every child node recursively starting from n. callback is called
@@ -116,33 +151,50 @@ func (n *Node) Parent(p Provider) (*Node, error) {
 }
 
 // GetTemplate returns the first template encountered when walking up the tree.
-func (n *Node) GetTemplate(p Provider) (*template.Template, error) {
+func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 	root, err := p.Root()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	var getTemplate func(n *Node) (*template.Template, error)
+	return n.getTemplate(p, root.Header.ID, &NodeTemplate{})
+}
 
-	getTemplate = func(n *Node) (*template.Template, error) {
-		if root.ID == n.ID || n.Template != "" {
-			templ, err := template.New("newNode").Parse(n.Template)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse template")
-			}
+func (n *Node) getTemplate(
+	p Provider, rootID uuid.UUID, templ *NodeTemplate,
+) (*NodeTemplate, error) {
+	if rootID == n.Header.ID {
+		if n.Header.Template == nil {
+			return nil, errors.New("root node must have a template")
+		}
+
+		if templ.Weight == "" {
+			templ.Weight = n.Header.Template.Weight
+		}
+
+		templ.Content = n.Header.Template.Content
+
+		return templ, nil
+	}
+
+	if n.Header.Template != nil {
+		if templ.Weight == "" && n.Header.Template.Weight != "" {
+			templ.Weight = n.Header.Template.Weight
+		}
+
+		if n.Header.Template.Content != "" {
+			templ.Content = n.Header.Template.Content
 
 			return templ, nil
 		}
-
-		parent, err := n.Parent(p)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get parent")
-		}
-
-		return getTemplate(parent)
 	}
 
-	return getTemplate(n)
+	parent, err := n.Parent(p)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get parent")
+	}
+
+	return parent.getTemplate(p, rootID, templ)
 }
 
 // Metrics calculates metrics for node.
@@ -231,4 +283,38 @@ func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
 	}
 
 	return childNodes, nil
+}
+
+func (n *Node) sub(p Provider, name string) (*Node, error) {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate id")
+	}
+
+	templ, err := n.GetTemplate(p)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get template")
+	}
+
+	td := NewTemplateData(name)
+
+	content, err := templ.FillContent(td)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fill content")
+	}
+
+	weight, err := templ.FillWeight(td)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fill weight")
+	}
+
+	return &Node{
+		Name: name,
+		Path: n.Path.JoinName(name),
+		Header: NodeHeader{
+			ID:     id,
+			Weight: weight,
+		},
+		Content: content,
+	}, nil
 }

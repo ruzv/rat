@@ -18,7 +18,7 @@ func (p NodePath) String() string {
 
 // ParentPath returns parent path of node. Returns root path for root path.
 func (p NodePath) ParentPath() NodePath {
-	parts := PathParts(p)
+	parts := p.Parts()
 
 	if len(parts) < 2 {
 		return p
@@ -44,7 +44,7 @@ func (p NodePath) NameFromPath() string {
 
 // Depth returns depth of path.
 func (p NodePath) Depth() int {
-	return len(PathParts(p))
+	return len(p.Parts())
 }
 
 // JoinName adds the supplied name to the end of the supplied path.
@@ -67,14 +67,9 @@ func NameFromPath(path NodePath) string {
 	return parts[len(parts)-1]
 }
 
-// PathDepth returns depth.
-func PathDepth(path NodePath) int {
-	return len(PathParts(path))
-}
-
-// PathParts returns path parts.
-func PathParts(path NodePath) []string {
-	split := strings.Split(string(path), "/")
+// Parts returns path parts.
+func (p NodePath) Parts() []string {
+	split := strings.Split(string(p), "/")
 	parts := make([]string, 0, len(split))
 
 	for _, part := range split {
@@ -90,7 +85,7 @@ func PathParts(path NodePath) []string {
 
 // ParentPath returns parent path of node. Returns root path for root path.
 func ParentPath(path NodePath) NodePath {
-	parts := PathParts(path)
+	parts := path.Parts()
 
 	if len(parts) < 2 {
 		return path

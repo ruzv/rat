@@ -16,13 +16,13 @@ const (
 	// GraphTokenType graph tokens provide an overview of a nodes child nodes.
 	// Graph tokens get substituted with a list tree of links to child nodes of
 	// specified depth. Unlimited depth if omitted.
-	GraphTokenType TokenType = "graph"
+	GraphTokenType Type = "graph"
 	// TodoTokenType todo searches for todos in child nodes and collects them
 	// into a large singular todo. Token args can be used to specify search
 	// options.
-	TodoTokenType TokenType = "todo"
+	TodoTokenType Type = "todo"
 	// KanbanTokenType kanban tokens provide a kanban board of child nodes.
-	KanbanTokenType TokenType = "kanban"
+	KanbanTokenType Type = "kanban"
 )
 
 var (
@@ -30,8 +30,8 @@ var (
 	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))/>`)
 )
 
-// TokenType describes rat token types.
-type TokenType string
+// Type describes rat token types.
+type Type string
 
 // Token describes a single rat token. Rat tokens are special html tab like
 // strings that when present nodes content have special handling. Mode detailed
@@ -42,7 +42,7 @@ type TokenType string
 // - type - the tokens type
 // - key=value - 0 or more key value pairs.
 type Token struct {
-	Type TokenType
+	Type Type
 	Args map[string]string
 }
 
@@ -138,10 +138,10 @@ func parse(raw string) (*Token, error) {
 		return nil, errors.Wrap(err, "failed to get token type")
 	}
 
-	tokenType, err := func(raw string) (TokenType, error) {
-		target := TokenType(raw)
+	tokenType, err := func(raw string) (Type, error) {
+		target := Type(raw)
 
-		for _, valid := range []TokenType{
+		for _, valid := range []Type{
 			GraphTokenType,
 			TodoTokenType,
 			KanbanTokenType,
