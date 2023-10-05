@@ -2,7 +2,7 @@
 # everything should be sorted in alphabetical order
 
 run:
-  timeout: 1m
+  timeout: 2m
   allow-parallel-runners: true
 
 linters-settings:
