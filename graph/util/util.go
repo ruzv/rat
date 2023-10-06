@@ -1,12 +1,5 @@
 package util
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-	pathutil "rat/graph/util/path"
-)
-
 // ReverseSlice reverses a slice.
 func ReverseSlice[T any](a []T) []T {
 	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 { //nolint:lll // can't split.
@@ -14,16 +7,6 @@ func ReverseSlice[T any](a []T) []T {
 	}
 
 	return a
-}
-
-// Link returns a markdown link to a node with given path.
-func Link(path pathutil.NodePath, name string) (string, error) {
-	link, err := pathutil.URL(path)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get url")
-	}
-
-	return fmt.Sprintf("[%s](%s)", name, link), nil
 }
 
 // Map applies a function to all todo entries.

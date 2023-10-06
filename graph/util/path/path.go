@@ -52,9 +52,19 @@ func (p NodePath) JoinName(name string) NodePath {
 	return NodePath(string(p) + "/" + name)
 }
 
-// NameFromPath returns name of node from its path.
-func NameFromPath(path NodePath) string {
-	parts := strings.Split(string(path), "/")
+// ViewURL returns a URL to a node with given path.
+func (p NodePath) ViewURL() (string, error) {
+	u, err := url.JoinPath("/view/", string(p))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to join path")
+	}
+
+	return u, nil
+}
+
+// Name returns name of node from its path.
+func (p NodePath) Name() string {
+	parts := strings.Split(string(p), "/")
 
 	if len(parts) == 0 {
 		return ""
@@ -102,14 +112,4 @@ func JoinName(parent NodePath, name string) NodePath {
 // JoinPath adds first and second paths together.
 func JoinPath(first, second NodePath) NodePath {
 	return NodePath(string(first) + "/" + string(second))
-}
-
-// URL returns a URL to a node with given path.
-func URL(path NodePath) (string, error) {
-	u, err := url.JoinPath("/view/", string(path))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to join path")
-	}
-
-	return u, nil
 }
