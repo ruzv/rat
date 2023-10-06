@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/pkg/errors"
@@ -73,7 +74,7 @@ func (jr *JSONRenderer) Render(
 	return nil
 }
 
-//nolint:cyclop,gocyclo // big switch.
+//nolint:cyclop,gocyclo,maintidx // big switch.
 func (jr *JSONRenderer) renderNode(
 	part *jsonast.AstPart,
 	n *graph.Node,
@@ -95,16 +96,23 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.HorizontalRule:
 		part.AddLeaf(&jsonast.AstPart{Type: "horizontal_rule"})
 	case *ast.Link:
-		part = part.AddContainer(
-			&jsonast.AstPart{
-				Type: "link",
-				Attributes: jsonast.AstAttributes{
-					"destination": string(node.Destination),
-					"title":       string(node.Title),
+		var err error
+
+		part, err = jr.renderGraphLink(part, node, entering)
+		if err != nil {
+			return part.AddContainer( //nolint:nilerr,lll // render link if graph link fails.
+				&jsonast.AstPart{
+					Type: "link",
+					Attributes: jsonast.AstAttributes{
+						"title":       string(node.Title),
+						"destination": string(node.Destination),
+					},
 				},
-			},
-			entering,
-		)
+				entering,
+			), nil
+		}
+
+		return part, nil
 	case *ast.List:
 		part = part.AddContainer(
 			&jsonast.AstPart{
@@ -277,4 +285,41 @@ func (jr *JSONRenderer) renderNode(
 	}
 
 	return part, nil
+}
+
+func (jr *JSONRenderer) renderGraphLink(
+	part *jsonast.AstPart, link *ast.Link, entering bool,
+) (*jsonast.AstPart, error) {
+	id, err := uuid.FromString(string(link.Destination))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse uuid")
+	}
+
+	destNode, err := jr.p.GetByID(id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get node by id")
+	}
+
+	dest, err := destNode.Path.ViewURL()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get view url")
+	}
+
+	title := string(link.Title)
+
+	if title == "" {
+		title = destNode.Name
+	}
+
+	return part.AddContainer(
+			&jsonast.AstPart{
+				Type: "graph_link",
+				Attributes: jsonast.AstAttributes{
+					"title":       title,
+					"destination": dest,
+				},
+			},
+			entering,
+		),
+		nil
 }

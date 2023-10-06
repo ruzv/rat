@@ -197,7 +197,7 @@ func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	}
 
 	return &graph.Node{
-			Name:    pathutil.NameFromPath(path),
+			Name:    path.Name(),
 			Path:    path,
 			Header:  header,
 			Content: string(match[2]),
