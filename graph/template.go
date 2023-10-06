@@ -2,12 +2,34 @@ package graph
 
 import (
 	"bytes"
+	"math/rand"
 	"strconv"
 	"text/template"
 	"time"
 
 	"github.com/pkg/errors"
 )
+
+//nolint:gochecknoglobals,gosmopolitan // strings contain weird runes.
+var smiles = []string{
+	"ʕ •́؈•̀)",
+	"(╭ರᴥ•́)",
+	"┬─┬ ノʕ•ᴥ•ノʔ",
+	"₍ᐢ•ﻌ•ᐢ₎",
+	"(◕‿◕✿)",
+	"(*・‿・)ノ⌒*:･ﾟ✧",
+	"(∩ ͡° ͜ʖ ͡°)⊃━☆ﾟ. *",
+	"(´・ω・)っ由",
+	"~(˘▾˘~)",
+	"╰( ⁰ ਊ ⁰ )━☆ﾟ.*･｡ﾟ",
+	"＼(-_- )",
+	"( ^-^)_旦",
+	"(❍ᴥ❍ʋ)",
+	"ヽ(͡◕ ͜ʖ ͡◕)ﾉ",
+	"｡◕‿‿◕｡",
+	"───==≡≡ΣΣ((( つºل͜º)つ",
+	"｡◕‿◕｡",
+}
 
 // NodeTemplate describes a template data of a node.
 type NodeTemplate struct {
@@ -26,21 +48,36 @@ type TemplateData struct {
 // RawTemplateData describes the template fields available to unprocessed
 // template fillers, like FillName.
 type RawTemplateData struct {
-	// name that user provided.
-	RawName string
+	RawName string // name that user provided.
+	Day     int    // day of the month
+	Month   int
 	Year    int
-	Week    int
+
+	Week    int // week of the year
+	YearDay int // day of the year
+
+	Smile string
 }
 
 // NewTemplateData populates template data fields.
 func NewTemplateData(name string) *TemplateData {
-	year, week := time.Now().ISOWeek()
+	now := time.Now()
+
+	year, week := now.ISOWeek()
+	month := int(now.Month())
+	day := now.Day()
+	yearDay := now.YearDay()
+	smile := smiles[rand.Intn(len(smiles))] //nolint:gosec // week rand num gen.
 
 	return &TemplateData{
 		RawTemplateData: RawTemplateData{
 			RawName: name,
 			Year:    year,
+			Month:   month,
+			Day:     day,
 			Week:    week,
+			YearDay: yearDay,
+			Smile:   smile,
 		},
 		// name is only populated after name template is executed.
 	}
