@@ -123,7 +123,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get node error")
 	}
 
-	child, err := n.AddLeaf(h.gs.Graph, body.Name)
+	child, err := n.AddSub(h.gs.Graph, body.Name)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",

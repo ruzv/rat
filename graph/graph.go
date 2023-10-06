@@ -10,8 +10,13 @@ import (
 	pathutil "rat/graph/util/path"
 )
 
-// ErrNodeNotFound is returned when a node is not found.
-var ErrNodeNotFound = errors.New("node not found")
+var (
+	// ErrNodeNotFound is returned when a node is not found.
+	ErrNodeNotFound = errors.New("node not found")
+	// ErrPartialTemplate is returned when root node template is missing or
+	// partial.
+	ErrPartialTemplate = errors.New("partial or missing template")
+)
 
 // Provider describes graph node manipulations.
 type Provider interface {
@@ -83,8 +88,8 @@ func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
 	return leafs, nil
 }
 
-// AddLeaf new node as child with name.
-func (n *Node) AddLeaf(p Provider, name string) (*Node, error) {
+// AddSub new node as child with name.
+func (n *Node) AddSub(p Provider, name string) (*Node, error) {
 	sub, err := n.sub(p, name)
 	if err != nil {
 		return nil, errors.Wrapf(
@@ -157,44 +162,90 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 		return nil, errors.Wrap(err, "failed to get root")
 	}
 
-	return n.getTemplate(p, root.Header.ID, &NodeTemplate{})
+	nt := &NodeTemplate{}
+
+	nt.Name, err = getTemplateField(
+		p, n, root.Header.ID,
+		func(nt *NodeTemplate) string { return nt.Name },
+		func(s string) bool { return s == "" },
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get name field")
+	}
+
+	nt.Weight, err = getTemplateField(
+		p, n, root.Header.ID,
+		func(nt *NodeTemplate) string { return nt.Weight },
+		func(s string) bool { return s == "" },
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get weight field")
+	}
+
+	nt.Content, err = getTemplateField(
+		p, n, root.Header.ID,
+		func(nt *NodeTemplate) string { return nt.Content },
+		func(s string) bool { return s == "" },
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get content field")
+	}
+
+	nt.Template, err = getTemplateField(
+		p, n, root.Header.ID,
+		func(nt *NodeTemplate) *NodeTemplate { return nt.Template },
+		func(nt *NodeTemplate) bool { return nt == nil },
+	)
+	if err != nil {
+		if !errors.Is(err, ErrPartialTemplate) {
+			return nil, errors.Wrap(err, "failed to get template field")
+		}
+
+		nt.Template = nil // allow root recursive template to be nil.
+	}
+
+	return nt, nil
 }
 
-func (n *Node) getTemplate(
-	p Provider, rootID uuid.UUID, templ *NodeTemplate,
-) (*NodeTemplate, error) {
+func getTemplateField[T any](
+	p Provider, n *Node, rootID uuid.UUID,
+	getter func(*NodeTemplate) T,
+	empty func(T) bool,
+) (T, error) {
+	var nilT T
+
 	if rootID == n.Header.ID {
 		if n.Header.Template == nil {
-			return nil, errors.New("root node must have a template")
+			return nilT, errors.Wrap(
+				ErrPartialTemplate, "root node must have a template",
+			)
 		}
 
-		if templ.Weight == "" {
-			templ.Weight = n.Header.Template.Weight
+		field := getter(n.Header.Template)
+
+		if empty(field) {
+			return nilT, errors.Wrap(
+				ErrPartialTemplate, "root node must have template field",
+			)
 		}
 
-		templ.Content = n.Header.Template.Content
-
-		return templ, nil
+		return field, nil
 	}
 
 	if n.Header.Template != nil {
-		if templ.Weight == "" && n.Header.Template.Weight != "" {
-			templ.Weight = n.Header.Template.Weight
-		}
+		field := getter(n.Header.Template)
 
-		if n.Header.Template.Content != "" {
-			templ.Content = n.Header.Template.Content
-
-			return templ, nil
+		if !empty(field) {
+			return field, nil
 		}
 	}
 
 	parent, err := n.Parent(p)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get parent")
+		return nilT, errors.Wrap(err, "failed to get parent")
 	}
 
-	return parent.getTemplate(p, rootID, templ)
+	return getTemplateField(p, parent, rootID, getter, empty)
 }
 
 // Metrics calculates metrics for node.
@@ -298,6 +349,13 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 
 	td := NewTemplateData(name)
 
+	name, err = templ.FillName(&td.RawTemplateData)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fill name")
+	}
+
+	td.Name = name
+
 	content, err := templ.FillContent(td)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fill content")
@@ -312,8 +370,9 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 		Name: name,
 		Path: n.Path.JoinName(name),
 		Header: NodeHeader{
-			ID:     id,
-			Weight: weight,
+			ID:       id,
+			Weight:   weight,
+			Template: templ.Template,
 		},
 		Content: content,
 	}, nil
