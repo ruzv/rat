@@ -33,9 +33,10 @@ var smiles = []string{
 
 // NodeTemplate describes a template data of a node.
 type NodeTemplate struct {
-	Name    string `yaml:"name,omitempty"`
-	Weight  string `yaml:"weight,omitempty"`
-	Content string `yaml:"content,omitempty"`
+	Name     string        `yaml:"name,omitempty"`
+	Weight   string        `yaml:"weight,omitempty"`
+	Content  string        `yaml:"content,omitempty"`
+	Template *NodeTemplate `yaml:"template,omitempty"`
 }
 
 // TemplateData describes data that can be used in node templates.

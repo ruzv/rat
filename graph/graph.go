@@ -10,8 +10,13 @@ import (
 	pathutil "rat/graph/util/path"
 )
 
-// ErrNodeNotFound is returned when a node is not found.
-var ErrNodeNotFound = errors.New("node not found")
+var (
+	// ErrNodeNotFound is returned when a node is not found.
+	ErrNodeNotFound = errors.New("node not found")
+	// ErrPartialTemplate is returned when root node template is missing or
+	// partial.
+	ErrPartialTemplate = errors.New("partial or missing template")
+)
 
 // Provider describes graph node manipulations.
 type Provider interface {
@@ -186,6 +191,19 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 		return nil, errors.Wrap(err, "failed to get content field")
 	}
 
+	nt.Template, err = getTemplateField(
+		p, n, root.Header.ID,
+		func(nt *NodeTemplate) *NodeTemplate { return nt.Template },
+		func(nt *NodeTemplate) bool { return nt == nil },
+	)
+	if err != nil {
+		if !errors.Is(err, ErrPartialTemplate) {
+			return nil, errors.Wrap(err, "failed to get template field")
+		}
+
+		nt.Template = nil // allow root recursive template to be nil.
+	}
+
 	return nt, nil
 }
 
@@ -198,13 +216,17 @@ func getTemplateField[T any](
 
 	if rootID == n.Header.ID {
 		if n.Header.Template == nil {
-			return nilT, errors.New("root node must have a template")
+			return nilT, errors.Wrap(
+				ErrPartialTemplate, "root node must have a template",
+			)
 		}
 
 		field := getter(n.Header.Template)
 
 		if empty(field) {
-			return nilT, errors.New("root node template fields cannot be empty")
+			return nilT, errors.Wrap(
+				ErrPartialTemplate, "root node must have template field",
+			)
 		}
 
 		return field, nil
@@ -348,8 +370,9 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 		Name: name,
 		Path: n.Path.JoinName(name),
 		Header: NodeHeader{
-			ID:     id,
-			Weight: weight,
+			ID:       id,
+			Weight:   weight,
+			Template: templ.Template,
 		},
 		Content: content,
 	}, nil
