@@ -45,9 +45,6 @@ func RegisterRoutes(
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()
 
-	nodesRouter.HandleFunc("/", httputil.Wrap(h.log, h.create)).
-		Methods(http.MethodPost)
-
 	pathRe := regexp.MustCompile(
 		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll // can't split.
 	)
@@ -56,16 +53,19 @@ func RegisterRoutes(
 		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
 		Subrouter()
 
-	nodeRouter.HandleFunc("/", httputil.Wrap(h.log, h.deconstruct)).
+	nodeRouter.HandleFunc("/", httputil.Wrap(h.log, h.read)).
 		Methods(http.MethodGet)
 
 	nodeRouter.HandleFunc("/", httputil.Wrap(h.log, h.create)).
 		Methods(http.MethodPost)
 
+	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.delete)).
+		Methods(http.MethodDelete)
+
 	return nil
 }
 
-func (h *handler) deconstruct(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	n, err := h.getNode(w, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to get node error")
@@ -161,6 +161,27 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to write response")
 	}
+
+	return nil
+}
+
+func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
+	n, err := h.getNode(w, r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get node error")
+	}
+
+	err = h.gs.Graph.Delete(n)
+	if err != nil {
+		httputil.WriteError(
+			w, http.StatusInternalServerError, "failed to delete node",
+		)
+
+		return nil
+	}
+
+	// w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(http.StatusNoContent)
 
 	return nil
 }

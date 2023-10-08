@@ -77,7 +77,7 @@ linters-settings:
       - name: exported
         arguments:
           - checkPrivateReceivers
-      #     - disableStutteringCheck
+          - disableStutteringCheck
 
       - name: function-result-limit
         arguments:

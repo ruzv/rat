@@ -85,43 +85,6 @@ func NewSingleFile(
 	return sf, nil
 }
 
-func (sf *SingleFile) Write(node *graph.Node) error {
-	dirPath := sf.graphPath
-
-	if node.Path.Depth() != 1 {
-		dirPath = filepath.Join(
-			sf.graphPath,
-			string(node.Path.ParentPath()),
-		)
-	}
-
-	err := os.Mkdir(dirPath, 0o750)
-	if err != nil && !os.IsExist(err) {
-		return errors.Wrap(err, "failed to create dir")
-	}
-
-	file, err := os.Create(sf.fullPath(node.Path))
-	if err != nil {
-		return errors.Wrap(err, "failed to create file")
-	}
-
-	defer file.Close() //nolint:errcheck // ignore.
-
-	headerData, err := yaml.Marshal(node.Header)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal header")
-	}
-
-	_, err = fmt.Fprintf(
-		file, "---\n%s---\n\n%s", string(headerData), node.Content,
-	)
-	if err != nil {
-		return errors.Wrap(err, "failed to write node file")
-	}
-
-	return nil
-}
-
 // GetByID returns a node by its id.
 func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 	r, err := sf.Root()
@@ -273,6 +236,61 @@ func (sf *SingleFile) Move(id uuid.UUID, path pathutil.NodePath) error {
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to rename node dir")
+	}
+
+	return nil
+}
+
+func (sf *SingleFile) Write(node *graph.Node) error {
+	dirPath := sf.graphPath
+
+	if node.Path.Depth() != 1 {
+		dirPath = filepath.Join(
+			sf.graphPath,
+			string(node.Path.ParentPath()),
+		)
+	}
+
+	err := os.Mkdir(dirPath, 0o750)
+	if err != nil && !os.IsExist(err) {
+		return errors.Wrap(err, "failed to create dir")
+	}
+
+	file, err := os.Create(sf.fullPath(node.Path))
+	if err != nil {
+		return errors.Wrap(err, "failed to create file")
+	}
+
+	defer file.Close() //nolint:errcheck // ignore.
+
+	headerData, err := yaml.Marshal(node.Header)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal header")
+	}
+
+	_, err = fmt.Fprintf(
+		file, "---\n%s---\n\n%s", string(headerData), node.Content,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write node file")
+	}
+
+	return nil
+}
+
+func (sf *SingleFile) Delete(node *graph.Node) error {
+	if node.Path.Depth() == 1 {
+		return errors.New("cannot delete root node")
+	}
+
+	err := os.Remove(sf.fullPath(node.Path))
+	if err != nil {
+		return errors.Wrap(err, "failed to remove markdown file")
+	}
+
+	err = os.RemoveAll(filepath.Join(sf.graphPath, string(node.Path)))
+	if err != nil {
+		return errors.Wrap(err, "failed to remove sub node dir")
 	}
 
 	return nil

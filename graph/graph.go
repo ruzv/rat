@@ -25,6 +25,7 @@ type Provider interface {
 	GetLeafs(path pathutil.NodePath) ([]*Node, error)
 	Move(id uuid.UUID, path pathutil.NodePath) error
 	Write(node *Node) error
+	Delete(node *Node) error
 	Root() (*Node, error)
 }
 

@@ -133,6 +133,20 @@ func (pc *PathCache) Write(n *graph.Node) error {
 	return nil
 }
 
+func (pc *PathCache) Delete(n *graph.Node) error {
+	pc.cacheMu.Lock()
+	defer pc.cacheMu.Unlock()
+
+	err := pc.p.Delete(n)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete node")
+	}
+
+	delete(pc.cache, n.Header.ID)
+
+	return nil
+}
+
 // Root returns the root node.
 func (pc *PathCache) Root() (*graph.Node, error) {
 	n, err := pc.p.Root()
