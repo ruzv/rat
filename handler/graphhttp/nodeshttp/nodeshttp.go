@@ -184,7 +184,7 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 			w, http.StatusInternalServerError, "failed to delete node",
 		)
 
-		return nil
+		return errors.Wrap(err, "failed to delete node")
 	}
 
 	w.WriteHeader(http.StatusNoContent)

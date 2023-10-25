@@ -57,7 +57,6 @@ export function Console({ id }: { id: string }) {
         })}
 
         <SearchButton />
-
         <NewNodeButton />
         <DeleteButton pathParts={pathParts} />
       </ButtonRow>
@@ -70,13 +69,12 @@ function NewNodeButton() {
   const nodePath = useAtomValue(nodePathAtom);
   const [childNodes, setChildNodes] = useAtom(childNodesAtom);
   const [modalOpen, setModalOpen] = useAtom(modalOpenAtom);
-
-  const [showInput, setShowInput] = useState(false);
+  const [newNodeModalOpen, setNewNodeModalOpen] = useState(false);
   const [name, setName] = useState("");
 
-  function toggleInput() {
-    if (showInput) {
-      closeInput();
+  function showNewNodeModal() {
+    if (newNodeModalOpen) {
+      closeNewNodeModal();
       return;
     }
 
@@ -86,24 +84,24 @@ function NewNodeButton() {
     }
 
     // open
-    setShowInput(true);
+    setNewNodeModalOpen(true);
     setModalOpen(true);
     setName("");
   }
 
-  function closeInput() {
-    if (!showInput) {
+  function closeNewNodeModal() {
+    if (!newNodeModalOpen) {
       // not open
       return;
     }
 
-    setShowInput(false);
+    setNewNodeModalOpen(false);
     setModalOpen(false);
   }
 
-  useHotkeys("ctrl+shift+k", toggleInput);
-  useHotkeys("meta+shift+k", toggleInput);
-  useHotkeys("esc", closeInput);
+  useHotkeys("ctrl+shift+k", showNewNodeModal);
+  useHotkeys("meta+shift+k", showNewNodeModal);
+  useHotkeys("esc", closeNewNodeModal);
 
   if (!nodePath) {
     return <></>;
@@ -111,15 +109,15 @@ function NewNodeButton() {
 
   return (
     <>
-      <IconButton icon={addNodeIcon} onClick={toggleInput} />
+      <IconButton icon={addNodeIcon} onClick={showNewNodeModal} />
 
-      {showInput && (
+      {newNodeModalOpen && (
         <ContentModal>
           <Input
-            handleClose={closeInput}
+            handleClose={closeNewNodeModal}
             handleChange={setName}
             handleSubmit={() => {
-              closeInput();
+              closeNewNodeModal();
 
               fetch(`${ratAPIBaseURL()}/graph/nodes/${nodePath}/`, {
                 method: "POST",
@@ -145,47 +143,45 @@ function NewNodeButton() {
 function SearchButton() {
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useAtom(modalOpenAtom);
-  const [show, setShow] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [results, setResults] = useState<string[]>([]);
 
-  function toggleSearch() {
-    if (show) {
-      setShow(false);
-      setModalOpen(false);
+  function showSearchModal() {
+    if (searchModalOpen) {
+      closeSearchModal();
       return;
     }
 
     if (modalOpen) {
+      // another modal is open
       return;
     }
 
+    setSearchModalOpen(true);
     setModalOpen(true);
-    setShow(true);
   }
 
-  useHotkeys( "ctrl+k", toggleSearch);
-  useHotkeys(
-    "meta+k",
-    toggleSearch,
-  );
-  useHotkeys(
-    "esc",
-    () => {
-      setShow(false);
-    },
-    [show],
-  );
+  function closeSearchModal() {
+    if (!searchModalOpen) {
+      return;
+    }
+
+    setSearchModalOpen(false);
+    setModalOpen(false);
+  }
+
+  useHotkeys("ctrl+k", showSearchModal);
+  useHotkeys("meta+k", showSearchModal);
+  useHotkeys("esc", closeSearchModal);
 
   return (
     <>
-      <IconButton icon={loupeIcon} onClick={() => {}} />
+      <IconButton icon={loupeIcon} onClick={showSearchModal} />
 
-      {show && (
+      {searchModalOpen && (
         <ContentModal>
           <Input
-            handleClose={() => {
-              setShow(false);
-            }}
+            handleClose={closeSearchModal}
             handleChange={(query) => {
               fetch(`${ratAPIBaseURL()}/graph/search/`, {
                 method: "POST",
@@ -199,8 +195,8 @@ function SearchButton() {
                 return;
               }
 
+              closeSearchModal();
               navigate(`/view/${results[0]}`);
-              setShow(false);
             }}
           />
           <SearchResults results={results} />

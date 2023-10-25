@@ -19,7 +19,7 @@ var (
 )
 
 // Provider describes graph node manipulations.
-type Provider interface {
+type Provider interface { //nolint:interfacebloat // split into reader, writer.
 	GetByID(id uuid.UUID) (*Node, error)
 	GetByPath(path pathutil.NodePath) (*Node, error)
 	GetLeafs(path pathutil.NodePath) ([]*Node, error)

@@ -131,7 +131,7 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	md, _ := sf.fullPath(path)
 
-	file, err := os.Open(md)
+	file, err := os.Open(md) //nolint:gosec // path cleaned by fullPath
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.Wrapf(
@@ -262,7 +262,7 @@ func (sf *SingleFile) Write(node *graph.Node) error {
 
 	md, _ := sf.fullPath(node.Path)
 
-	file, err := os.Create(md)
+	file, err := os.Create(md) //nolint:gosec // path cleaned by fullPath
 	if err != nil {
 		return errors.Wrap(err, "failed to create file")
 	}
@@ -294,12 +294,12 @@ func (sf *SingleFile) Delete(node *graph.Node) error {
 
 	err := os.Remove(md)
 	if err != nil {
-		return errors.Wrap(err, "failed to move node to bin")
+		return errors.Wrap(err, "failed to remove node markdown file")
 	}
 
 	err = os.RemoveAll(sub)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "failed to move sub nodes to bin")
+		return errors.Wrap(err, "failed to remove sub nodes dir")
 	}
 
 	return nil
@@ -319,17 +319,17 @@ func (sf *SingleFile) fullPath(path pathutil.NodePath) (string, string) {
 			),
 			filepath.Join(
 				sf.graphPath,
-				path.Name(),
+				filepath.Clean(path.Name()),
 			)
 	}
 
 	return filepath.Join(
 			sf.graphPath,
-			path.ParentPath().String(),
+			filepath.Clean(path.ParentPath().String()),
 			fmt.Sprintf("%s.md", path.Name()),
 		),
 		filepath.Join(
 			sf.graphPath,
-			string(path),
+			filepath.Clean(path.String()),
 		)
 }

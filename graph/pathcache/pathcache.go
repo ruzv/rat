@@ -133,6 +133,7 @@ func (pc *PathCache) Write(n *graph.Node) error {
 	return nil
 }
 
+// Delete wraps underlying implementation delete also deleting node from cache.
 func (pc *PathCache) Delete(n *graph.Node) error {
 	pc.cacheMu.Lock()
 	defer pc.cacheMu.Unlock()
