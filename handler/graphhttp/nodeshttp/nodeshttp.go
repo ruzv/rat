@@ -60,7 +60,7 @@ func RegisterRoutes(
 		Methods(http.MethodPost)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.delete)).
-		Methods(http.MethodDelete)
+		Methods(http.MethodDelete, http.MethodOptions)
 
 	return nil
 }
@@ -166,6 +166,13 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
+
+	if r.Method == http.MethodOptions {
+		return nil
+	}
+
 	n, err := h.getNode(w, r)
 	if err != nil {
 		return errors.Wrap(err, "failed to get node error")
@@ -180,7 +187,6 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	// w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusNoContent)
 
 	return nil

@@ -27,21 +27,6 @@ func (p NodePath) ParentPath() NodePath {
 	return NodePath(strings.Join(parts[:len(parts)-1], "/"))
 }
 
-// NameFromPath returns name of node from its path.
-func (p NodePath) NameFromPath() string {
-	parts := strings.Split(string(p), "/")
-
-	if len(parts) == 0 {
-		return ""
-	}
-
-	if len(parts) == 1 {
-		return parts[0]
-	}
-
-	return parts[len(parts)-1]
-}
-
 // Depth returns depth of path.
 func (p NodePath) Depth() int {
 	return len(p.Parts())

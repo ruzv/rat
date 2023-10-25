@@ -1,0 +1,79 @@
+.textButton {
+  /* for some wtf reason 18px is the maximum font size to get height 40px */
+  font-size: 18px;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+}
+
+.icon {
+  width: 100%;
+  height: 100%;
+}
+
+.button {
+  cursor: pointer;
+
+  border: 3px solid #474646;
+  background-color: #474646;
+  border-radius: 5px;
+
+  padding: 5px;
+
+  box-sizing: border-box;
+}
+
+.button:hover {
+  border: 3px solid #841a84;
+}
+
+.button:active {
+  border: 3px solid #ffffff;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border: 3px solid #841a84;
+}
+
+.clickable:active {
+  border: 3px solid #ffffff;
+}
+
+/* .consoleButton { */
+/*   overflow-wrap: anywhere; */
+/*   display: inline-block; */
+/*   border: 3px solid #474646; */
+/*   background-color: #474646; */
+/*   padding-left: 5px; */
+/*   padding-right: 5px; */
+/*   border-radius: 5px; */
+/*   font-size: 130%; */
+/*   margin-right: 6px; */
+/*   margin-bottom: 6px; */
+/*   box-sizing: border-box; */
+/* } */
+
+/* .deleteButton { */
+/*   position: absolute; */
+/*   z-index: 1; */
+/*   width: 40px; */
+/*   height: 40px; */
+/*   background-color: #474646; */
+/*   top: 30px; */
+/*   right: 30px; */
+/*   border-radius: 5px; */
+/*   border: 3px solid #474646; */
+/*   padding: 2px; */
+/* }  */

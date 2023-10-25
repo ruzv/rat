@@ -1,21 +1,18 @@
 import React from "react";
-import { useEffect } from "react";
+
 import { Node } from "./components/node";
-import {
-  Console,
-  NodeContent,
-  ChildNodes,
-  SearchModal,
-  NewNodeModal,
-  ratAPIBaseURL,
-} from "./components/parts";
-import { useAtom, useSetAtom } from "jotai";
+import { NodeContent, ChildNodes } from "./components/parts";
+import { Console } from "./components/console";
+import { ratAPIBaseURL } from "./components/util";
 import {
   nodeAtom,
   nodePathAtom,
   nodeAstAtom,
   childNodesAtom,
 } from "./components/atoms";
+
+import { useEffect } from "react";
+import { useAtom, useSetAtom } from "jotai";
 import { useLoaderData } from "react-router-dom";
 
 function View() {
@@ -46,8 +43,6 @@ function View() {
 
   return (
     <>
-      <SearchModal />
-      <NewNodeModal />
       <Console id={node.id} />
       <NodeContent />
       <ChildNodes />
