@@ -47,7 +47,9 @@ func NewSingleFile(
 		graphPath:    graphPath,
 	}
 
-	_, err := os.Stat(sf.fullPath(sf.rootNodePath))
+	md, _ := sf.fullPath(sf.rootNodePath)
+
+	_, err := os.Stat(md)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, errors.Wrap(err, "failed to stat root node file")
@@ -83,43 +85,6 @@ func NewSingleFile(
 	}
 
 	return sf, nil
-}
-
-func (sf *SingleFile) Write(node *graph.Node) error {
-	dirPath := sf.graphPath
-
-	if node.Path.Depth() != 1 {
-		dirPath = filepath.Join(
-			sf.graphPath,
-			string(node.Path.ParentPath()),
-		)
-	}
-
-	err := os.Mkdir(dirPath, 0o750)
-	if err != nil && !os.IsExist(err) {
-		return errors.Wrap(err, "failed to create dir")
-	}
-
-	file, err := os.Create(sf.fullPath(node.Path))
-	if err != nil {
-		return errors.Wrap(err, "failed to create file")
-	}
-
-	defer file.Close() //nolint:errcheck // ignore.
-
-	headerData, err := yaml.Marshal(node.Header)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal header")
-	}
-
-	_, err = fmt.Fprintf(
-		file, "---\n%s---\n\n%s", string(headerData), node.Content,
-	)
-	if err != nil {
-		return errors.Wrap(err, "failed to write node file")
-	}
-
-	return nil
 }
 
 // GetByID returns a node by its id.
@@ -164,7 +129,9 @@ func (sf *SingleFile) GetByID(id uuid.UUID) (*graph.Node, error) {
 
 // GetByPath returns a node by its path.
 func (sf *SingleFile) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
-	file, err := os.Open(sf.fullPath(path))
+	md, _ := sf.fullPath(path)
+
+	file, err := os.Open(md) //nolint:gosec // path cleaned by fullPath
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.Wrapf(
@@ -253,7 +220,10 @@ func (sf *SingleFile) Move(id uuid.UUID, path pathutil.NodePath) error {
 		return errors.Wrap(err, "failed to get node by id")
 	}
 
-	err = os.Rename(sf.fullPath(n.Path), sf.fullPath(path))
+	oldMD, oldSub := sf.fullPath(n.Path)
+	newMD, newSub := sf.fullPath(path)
+
+	err = os.Rename(oldMD, newMD)
 	if err != nil {
 		return errors.Wrap(err, "failed to rename node")
 	}
@@ -267,12 +237,69 @@ func (sf *SingleFile) Move(id uuid.UUID, path pathutil.NodePath) error {
 		return errors.Wrap(err, "failed to stat node dir")
 	}
 
-	err = os.Rename(
-		filepath.Join(sf.graphPath, n.Path.String()),
-		filepath.Join(sf.graphPath, path.String()),
-	)
+	err = os.Rename(oldSub, newSub)
 	if err != nil {
 		return errors.Wrap(err, "failed to rename node dir")
+	}
+
+	return nil
+}
+
+func (sf *SingleFile) Write(node *graph.Node) error {
+	dirPath := sf.graphPath
+
+	if node.Path.Depth() != 1 {
+		dirPath = filepath.Join(
+			sf.graphPath,
+			string(node.Path.ParentPath()),
+		)
+	}
+
+	err := os.Mkdir(dirPath, 0o750)
+	if err != nil && !os.IsExist(err) {
+		return errors.Wrap(err, "failed to create dir")
+	}
+
+	md, _ := sf.fullPath(node.Path)
+
+	file, err := os.Create(md) //nolint:gosec // path cleaned by fullPath
+	if err != nil {
+		return errors.Wrap(err, "failed to create file")
+	}
+
+	defer file.Close() //nolint:errcheck // ignore.
+
+	headerData, err := yaml.Marshal(node.Header)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal header")
+	}
+
+	_, err = fmt.Fprintf(
+		file, "---\n%s---\n\n%s", string(headerData), node.Content,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write node file")
+	}
+
+	return nil
+}
+
+// Delete moves a node and all its sub nodes to the deleted dir.
+func (sf *SingleFile) Delete(node *graph.Node) error {
+	if node.Path.Depth() == 1 {
+		return errors.New("cannot delete root node")
+	}
+
+	md, sub := sf.fullPath(node.Path)
+
+	err := os.Remove(md)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove node markdown file")
+	}
+
+	err = os.RemoveAll(sub)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "failed to remove sub nodes dir")
 	}
 
 	return nil
@@ -283,17 +310,26 @@ func (sf *SingleFile) Root() (*graph.Node, error) {
 	return sf.GetByPath(sf.rootNodePath)
 }
 
-func (sf *SingleFile) fullPath(path pathutil.NodePath) string {
+// returns (markdown, subnode dir) in node tree.
+func (sf *SingleFile) fullPath(path pathutil.NodePath) (string, string) {
 	if path.Depth() == 1 {
 		return filepath.Join(
-			sf.graphPath,
-			fmt.Sprintf("%s.md", path.NameFromPath()),
-		)
+				sf.graphPath,
+				fmt.Sprintf("%s.md", path.Name()),
+			),
+			filepath.Join(
+				sf.graphPath,
+				filepath.Clean(path.Name()),
+			)
 	}
 
 	return filepath.Join(
-		sf.graphPath,
-		path.ParentPath().String(),
-		fmt.Sprintf("%s.md", path.NameFromPath()),
-	)
+			sf.graphPath,
+			filepath.Clean(path.ParentPath().String()),
+			fmt.Sprintf("%s.md", path.Name()),
+		),
+		filepath.Join(
+			sf.graphPath,
+			filepath.Clean(path.String()),
+		)
 }

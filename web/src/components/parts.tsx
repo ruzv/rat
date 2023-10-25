@@ -1,14 +1,16 @@
 import React from "react";
+
 import { Node, NodeAstPart } from "./node";
+import { nodeAstAtom, childNodesAtom } from "./atoms";
+import { Spacer, ratAPIBaseURL } from "./util";
+import styles from "./parts.module.css";
+
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
-import styles from "./parts.module.css";
 import { useState, useEffect, useMemo } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
-import { useAtom, useAtomValue } from "jotai";
-import { nodePathAtom, nodeAstAtom, childNodesAtom } from "./atoms";
+import { useAtomValue } from "jotai";
 import { graphviz } from "d3-graphviz";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   useDroppable,
   useDraggable,
@@ -52,58 +54,6 @@ function Draggable({
   );
 }
 
-export function ratAPIBaseURL() {
-  if (process.env.NODE_ENV === "production") {
-    // enables use of relative path when app is embedded in rat server.
-    return "";
-  }
-
-  return process.env.REACT_APP_RAT_API_BASE_URL;
-}
-
-export function Console({ id }: { id: string }) {
-  const nodePath = useAtomValue(nodePathAtom);
-  const navigate = useNavigate();
-
-  if (!nodePath) {
-    return <></>;
-  }
-
-  const pathParts = nodePath.split("/");
-
-  return (
-    <div className={styles.consoleContainer}>
-      <div>
-        <ConsoleButton
-          text={id}
-          onClick={() => {
-            navigator.clipboard.writeText(id);
-          }}
-        />
-        <ConsoleButton
-          text={nodePath}
-          onClick={() => {
-            navigator.clipboard.writeText(nodePath);
-          }}
-        />
-      </div>
-      <div>
-        {pathParts.map((part, idx) => {
-          return (
-            <ConsoleButton
-              key={idx}
-              text={part}
-              onClick={() => {
-                navigate(`/view/${pathParts.slice(0, idx + 1).join("/")}`);
-              }}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function NodeContent() {
   const ast = useAtomValue(nodeAstAtom);
 
@@ -112,11 +62,11 @@ export function NodeContent() {
   }
 
   return (
-    <NodeContainer>
-      <div className={styles.contentSpacer}> </div>
+    <Container>
+      <Spacer height={30} />
       <NodePart part={ast} />
-      <div className={styles.contentSpacer}> </div>
-    </NodeContainer>
+      <Spacer height={30} />
+    </Container>
   );
 }
 
@@ -161,7 +111,7 @@ function ChildNodesColumns({ childNodes }: { childNodes: Node[] }) {
   return (
     <div className={styles.childNodesContainer}>
       <ChildNodesColumn childNodes={leftChildNodes} />
-      <div className={styles.childNodesColumnSpacer}> </div>
+      <Spacer width={20} />
       <ChildNodesColumn childNodes={rightChildNodes} />
     </div>
   );
@@ -181,15 +131,14 @@ function ChildNode({ node }: { node: Node }) {
   const navigate = useNavigate();
 
   return (
-    <ChildNodeContainer
-      onClick={() => {
-        navigate(`/view/${node.path}`);
-      }}
-    >
-      <div className={styles.contentSpacer}></div>
-      <NodePart part={node.ast} />
-      <div className={styles.contentSpacer}></div>
-    </ChildNodeContainer>
+    <>
+      <Spacer height={20} />
+      <ClickableContainer onClick={() => navigate(`/view/${node.path}`)}>
+        <Spacer height={30} />
+        <NodePart part={node.ast} />
+        <Spacer height={30} />
+      </ClickableContainer>
+    </>
   );
 }
 
@@ -202,7 +151,7 @@ export function NodePart({ part }: { part: NodeAstPart }) {
     case "horizontal_rule":
       return <hr className={styles.horizontalRule} />;
     case "code":
-      return <Code part={part} />;
+      return <Code text={part.attributes["text"] as string} />;
     case "code_block":
       return <CodeBlock part={part} />;
     case "link":
@@ -358,10 +307,8 @@ function Heading({ part }: { part: NodeAstPart }) {
   }
 }
 
-function Code({ part }: { part: NodeAstPart }) {
-  return (
-    <code className={styles.code}>{part.attributes["text"] as string}</code>
-  );
+export function Code({ text }: { text: string }) {
+  return <code className={styles.code}>{text}</code>;
 }
 
 function CodeBlock({ part }: { part: NodeAstPart }) {
@@ -407,9 +354,12 @@ function Link({ part }: { part: NodeAstPart }) {
 
 function GraphLink({ part }: { part: NodeAstPart }) {
   return (
-    <a className={styles.link} href={part.attributes["destination"] as string}>
+    <RouterLink
+      to={part.attributes["destination"] as string}
+      className={styles.link}
+    >
       {part.attributes["title"]}
-    </a>
+    </RouterLink>
   );
 }
 
@@ -584,9 +534,10 @@ function KanbanColumn({ part }: { part: NodeAstPart }) {
 function KanbanCard({ part }: { part: NodeAstPart }) {
   return (
     <Draggable id={part.attributes["id"]}>
-      <KanbanCardContainer onClick={() => {}}>
+      <Spacer height={10} />
+      <Container>
         <NodePartChildren part={part} />
-      </KanbanCardContainer>
+      </Container>
     </Draggable>
   );
 }
@@ -601,8 +552,6 @@ function Graphviz({ dot }: { dot: string }) {
     try {
       graphviz(`#${id}`, {
         fit: true,
-        // height: 500,
-        // width: 500,
         zoom: false,
       }).renderDot(dot);
     } catch (error) {
@@ -627,261 +576,19 @@ function NodePartChildren({ part }: { part: NodeAstPart }) {
   );
 }
 
-function NodeContainer(props: React.PropsWithChildren<{}>) {
-  return (
-    <Container className={styles.nodeContainerSpacer}>
-      {props.children}
-    </Container>
-  );
-}
-
-function ChildNodeContainer(
-  props: React.PropsWithChildren<{
-    onClick: () => void | undefined;
-  }>,
+function ClickableContainer(
+  props: React.PropsWithChildren<{ onClick?: () => void }>,
 ) {
-  return (
-    <Container
-      className={`${styles.nodeContainerSpacer} ${styles.clickable}`}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </Container>
-  );
-}
-
-function KanbanCardContainer(
-  props: React.PropsWithChildren<{
-    onClick: () => void | undefined;
-  }>,
-) {
-  return (
-    <Container
-      className={styles.kanbanCardContainerSpacer}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </Container>
-  );
-}
-
-function Container({
-  className = "",
-  onClick = () => {},
-  children,
-}: React.PropsWithChildren<{
-  className: string | undefined;
-  onClick?: () => void;
-}>) {
-  className += ` ${styles.container}`;
-
-  return (
-    <div className={className} onClick={onClick}>
-      {children}
-    </div>
-  );
-}
-
-function ConsoleButton({
-  text,
-  onClick,
-}: {
-  text: string;
-  onClick: () => void;
-}) {
   return (
     <div
-      className={`${styles.consoleButton} ${styles.clickable}`}
-      onClick={onClick}
+      className={`${styles.container} ${styles.clickable}`}
+      onClick={props.onClick}
     >
-      {text}
+      {props.children}
     </div>
   );
 }
 
-export function NewNodeModal() {
-  const nodePath = useAtomValue(nodePathAtom);
-  const [childNodes, setChildNodes] = useAtom(childNodesAtom);
-
-  const [show, setShow] = useState(false);
-  const [name, setName] = useState("");
-
-  useHotkeys(
-    "ctrl+shift+k",
-    () => {
-      setName("");
-      setShow(!show);
-    },
-    [show],
-  );
-  useHotkeys(
-    "meta+shift+k",
-    () => {
-      setName("");
-      setShow(!show);
-    },
-    [show],
-  );
-  useHotkeys(
-    "esc",
-    () => {
-      setShow(false);
-      setName("");
-    },
-    [show],
-  );
-
-  if (!nodePath) {
-    return <></>;
-  }
-
-  return (
-    <>
-      {show && (
-        <Modal>
-          <Input
-            handleClose={() => {
-              setShow(false);
-              setName("");
-            }}
-            handleChange={setName}
-            handleSubmit={() => {
-              setShow(false);
-              setName("");
-
-              fetch(`${ratAPIBaseURL()}/graph/nodes/${nodePath}/`, {
-                method: "POST",
-                body: JSON.stringify({ name: name }),
-              })
-                .then((resp) => resp.json())
-                .then((node: Node) => {
-                  if (!childNodes) {
-                    setChildNodes([node]);
-                    return;
-                  }
-
-                  setChildNodes([...childNodes, node]);
-                });
-            }}
-          />
-        </Modal>
-      )}
-    </>
-  );
-}
-
-export function SearchModal() {
-  const [show, setShow] = useState(false);
-  const [results, setResults] = useState<string[]>([]);
-  const navigate = useNavigate();
-
-  useHotkeys(
-    "ctrl+k",
-    () => {
-      setShow(!show);
-    },
-    [show],
-  );
-  useHotkeys(
-    "meta+k",
-    () => {
-      setShow(!show);
-    },
-    [show],
-  );
-  useHotkeys(
-    "esc",
-    () => {
-      setShow(false);
-    },
-    [show],
-  );
-
-  return (
-    <>
-      {show && (
-        <Modal>
-          <Input
-            handleClose={() => {
-              setShow(false);
-            }}
-            handleChange={(query) => {
-              fetch(`${ratAPIBaseURL()}/graph/search/`, {
-                method: "POST",
-                body: JSON.stringify({ query: query }),
-              })
-                .then((resp) => resp.json())
-                .then((resp) => setResults(resp.results));
-            }}
-            handleSubmit={() => {
-              if (results.length === 0) {
-                return;
-              }
-
-              navigate(`/view/${results[0]}`);
-              setShow(false);
-            }}
-          />
-          <SearchResults results={results} />
-        </Modal>
-      )}
-    </>
-  );
-}
-
-function SearchResults({ results }: { results: string[] }) {
-  return (
-    <div className={styles.searchResults}>
-      {results.map((result, idx) => {
-        return (
-          <div className={styles.searchResult} key={idx}>
-            {result}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function Modal(props: React.PropsWithChildren<{}>) {
-  return (
-    <div className={styles.modal}>
-      <div className={styles.modalMargins}>{props.children}</div>
-    </div>
-  );
-}
-
-function Input({
-  handleClose,
-  handleChange,
-  handleSubmit,
-}: {
-  handleClose: () => void;
-  handleChange: (value: string) => void;
-  handleSubmit: () => void;
-}) {
-  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      handleClose();
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        handleSubmit();
-      }}
-    >
-      <input
-        className={styles.input}
-        type={"text"}
-        autoFocus
-        onKeyDown={handleKeyDown}
-        onChange={(event) => {
-          handleChange(event.target.value);
-        }}
-      />
-    </form>
-  );
+function Container(props: React.PropsWithChildren<{}>) {
+  return <div className={styles.container}>{props.children}</div>;
 }

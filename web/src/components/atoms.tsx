@@ -10,3 +10,5 @@ export const nodePathAtom = atom<string>(
 export const nodeAstAtom = atom<NodeAstPart | undefined>(undefined);
 
 export const childNodesAtom = atom<Node[] | undefined>(undefined);
+
+export const modalOpenAtom = atom(false);

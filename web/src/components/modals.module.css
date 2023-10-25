@@ -1,0 +1,55 @@
+.modalBase {
+  /* Stay in place */
+  position: fixed;
+  /* Sit on top */
+  z-index: 1;
+  left: 0;
+  top: 0;
+  /* Full width */
+  width: 100%;
+  /* Full height */
+  height: 100%;
+  /* Enable scroll if needed */
+  overflow: auto;
+  /* Fallback color */
+  background-color: rgb(0, 0, 0);
+  /* Black w/ opacity */
+  background-color: rgba(0, 0, 0, 0.7);
+
+  display: flex;
+  justify-content: center;
+  align-items: top;
+}
+
+.modalBox {
+  background-color: #1c1c1c;
+  border-radius: 8px;
+  padding: 10px;
+  height: fit-content;
+}
+
+.contentModal {
+  width: 60vw;
+  margin: 80px;
+  background-color: #1c1c1c;
+  border-radius: 8px;
+  height: fit-content;
+}
+
+.dialogModal {
+  margin: 80px;
+  width: 40vw;
+}
+
+@media only screen and (max-width: 700px) {
+  .contentModal {
+    width: 100%;
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  .dialogModal {
+    margin: 80px;
+    width: 100%;
+  }
+}

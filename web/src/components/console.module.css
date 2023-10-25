@@ -1,0 +1,38 @@
+.consoleContainer {
+  padding-top: 0;
+  padding: 30px;
+  padding-bottom: 24px;
+  background-color: #111111;
+  border: 3px solid #111111;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.nodePathPartsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 3px solid #474646;
+  background-color: #474646;
+  color: #acacac;
+  font-size: 20px;
+  font-family: "Roboto Mono", monospace;
+  border-radius: 5px;
+  padding: 5px;
+}
+
+.input:focus {
+  outline: none;
+  border: 3px solid #841a84;
+}
+
+.searchResult {
+  padding: 5px;
+  margin: 4px;
+  overflow-wrap: anywhere;
+}
