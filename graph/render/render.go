@@ -96,9 +96,7 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.HorizontalRule:
 		part.AddLeaf(&jsonast.AstPart{Type: "horizontal_rule"})
 	case *ast.Link:
-		var err error
-
-		part, err = jr.renderGraphLink(part, node, entering)
+		p, err := jr.renderGraphLink(part, node, entering)
 		if err != nil {
 			return part.AddContainer( //nolint:nilerr,lll // render link if graph link fails.
 				&jsonast.AstPart{
@@ -112,7 +110,7 @@ func (jr *JSONRenderer) renderNode(
 			), nil
 		}
 
-		return part, nil
+		return p, nil
 	case *ast.List:
 		part = part.AddContainer(
 			&jsonast.AstPart{
