@@ -121,3 +121,17 @@
 .image {
   width: 100%;
 }
+
+.embedIframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 8px solid #222222;
+  border-radius: 5px;
+}
+
+.embedContainer {
+  display: flex;
+  padding-left: 20px;
+  padding-right: 20px;
+  margin-bottom: 20px;
+}

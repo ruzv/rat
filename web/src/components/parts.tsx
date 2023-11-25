@@ -188,6 +188,8 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <Graphviz dot={part.attributes["text"]} />;
     case "image":
       return <Image part={part} />;
+    case "embed":
+      return <Embed url={part.attributes["url"] as string} />;
     case "table":
       return (
         <table className={styles.table}>
@@ -569,6 +571,14 @@ function Image({ part }: { part: NodeAstPart }) {
       src={part.attributes["src"]}
       alt={part.children[0].attributes["text"]}
     />
+  );
+}
+
+function Embed({ url }: { url: string }) {
+  return (
+    <div className={styles.embedContainer}>
+      <iframe className={styles.embedIframe} src={url} />
+    </div>
   );
 }
 
