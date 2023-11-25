@@ -21,9 +21,10 @@ type Config struct {
 
 // GraphConfig is the configuration for the graph.
 type GraphConfig struct {
-	Name pathutil.NodePath `yaml:"name" validate:"nonzero"`
-	Path string            `yaml:"path" validate:"nonzero"`
-	Sync *SyncConfig       `yaml:"sync"`
+	Name        pathutil.NodePath   `yaml:"name" validate:"nonzero"`
+	Path        string              `yaml:"path" validate:"nonzero"`
+	Sync        *SyncConfig         `yaml:"sync"`
+	Fileservers []*FileserverConfig `yaml:"fileservers"`
 }
 
 // SyncConfig defines configuration params for periodically syncing graph to a
@@ -32,6 +33,13 @@ type SyncConfig struct {
 	Interval    time.Duration `yaml:"interval" validate:"nonzero"`
 	KeyPath     string        `yaml:"keyPath" validate:"nonzero"`
 	KeyPassword string        `yaml:"keyPassword"`
+}
+
+// FileserverConfig defines configuration parameters for a fileserver that
+// web app can use to retrive files.
+type FileserverConfig struct {
+	Host   string `yaml:"host" validate:"nonzero"`
+	Scheme string `yaml:"scheme" validate:"nonzero"`
 }
 
 // Load loads the configuration from a file.
