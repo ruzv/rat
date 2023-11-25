@@ -13,20 +13,23 @@ import (
 )
 
 const (
-	// GraphTokenType graph tokens provide an overview of a nodes child nodes.
+	// GraphToken graph tokens provide an overview of a nodes child nodes.
 	// Graph tokens get substituted with a list tree of links to child nodes of
 	// specified depth. Unlimited depth if omitted.
-	GraphTokenType Type = "graph"
-	// TodoTokenType todo searches for todos in child nodes and collects them
+	GraphToken Type = "graph"
+	// TodoToken todo searches for todos in child nodes and collects them
 	// into a large singular todo. Token args can be used to specify search
 	// options.
-	TodoTokenType Type = "todo"
-	// KanbanTokenType kanban tokens provide a kanban board of child nodes.
-	KanbanTokenType Type = "kanban"
+	TodoToken Type = "todo"
+	// KanbanToken kanban tokens provide a kanban board of child nodes.
+	KanbanToken Type = "kanban"
+	// EmbedToken embed tokens provide allow embeding links.
+	EmbedToken Type = "embed"
 )
 
 var (
 	errUnknownTokenType = errors.New("unknown token type")
+	errMissingArgument  = errors.New("missing argument")
 	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))/>`)
 )
 
@@ -98,12 +101,14 @@ func Render(
 	}
 
 	switch t.Type {
-	case TodoTokenType:
+	case TodoToken:
 		return t.renderTodo(root, p)
-	case GraphTokenType:
+	case GraphToken:
 		return t.renderGraph(root, n, p)
-	case KanbanTokenType:
+	case KanbanToken:
 		return t.renderKanban(root, p, r)
+	case EmbedToken:
+		return t.renderEmbed(root)
 	default:
 		return errors.Errorf("unknown token type - %s", t.Type)
 	}
@@ -142,9 +147,10 @@ func parse(raw string) (*Token, error) {
 		target := Type(raw)
 
 		for _, valid := range []Type{
-			GraphTokenType,
-			TodoTokenType,
-			KanbanTokenType,
+			GraphToken,
+			TodoToken,
+			KanbanToken,
+			EmbedToken,
 		} {
 			if target == valid {
 				return target, nil
