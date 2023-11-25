@@ -186,6 +186,8 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <KanbanCard part={part} />;
     case "graphviz":
       return <Graphviz dot={part.attributes["text"]} />;
+    case "embed":
+      return <Embed url={part.attributes["url"] as string} />;
     case "table":
       return (
         <table className={styles.table}>
@@ -560,6 +562,14 @@ function Graphviz({ dot }: { dot: string }) {
   }, [dot, id]);
 
   return <div className={styles.graphviz} id={id} />;
+}
+
+function Embed({ url }: { url: string }) {
+  return (
+    <div className={styles.embedContainer}>
+      <iframe className={styles.embedIframe} src={url} />
+    </div>
+  );
 }
 
 function NodePartChildren({ part }: { part: NodeAstPart }) {
