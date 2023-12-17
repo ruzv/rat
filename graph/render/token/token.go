@@ -23,7 +23,7 @@ const (
 	TodoToken Type = "todo"
 	// KanbanToken kanban tokens provide a kanban board of child nodes.
 	KanbanToken Type = "kanban"
-	// EmbedToken can be used to embed links.
+	// EmbedToken embed tokens provide allow embeding links.
 	EmbedToken Type = "embed"
 )
 

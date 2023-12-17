@@ -40,7 +40,7 @@ func RegisterRoutes(
 	h := &handler{
 		log: log,
 		gs:  gs,
-		r:   render.NewJSONRenderer(gs.Graph, log),
+		r:   render.NewJSONRenderer(log, gs.Graph),
 	}
 
 	nodesRouter := router.PathPrefix("/nodes").Subrouter()

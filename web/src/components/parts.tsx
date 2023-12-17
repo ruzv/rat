@@ -186,6 +186,8 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <KanbanCard part={part} />;
     case "graphviz":
       return <Graphviz dot={part.attributes["text"]} />;
+    case "image":
+      return <Image part={part} />;
     case "embed":
       return <Embed url={part.attributes["url"] as string} />;
     case "table":
@@ -217,7 +219,6 @@ export function NodePart({ part }: { part: NodeAstPart }) {
           <NodePartChildren part={part} />
         </strong>
       );
-
     case "unknown":
       if (part.children === undefined) {
         return (
@@ -336,19 +337,18 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
 }
 
 function Link({ part }: { part: NodeAstPart }) {
+  const href = part.attributes["destination"] as string;
+
   if (part.children === undefined) {
     return (
-      <a
-        className={styles.link}
-        href={part.attributes["destination"] as string}
-      >
+      <a className={styles.link} href={href}>
         {part.attributes["title"]}
       </a>
     );
   }
 
   return (
-    <a className={styles.link} href={part.attributes["destination"] as string}>
+    <a className={styles.link} href={href}>
       <NodePartChildren part={part} />
     </a>
   );
@@ -562,6 +562,16 @@ function Graphviz({ dot }: { dot: string }) {
   }, [dot, id]);
 
   return <div className={styles.graphviz} id={id} />;
+}
+
+function Image({ part }: { part: NodeAstPart }) {
+  return (
+    <img
+      className={styles.image}
+      src={part.attributes["src"]}
+      alt={part.children[0].attributes["text"]}
+    />
+  );
 }
 
 function Embed({ url }: { url: string }) {

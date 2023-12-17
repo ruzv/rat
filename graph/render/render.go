@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/gofrs/uuid"
@@ -25,7 +26,10 @@ type JSONRenderer struct {
 }
 
 // NewJSONRenderer creates a new JSONRenderer.
-func NewJSONRenderer(p graph.Provider, log *logr.LogR) *JSONRenderer {
+func NewJSONRenderer(
+	log *logr.LogR,
+	p graph.Provider,
+) *JSONRenderer {
 	return &JSONRenderer{
 		p:   p,
 		log: log.Prefix("json-renderer"),
@@ -259,6 +263,16 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{Type: "strong"},
 			entering,
 		)
+	case *ast.Image:
+		part = part.AddContainer(
+			&jsonast.AstPart{
+				Type: "image",
+				Attributes: jsonast.AstAttributes{
+					"src": resolveFileURL(string(node.Destination)),
+				},
+			},
+			entering,
+		)
 	default:
 		if node.AsLeaf() == nil { // container
 			part = part.AddContainer(
@@ -320,4 +334,22 @@ func (jr *JSONRenderer) renderGraphLink(
 			entering,
 		),
 		nil
+}
+
+func resolveFileURL(file string) string {
+	parsed, err := url.Parse(file)
+	if err != nil {
+		return file
+	}
+
+	if parsed.IsAbs() {
+		return file
+	}
+
+	res, err := url.JoinPath("/graph/file/", file)
+	if err != nil {
+		return file
+	}
+
+	return res
 }

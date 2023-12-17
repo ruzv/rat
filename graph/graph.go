@@ -324,7 +324,7 @@ func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
 
 	err := n.Walk(
 		p,
-		func(d int, node *Node) (bool, error) {
+		func(_ int, node *Node) (bool, error) {
 			childNodes = append(childNodes, node)
 
 			return true, nil
