@@ -2,7 +2,7 @@
 # everything should be sorted in alphabetical order
 
 run:
-  timeout: 2m
+  timeout: 1m
   allow-parallel-runners: true
 
 linters-settings:
@@ -18,9 +18,6 @@ linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: true
-    exclude-functions:
-      - Close
-
 
   gocritic:
     disabled-checks:
@@ -41,10 +38,6 @@ linters-settings:
         - io/ioutil:
       local_replace_directives: false
 
-  gosec:
-    excludes:
-      - G104 # error check
-
   govet:
     enable-all: true
     disable:
@@ -53,6 +46,14 @@ linters-settings:
 
   interfacebloat:
     max: 6
+
+  ireturn:
+    allow:
+      - anon
+      - error
+      - empty
+      - stdlib
+      - generic
 
   lll:
     line-length: 80
@@ -114,15 +115,15 @@ linters-settings:
         disabled: true
       - name: line-length-limit
         disabled: true
-      - name: package-comments
-        disabled: true
       - name: unhandled-error
+        disabled: true
+      - name: package-comments
         disabled: true
 
   stylecheck:
-    checks:
-      - all
-      - -ST1000
+    checks: ["all", "-ST1000", "-ST1003"]
+    dot-import-whitelist: []
+    http-status-code-whitelist: []
 
   tagalign:
     align: false # could be true if https://github.com/momaek/formattag is used.
@@ -180,9 +181,6 @@ linters:
     # don't use shorthand ifs
     - ifshort
 
-    # false positives on generics
-    - ireturn
-
     # revive warns about this
     - nakedret
 
@@ -209,6 +207,13 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - goerr113
+        - wrapcheck
+        - gocritic
 
 severity:
   default-severity: error

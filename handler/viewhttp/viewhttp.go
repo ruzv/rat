@@ -46,7 +46,7 @@ func (h *handler) logServedContent() {
 	}
 }
 
-// RegisterRoutes registers graph routes on given router.
+// RegisterRoutes registers static file server routes on given router.
 func RegisterRoutes(
 	router *mux.Router, log *logr.LogR, webStaticContent fs.FS,
 ) error {

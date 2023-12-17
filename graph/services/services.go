@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -24,11 +25,16 @@ type GraphServices struct {
 	log             *logr.LogR
 }
 
+// FileURLResolver resolves relative file URLs in node content to absolute urls
+// to password protected, pre-configured fileservers.
 type FileURLResolver struct {
 	configs []*config.FileserverConfig
 	log     *logr.LogR
 }
 
+// Resolve iterates configured fileservers until a match is found and a server
+// returns a 200 OK for the specified path. Returns the absolute URL to the
+// file.
 func (r *FileURLResolver) Resolve(path string) (string, error) {
 	dest, err := url.Parse(path)
 	if err != nil {
@@ -40,24 +46,9 @@ func (r *FileURLResolver) Resolve(path string) (string, error) {
 	}
 
 	for _, c := range r.configs {
-		dest.Host = c.Host
-		dest.Scheme = c.Scheme
-
-		destURL := dest.String()
-
-		resp, err := http.Head(destURL)
+		destURL, err := r.resolve(c, path)
 		if err != nil {
-			r.log.Debugf("head request to %q failed: %s", destURL, err.Error())
-
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			r.log.Debugf(
-				"head request to %q returned status code %d",
-				destURL,
-				resp.StatusCode,
-			)
+			r.log.Debugf("failed to resolve file url %q: %s", path, err.Error())
 
 			continue
 		}
@@ -66,6 +57,58 @@ func (r *FileURLResolver) Resolve(path string) (string, error) {
 	}
 
 	return "", errors.Errorf("failed to resolve file url %q", path)
+}
+
+func (r *FileURLResolver) resolve(
+	c *config.FileserverConfig, path string,
+) (string, error) {
+	dest, err := url.Parse(c.Authority)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse fileserver authority")
+	}
+
+	dest.Path = path
+	dest.User = url.UserPassword(c.User, c.Password)
+
+	redactedDestURL := dest.Redacted()
+	destURL := dest.String()
+
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodHead,
+		destURL,
+		http.NoBody,
+	)
+	if err != nil {
+		return "", errors.Wrapf(
+			err, "failed to create head request to %q", redactedDestURL,
+		)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errors.Wrapf(
+			err, "head request to %q failed", redactedDestURL,
+		)
+	}
+
+	defer resp.Body.Close() //nolint:errcheck // ignore.
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.Errorf(
+			"head request to %q returned status code %d",
+			redactedDestURL,
+			resp.StatusCode,
+		)
+	}
+
+	r.log.Debugf(
+		"head request to %q returned Content-Type %s",
+		redactedDestURL,
+		resp.Header.Get("Content-Type"),
+	)
+
+	return destURL, nil
 }
 
 // NewGraphServices creates a new graph services.

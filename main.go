@@ -22,6 +22,9 @@ import (
 //go:embed web/build/*
 var embedStaticContent embed.FS
 
+//go:embed logo.txt
+var logo string
+
 var version = "dev"
 
 // Rat describes the rat server.
@@ -39,6 +42,7 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 	}
 
 	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
+	log.Infof("%s\nversion: %s", logo, version)
 
 	gs, err := services.NewGraphServices(log, conf.Graph)
 	if err != nil {

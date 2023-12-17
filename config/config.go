@@ -36,10 +36,11 @@ type SyncConfig struct {
 }
 
 // FileserverConfig defines configuration parameters for a fileserver that
-// web app can use to retrive files.
+// web app can use to retrieve files.
 type FileserverConfig struct {
-	Host   string `yaml:"host" validate:"nonzero"`
-	Scheme string `yaml:"scheme" validate:"nonzero"`
+	Authority string `yaml:"authority" validate:"nonzero"`
+	User      string `yaml:"user"`
+	Password  string `yaml:"password"`
 }
 
 // Load loads the configuration from a file.

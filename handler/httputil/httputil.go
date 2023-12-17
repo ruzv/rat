@@ -3,6 +3,7 @@ package httputil
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -83,8 +84,8 @@ func WriteResponse(w http.ResponseWriter, code int, body any) error {
 }
 
 // WriteError writes an error to the response.
-func WriteError(w http.ResponseWriter, code int, message string) {
-	WriteResponse( //nolint:errcheck // don't introduce double error handling.
+func WriteError(w http.ResponseWriter, code int, format string, args ...any) {
+	WriteResponse( //nolint:errcheck,gosec // avoid double error handling.
 		w,
 		code,
 		struct {
@@ -92,14 +93,12 @@ func WriteError(w http.ResponseWriter, code int, message string) {
 			Error string `json:"error"`
 		}{
 			Code:  code,
-			Error: message,
+			Error: fmt.Sprintf(format, args...),
 		},
 	)
 }
 
 // Body reads the requests body as a specified struct.
-//
-//nolint:ireturn // false positive.
 func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	defer r.Body.Close() //nolint:errcheck // ignore.
 

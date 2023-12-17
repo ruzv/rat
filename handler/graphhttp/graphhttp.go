@@ -12,6 +12,7 @@ import (
 	"rat/graph/services"
 	"rat/graph/util"
 	pathutil "rat/graph/util/path"
+	"rat/handler/fileshttp"
 	"rat/handler/graphhttp/nodeshttp"
 	"rat/handler/httputil"
 	"rat/logr"
@@ -49,6 +50,11 @@ func RegisterRoutes(
 	err := nodeshttp.RegisterRoutes(graphRouter, h.log, gs)
 	if err != nil {
 		return errors.Wrap(err, "failed to register nodes routes")
+	}
+
+	err = fileshttp.RegisterRoutes(graphRouter, h.log, gs)
+	if err != nil {
+		return errors.Wrap(err, "failed to register fileshttp routes")
 	}
 
 	return nil

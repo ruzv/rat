@@ -36,7 +36,7 @@ func NewRouter(
 		},
 	)
 
-	router.Use(GetAccessLoggerMW(log, false))
+	router.Use(GetAccessLoggerMW(log, true))
 
 	err := graphhttp.RegisterRoutes(router, log, gs)
 	if err != nil {

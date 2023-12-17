@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/gofrs/uuid"
@@ -12,7 +13,6 @@ import (
 	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
 	"rat/graph/render/token"
-	"rat/graph/services"
 	"rat/logr"
 )
 
@@ -21,21 +21,18 @@ var _ jsonast.Renderer = (*JSONRenderer)(nil)
 // JSONRenderer renders a nodes markdown content to JSON representation of the
 // markdown AST.
 type JSONRenderer struct {
-	p               graph.Provider
-	fileURLResolver *services.FileURLResolver
-	log             *logr.LogR
+	p   graph.Provider
+	log *logr.LogR
 }
 
 // NewJSONRenderer creates a new JSONRenderer.
 func NewJSONRenderer(
 	log *logr.LogR,
 	p graph.Provider,
-	fileURLResolver *services.FileURLResolver,
 ) *JSONRenderer {
 	return &JSONRenderer{
-		p:               p,
-		fileURLResolver: fileURLResolver,
-		log:             log.Prefix("json-renderer"),
+		p:   p,
+		log: log.Prefix("json-renderer"),
 	}
 }
 
@@ -267,16 +264,11 @@ func (jr *JSONRenderer) renderNode(
 			entering,
 		)
 	case *ast.Image:
-		src, err := jr.fileURLResolver.Resolve(string(node.Destination))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to resolve image destination")
-		}
-
 		part = part.AddContainer(
 			&jsonast.AstPart{
 				Type: "image",
 				Attributes: jsonast.AstAttributes{
-					"src": src,
+					"src": resolveFileURL(string(node.Destination)),
 				},
 			},
 			entering,
@@ -342,4 +334,22 @@ func (jr *JSONRenderer) renderGraphLink(
 			entering,
 		),
 		nil
+}
+
+func resolveFileURL(file string) string {
+	parsed, err := url.Parse(file)
+	if err != nil {
+		return file
+	}
+
+	if parsed.IsAbs() {
+		return file
+	}
+
+	res, err := url.JoinPath("/graph/file/", file)
+	if err != nil {
+		return file
+	}
+
+	return res
 }
