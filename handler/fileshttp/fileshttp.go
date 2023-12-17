@@ -21,7 +21,7 @@ type handler struct {
 func RegisterRoutes(
 	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
 ) error {
-	log = log.Prefix("viewhttp")
+	log = log.Prefix("fileshttp")
 
 	h := &handler{
 		log:             log,
@@ -72,9 +72,7 @@ func (h *handler) proxyFile(w http.ResponseWriter, r *http.Request) error {
 
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
-		httputil.WriteError(w, http.StatusNotFound, "file not found")
-
-		return errors.Wrap(err, "failed to copy source request response")
+		h.log.Debugf("failed to copy source request response: %s", err.Error())
 	}
 
 	return nil
