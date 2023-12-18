@@ -1,0 +1,14 @@
+# base image of rat server. intended to only be built, not run.
+# to get something running, build this compose file with
+# docker compose build
+# then run any service from the docker file at the root of this repo
+
+version: "3.1"
+
+services:
+  rat:
+    container_name: rat
+    image: rat
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
