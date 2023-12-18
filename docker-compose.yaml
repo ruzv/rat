@@ -1,0 +1,16 @@
+version: "3.1"
+
+services:
+  rat:
+    container_name: rat
+    image: rat
+    ports:
+      - "8880:8888"
+
+  rat-docs:
+    container_name: rat-docs
+    image: rat
+    ports:
+      - "8881:8888"
+    volumes:
+      - ./docs:/graph

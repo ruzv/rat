@@ -70,13 +70,14 @@ func NewSingleFile(
 				Name: string(rootNodePath),
 				Path: rootNodePath,
 				Header: graph.NodeHeader{
-					ID:     id,
-					Weight: 0,
+					ID: id,
 					Template: &graph.NodeTemplate{
+						Name:    "{{ .RawName }}",
+						Weight:  "0",
 						Content: "{{ .Name }}",
 					},
 				},
-				Content: "welcome to rat",
+				Content: "welcome to rat\n",
 			},
 		)
 		if err != nil {

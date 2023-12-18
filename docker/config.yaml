@@ -1,0 +1,7 @@
+port: 8888
+graph:
+  name: rat
+  path: /graph
+  # sync:
+  #   interval: 10s
+  #   keyPath: /path/to/key
