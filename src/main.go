@@ -39,6 +39,7 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 	conf, err := config.Load(cmdArgs.ConfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load config")
+
 	}
 
 	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
