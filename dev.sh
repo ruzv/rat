@@ -1,7 +1,9 @@
 #!/bin/bash
 
-/Users/rzvejs/go/bin/gow run . -c test-config.yaml &
+cd src || exit
 
-cd web || exit
+/Users/rzvejs/go/bin/gow run . -c ../test-config.yaml
 
-npm run dev
+# cd web || exit
+#
+# npm run dev

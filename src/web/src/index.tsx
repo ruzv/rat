@@ -2,8 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./fonts.css";
 import "./index.css";
-import View from "./view";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { View } from "./view";
 
 const router = createBrowserRouter([
   {

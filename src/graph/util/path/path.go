@@ -16,8 +16,8 @@ func (p NodePath) String() string {
 	return string(p)
 }
 
-// ParentPath returns parent path of node. Returns root path for root path.
-func (p NodePath) ParentPath() NodePath {
+// Parent returns parent path of node. Returns self when depth = 1.
+func (p NodePath) Parent() NodePath {
 	parts := p.Parts()
 
 	if len(parts) < 2 {
@@ -34,6 +34,10 @@ func (p NodePath) Depth() int {
 
 // JoinName adds the supplied name to the end of the supplied path.
 func (p NodePath) JoinName(name string) NodePath {
+	if p == "" {
+		return NodePath(name)
+	}
+
 	return NodePath(string(p) + "/" + name)
 }
 
@@ -49,7 +53,7 @@ func (p NodePath) ViewURL() (string, error) {
 
 // Name returns name of node from its path.
 func (p NodePath) Name() string {
-	parts := strings.Split(string(p), "/")
+	parts := p.Parts()
 
 	if len(parts) == 0 {
 		return ""
@@ -76,25 +80,4 @@ func (p NodePath) Parts() []string {
 	}
 
 	return parts
-}
-
-// ParentPath returns parent path of node. Returns root path for root path.
-func ParentPath(path NodePath) NodePath {
-	parts := path.Parts()
-
-	if len(parts) < 2 {
-		return path
-	}
-
-	return NodePath(strings.Join(parts[:len(parts)-1], "/"))
-}
-
-// JoinName adds the supplied name to the end of the supplied path.
-func JoinName(parent NodePath, name string) NodePath {
-	return NodePath(string(parent) + "/" + name)
-}
-
-// JoinPath adds first and second paths together.
-func JoinPath(first, second NodePath) NodePath {
-	return NodePath(string(first) + "/" + string(second))
 }

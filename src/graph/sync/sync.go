@@ -8,9 +8,17 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/pkg/errors"
-	"rat/config"
 	"rat/logr"
 )
+
+// Config defines configuration params for periodically syncing graph to a
+// git repository.
+type Config struct {
+	RepoDir     string        `yaml:"repoDir" validate:"nonzero"`
+	Interval    time.Duration `yaml:"interval" validate:"nonzero"`
+	KeyPath     string        `yaml:"keyPath" validate:"nonzero"`
+	KeyPassword string        `yaml:"keyPassword"`
+}
 
 // Syncer is a git syncer.
 type Syncer struct {
@@ -25,25 +33,25 @@ type Syncer struct {
 
 // NewSyncer creates a new Syncer.
 func NewSyncer(
-	log *logr.LogR, repoDir string, conf *config.SyncConfig,
+	c *Config, log *logr.LogR,
 ) (*Syncer, error) {
 	var (
 		err error
 		s   = &Syncer{
 			log:      log.Prefix("syncer"),
-			interval: conf.Interval,
+			interval: c.Interval,
 			trigger:  make(chan struct{}),
 			stop:     make(chan struct{}),
 		}
 	)
 
-	s.repo, err = git.PlainOpen(repoDir)
+	s.repo, err = git.PlainOpen(c.RepoDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open repository")
 	}
 
 	s.auth, err = ssh.NewPublicKeysFromFile(
-		"git", conf.KeyPath, conf.KeyPassword,
+		"git", c.KeyPath, c.KeyPassword,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create auth")

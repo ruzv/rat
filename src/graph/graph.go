@@ -18,17 +18,6 @@ var (
 	ErrPartialTemplate = errors.New("partial or missing template")
 )
 
-// Provider describes graph node manipulations.
-type Provider interface { //nolint:interfacebloat // split into reader, writer.
-	GetByID(id uuid.UUID) (*Node, error)
-	GetByPath(path pathutil.NodePath) (*Node, error)
-	GetLeafs(path pathutil.NodePath) ([]*Node, error)
-	Move(id uuid.UUID, path pathutil.NodePath) error
-	Write(node *Node) error
-	Delete(node *Node) error
-	Root() (*Node, error)
-}
-
 // Node describes a single node.
 type Node struct {
 	Name    string            `json:"name"`
@@ -59,8 +48,8 @@ type metric struct {
 }
 
 // GetLeafs returns all leafs of node.
-func (n *Node) GetLeafs(p Provider) ([]*Node, error) {
-	leafs, err := p.GetLeafs(n.Path)
+func (n *Node) GetLeafs(r Reader) ([]*Node, error) {
+	leafs, err := r.GetLeafs(n.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get leafs")
 	}
@@ -106,49 +95,41 @@ func (n *Node) AddSub(p Provider, name string) (*Node, error) {
 	return sub, nil
 }
 
-// Walk to every child node recursively starting from n. callback is called
-// for every child node. callback is not called for n.
-func (n *Node) Walk(
-	p Provider,
-	callback func(depth int, node *Node) (shouldWalkLeafs bool, err error),
-) error {
-	return n.walk(p, 0, callback)
+// FillID fills nodes id if it is empty.
+func (n *Node) FillID() (uuid.UUID, error) {
+	if n.Header.ID.IsNil() {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return uuid.Nil, errors.Wrap(err, "failed to generate id")
+		}
+
+		n.Header.ID = id
+	}
+
+	return n.Header.ID, nil
 }
 
-func (n *Node) walk(
-	p Provider,
-	depth int,
-	callback func(int, *Node) (bool, error),
+// Walk to every child node recursively starting from n. callback is called
+// for every child node. callback is called for n with depth 0.
+func (n *Node) Walk(
+	r Reader,
+	callback func(depth int, node *Node) (shouldWalkLeafs bool, err error),
 ) error {
-	leafs, err := n.GetLeafs(p)
+	visitChildren, err := callback(0, n)
 	if err != nil {
-		return errors.Wrap(err, "failed to get leafs")
+		return errors.Wrap(err, "callback failed")
 	}
 
-	for _, leaf := range leafs {
-		if callback != nil {
-			walkLeaf, err := callback(depth, leaf)
-			if err != nil {
-				return errors.Wrap(err, "callback failed")
-			}
-
-			if !walkLeaf {
-				continue // callback returned false, skip this branch
-			}
-		}
-
-		err = leaf.walk(p, depth+1, callback)
-		if err != nil {
-			return errors.Wrap(err, "failed to walk leaf")
-		}
+	if !visitChildren {
+		return nil
 	}
 
-	return nil
+	return n.walk(r, 1, callback)
 }
 
 // Parent returns parent of node.
 func (n *Node) Parent(p Provider) (*Node, error) {
-	parent, err := p.GetByPath(pathutil.ParentPath(n.Path))
+	parent, err := p.GetByPath(n.Path.Parent())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get parent")
 	}
@@ -158,15 +139,18 @@ func (n *Node) Parent(p Provider) (*Node, error) {
 
 // GetTemplate returns the first template encountered when walking up the tree.
 func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
-	root, err := p.Root()
+	var (
+		nt  = &NodeTemplate{}
+		err error
+	)
+
+	root, err := p.GetByID(RootNodeID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get root")
+		return nil, errors.Wrap(err, "failed to get root node")
 	}
 
-	nt := &NodeTemplate{}
-
 	nt.Name, err = getTemplateField(
-		p, n, root.Header.ID,
+		p, n, root.Header.Template,
 		func(nt *NodeTemplate) string { return nt.Name },
 		func(s string) bool { return s == "" },
 	)
@@ -175,7 +159,7 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 	}
 
 	nt.Weight, err = getTemplateField(
-		p, n, root.Header.ID,
+		p, n, root.Header.Template,
 		func(nt *NodeTemplate) string { return nt.Weight },
 		func(s string) bool { return s == "" },
 	)
@@ -184,7 +168,7 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 	}
 
 	nt.Content, err = getTemplateField(
-		p, n, root.Header.ID,
+		p, n, root.Header.Template,
 		func(nt *NodeTemplate) string { return nt.Content },
 		func(s string) bool { return s == "" },
 	)
@@ -193,7 +177,7 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 	}
 
 	nt.Template, err = getTemplateField(
-		p, n, root.Header.ID,
+		p, n, root.Header.Template,
 		func(nt *NodeTemplate) *NodeTemplate { return nt.Template },
 		func(nt *NodeTemplate) bool { return nt == nil },
 	)
@@ -206,47 +190,6 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 	}
 
 	return nt, nil
-}
-
-func getTemplateField[T any](
-	p Provider, n *Node, rootID uuid.UUID,
-	getter func(*NodeTemplate) T,
-	empty func(T) bool,
-) (T, error) {
-	var nilT T
-
-	if rootID == n.Header.ID {
-		if n.Header.Template == nil {
-			return nilT, errors.Wrap(
-				ErrPartialTemplate, "root node must have a template",
-			)
-		}
-
-		field := getter(n.Header.Template)
-
-		if empty(field) {
-			return nilT, errors.Wrap(
-				ErrPartialTemplate, "root node must have template field",
-			)
-		}
-
-		return field, nil
-	}
-
-	if n.Header.Template != nil {
-		field := getter(n.Header.Template)
-
-		if !empty(field) {
-			return field, nil
-		}
-	}
-
-	parent, err := n.Parent(p)
-	if err != nil {
-		return nilT, errors.Wrap(err, "failed to get parent")
-	}
-
-	return getTemplateField(p, parent, rootID, getter, empty)
 }
 
 // Metrics calculates metrics for node.
@@ -335,6 +278,74 @@ func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
 	}
 
 	return childNodes, nil
+}
+
+func (n *Node) walk(
+	r Reader,
+	depth int,
+	callback func(int, *Node) (bool, error),
+) error {
+	leafs, err := n.GetLeafs(r)
+	if err != nil {
+		return errors.Wrap(err, "failed to get leafs")
+	}
+
+	for _, leaf := range leafs {
+		walkLeaf, err := callback(depth, leaf)
+		if err != nil {
+			return errors.Wrap(err, "callback failed")
+		}
+
+		if !walkLeaf {
+			continue // callback returned false, skip this branch
+		}
+
+		err = leaf.walk(r, depth+1, callback)
+		if err != nil {
+			return errors.Wrap(err, "failed to walk leaf")
+		}
+	}
+
+	return nil
+}
+
+func getTemplateField[T any](
+	p Provider,
+	n *Node,
+	rootTemplate *NodeTemplate,
+	getter func(*NodeTemplate) T,
+	empty func(T) bool,
+) (T, error) {
+	var nilT T
+
+	if n.Header.Template != nil {
+		field := getter(n.Header.Template)
+
+		if !empty(field) {
+			return field, nil
+		}
+	}
+
+	parent, err := n.Parent(p)
+	if err != nil {
+		return nilT, errors.Wrap(err, "failed to get parent")
+	}
+
+	if parent.Header.ID == n.Header.ID {
+		if n.Header.Template == nil {
+			return getter(rootTemplate), nil
+		}
+
+		field := getter(n.Header.Template)
+
+		if empty(field) {
+			return getter(rootTemplate), nil
+		}
+
+		return field, nil
+	}
+
+	return getTemplateField(p, parent, rootTemplate, getter, empty)
 }
 
 func (n *Node) sub(p Provider, name string) (*Node, error) {

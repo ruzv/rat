@@ -7,7 +7,6 @@ COPY src/web ./
 
 RUN npm install
 RUN npm run build
-RUN rm -rf node_modules
 
 # build rat server binary, embeding web app static files from previous stage.
 FROM golang:1.21-alpine as server-builder

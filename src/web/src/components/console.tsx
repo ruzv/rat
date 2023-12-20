@@ -9,6 +9,8 @@ import styles from "./console.module.css";
 import binIcon from "./icons/bin.png";
 import loupeIcon from "./icons/loupe.png";
 import addNodeIcon from "./icons/add-node.png";
+import rootIcon from "./icons/root.png";
+
 import { ratAPIBaseURL } from "./util";
 
 import { useAtom, useAtomValue } from "jotai";
@@ -19,31 +21,41 @@ import { useHotkeys } from "react-hotkeys-hook";
 export function Console({ id }: { id: string }) {
   const navigate = useNavigate();
   const nodePath = useAtomValue(nodePathAtom);
+  const isRoot = nodePath === "";
 
-  if (!nodePath) {
-    return <></>;
+  let pathParts: string[] = [];
+
+  if (nodePath) {
+    pathParts = nodePath.split("/");
   }
-
-  const pathParts = nodePath.split("/");
 
   return (
     <div className={styles.consoleContainer}>
-      <ButtonRow>
-        <TextButton
-          text={id}
-          onClick={() => {
-            navigator.clipboard.writeText(id);
-          }}
-        />
-        <TextButton
-          text={nodePath}
-          onClick={() => {
-            navigator.clipboard.writeText(nodePath);
-          }}
-        />
-      </ButtonRow>
+      {!isRoot && (
+        <ButtonRow>
+          <TextButton
+            text={id}
+            onClick={() => {
+              navigator.clipboard.writeText(id);
+            }}
+          />
+          <TextButton
+            text={nodePath}
+            onClick={() => {
+              navigator.clipboard.writeText(nodePath);
+            }}
+          />
+        </ButtonRow>
+      )}
       <Spacer height={6} />
       <ButtonRow>
+        <IconButton
+          icon={rootIcon}
+          onClick={() => {
+            navigate(`/view`);
+          }}
+        />
+
         {pathParts.map((part, idx) => {
           return (
             <TextButton
@@ -58,7 +70,7 @@ export function Console({ id }: { id: string }) {
 
         <SearchButton />
         <NewNodeButton />
-        <DeleteButton pathParts={pathParts} />
+        {!isRoot && <DeleteButton pathParts={pathParts} />}
       </ButtonRow>
       <Spacer height={6} />
     </div>
@@ -103,10 +115,6 @@ function NewNodeButton() {
   useHotkeys("meta+shift+k", showNewNodeModal);
   useHotkeys("esc", closeNewNodeModal);
 
-  if (!nodePath) {
-    return <></>;
-  }
-
   return (
     <>
       <IconButton icon={addNodeIcon} onClick={showNewNodeModal} />
@@ -119,7 +127,7 @@ function NewNodeButton() {
             handleSubmit={() => {
               closeNewNodeModal();
 
-              fetch(`${ratAPIBaseURL()}/graph/nodes/${nodePath}/`, {
+              fetch(`${ratAPIBaseURL()}/graph/node/${nodePath}`, {
                 method: "POST",
                 body: JSON.stringify({ name: name }),
               })

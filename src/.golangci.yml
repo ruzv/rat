@@ -148,6 +148,18 @@ linters-settings:
         env: upperSnake
         envconfig: upperSnake
 
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - .Wrap(
+      - .Wrapf(
+      - .WithMessage(
+      - .WithMessagef(
+      - .WithStack(
+      - httputil.Error(
+
 linters:
   enable-all: true
   disable:

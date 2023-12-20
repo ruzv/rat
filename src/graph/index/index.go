@@ -77,7 +77,7 @@ func (gi *GraphIndex) Update() error {
 
 	gi.paths = nil
 
-	r, err := gi.p.Root()
+	r, err := gi.p.GetByID(graph.RootNodeID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get root node")
 	}

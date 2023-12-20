@@ -10,7 +10,10 @@ import (
 	"rat/logr"
 )
 
-var _ http.ResponseWriter = (*BufferResponseWriter)(nil)
+var (
+	_ http.ResponseWriter = (*BufferResponseWriter)(nil)
+	_ error               = (*httpError)(nil)
+)
 
 type (
 	// MuxHandlerFunc is a handler function for mux.
@@ -24,6 +27,11 @@ type (
 type BufferResponseWriter struct {
 	Code int
 	w    http.ResponseWriter
+}
+
+type httpError struct {
+	statusCode int
+	err        error
 }
 
 // NewBufferResponseWriter creates a new buffered response writer.
@@ -58,6 +66,11 @@ func Wrap(log *logr.LogR, f RatHandlerFunc) MuxHandlerFunc {
 		err := f(w, r)
 		if err != nil {
 			log.Errorf("handler error: %v", err)
+
+			httpErr := &httpError{}
+			if errors.As(err, &httpErr) {
+				WriteError(w, httpErr.statusCode, httpErr.err.Error())
+			}
 		}
 	}
 }
@@ -112,4 +125,23 @@ func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	}
 
 	return body, nil
+}
+
+// Error returns the error message of HTTP error.
+func (e *httpError) Error() string {
+	return fmt.Sprintf(
+		"HTTP error %d %s: %s",
+		e.statusCode,
+		http.StatusText(e.statusCode),
+		e.err.Error(),
+	)
+}
+
+// Error creates a new HTTP error, that can be handled by Wrap function, writing
+// the error message and status code to the response.
+func Error(statusCode int, err error) error {
+	return &httpError{
+		statusCode: statusCode,
+		err:        err,
+	}
 }
