@@ -8,7 +8,7 @@ version: "3.1"
 services:
   rat:
     container_name: rat
-    image: rat
+    image: ruzv/rat-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile
