@@ -251,7 +251,7 @@ function DeleteButton({ pathParts }: { pathParts: string[] }) {
             let parentPath = pathParts.slice(0, -1).join("/");
             let path = pathParts.join("/");
 
-            fetch(`${ratAPIBaseURL()}/graph/nodes/${path}`, {
+            fetch(`${ratAPIBaseURL()}/graph/node/${path}`, {
               method: "DELETE",
             }).then((resp) => {
               if (!resp.ok) {
