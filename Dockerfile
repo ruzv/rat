@@ -19,16 +19,15 @@ RUN go mod download && go mod verify
 COPY src .
 COPY --from=web-builder /rat-web/build ./web/build
 
-# TODO: HANDLE VERSION
-RUN go build -v -o /rat/rat
+ARG RAT_VERSION="v0.0.0+unknown"
+RUN go build -ldflags "-X main.version=$RAT_VERSION" -v -o /rat/rat
 
 # build final image
 FROM scratch
 WORKDIR /rat
 
 COPY --from=server-builder /rat/rat rat
-COPY docker/config.yaml config.yaml
-# TODO: move config to a more fitting place.
+COPY config-docker.yaml config.yaml
 
 EXPOSE 8888
 

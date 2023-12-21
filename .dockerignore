@@ -3,3 +3,6 @@ test-config.yaml
 test-graph
 **/.DS_Store
 src/web/build/*
+.github
+docker
+docs
