@@ -12,7 +12,8 @@ import (
 
 var (
 	_ http.ResponseWriter = (*BufferResponseWriter)(nil)
-	_ error               = (*httpError)(nil)
+
+	_ error = (*httpError)(nil) //nolint:errcheck // if err != lol
 )
 
 type (
