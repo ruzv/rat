@@ -5,7 +5,7 @@ logs.log
 content
 test-graph
 local
-test-config.yaml
+config-test.yaml
 fe/target
 
 

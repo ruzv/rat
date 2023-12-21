@@ -1,20 +1,17 @@
-name: PIPELINE
+name: checks
 
 on:
   push:
-    tags:
-      - v*
     branches:
       - master
       - main
   pull_request:
+
 permissions:
   contents: read
-  # Optional: allow read access to pull request. Use with `only-new-issues` option.
-  # pull-requests: read
+
 jobs:
   lint:
-    # runs-on: self-hosted
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3
@@ -25,6 +22,7 @@ jobs:
         with:
           working-directory: src
           version: latest
+
   # no need to build, unless job produces artifacts
   # build:
   #   needs: lint
