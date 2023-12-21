@@ -40,7 +40,7 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 		}
 	)
 
-	gs.Provider, err = provider.New(c.Provider)
+	gs.Provider, err = provider.New(c.Provider, log)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create graph provider")
 	}

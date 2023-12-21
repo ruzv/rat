@@ -3,4 +3,3 @@ logLevel: 0
 services:
   provider:
     dir: /graph
-    enablePathCache: true

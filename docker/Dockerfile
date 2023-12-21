@@ -30,7 +30,6 @@ FROM alpine:3.19.0
 COPY --from=server-builder /usr/local/bin/rat /usr/local/bin/rat
 
 COPY docker/config.yaml /etc/rat-config.yaml
-RUN mkdir /graph
 
 EXPOSE 8888
 

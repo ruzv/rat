@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"rat/graph"
 	pathutil "rat/graph/util/path"
+	"rat/logr"
 )
 
 var (
@@ -39,10 +40,8 @@ type Provider struct {
 }
 
 // NewProvider creates a new filesystem graph provider.
-func NewProvider(graphDir string) (*Provider, error) {
-	sf := &Provider{
-		graphDir: graphDir,
-	}
+func NewProvider(graphDir string, log *logr.LogR) (*Provider, error) {
+	log = log.Prefix("filesystem")
 
 	_, err := os.Stat(graphDir)
 	if err != nil {
@@ -52,13 +51,19 @@ func NewProvider(graphDir string) (*Provider, error) {
 			)
 		}
 
-		err := os.MkdirAll(sf.graphDir, 0o750)
+		err := os.MkdirAll(graphDir, 0o750)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create graph dir")
 		}
+
+		log.Infof("created %q dir", graphDir)
 	}
 
-	return sf, nil
+	log.Infof("dir %q", graphDir)
+
+	return &Provider{
+		graphDir: graphDir,
+	}, nil
 }
 
 // Roots returns all nodes with depth 1.

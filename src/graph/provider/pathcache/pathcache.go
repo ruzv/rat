@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"rat/graph"
 	pathutil "rat/graph/util/path"
+	"rat/logr"
 )
 
 var _ graph.Provider = (*Provider)(nil)
@@ -20,7 +21,10 @@ type Provider struct {
 }
 
 // NewPathCache returns a new PathCache.
-func NewPathCache(base graph.Provider) *Provider {
+func NewPathCache(base graph.Provider, log *logr.LogR) *Provider {
+	log = log.Prefix("pathcache")
+	log.Infof("enabled")
+
 	return &Provider{
 		base:  base,
 		cache: make(map[uuid.UUID]pathutil.NodePath),

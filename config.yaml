@@ -3,6 +3,7 @@ logLevel: 0
 services:
   provider:
     dir: /path/to/graph/dir
+    enablePathCache: true
     root:
       content: hello
       template:

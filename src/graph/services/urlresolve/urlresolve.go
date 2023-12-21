@@ -58,6 +58,10 @@ func (r *Resolver) Resolve(path string) (string, error) {
 		return path, nil
 	}
 
+	if len(r.fileservers) == 0 {
+		return "", errors.Errorf("no fileservers configured")
+	}
+
 	for _, fs := range r.fileservers {
 		destURL, err := r.resolve(fs, path)
 		if err != nil {
