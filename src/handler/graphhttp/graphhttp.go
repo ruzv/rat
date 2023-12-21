@@ -125,7 +125,7 @@ func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	err = h.gs.Graph.Move(id, pathutil.NodePath(body.NewPath))
+	err = h.gs.Provider.Move(id, pathutil.NodePath(body.NewPath))
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to move node",
@@ -134,7 +134,7 @@ func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to move node")
 	}
 
-	n, err := h.gs.Graph.GetByID(id)
+	n, err := h.gs.Provider.GetByID(id)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to get node",

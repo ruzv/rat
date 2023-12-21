@@ -1,22 +1,16 @@
 package viewhttp
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"mime"
 	"net/http"
 	"path/filepath"
-	"regexp"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/handler/httputil"
 	"rat/logr"
-)
-
-var pathRe = regexp.MustCompile(
-	`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll // does not make sense to split.
 )
 
 type handler struct {
@@ -57,7 +51,11 @@ func RegisterRoutes(
 		wsc: webStaticContent,
 	}
 
-	router.PathPrefix(fmt.Sprintf("/view/{path:%s}", pathRe.String())).
+	router.PathPrefix("/view/{path:.*}").
+		HandlerFunc(httputil.Wrap(h.log, h.serveFile("index.html"))).
+		Methods(http.MethodGet)
+
+	router.PathPrefix("/view").
 		HandlerFunc(httputil.Wrap(h.log, h.serveFile("index.html"))).
 		Methods(http.MethodGet)
 

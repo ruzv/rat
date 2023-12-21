@@ -1,9 +1,7 @@
 package nodeshttp
 
 import (
-	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/gofrs/uuid"
@@ -40,23 +38,31 @@ func RegisterRoutes(
 	h := &handler{
 		log: log,
 		gs:  gs,
-		r:   render.NewJSONRenderer(log, gs.Graph),
+		r:   render.NewJSONRenderer(log, gs.Provider),
 	}
 
-	nodesRouter := router.PathPrefix("/nodes").Subrouter()
+	router.Use(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					w.Header().
+						Set(
+							"Access-Control-Allow-Origin",
+							"http://localhost:3000",
+						)
 
-	pathRe := regexp.MustCompile(
-		`[[:alnum:]]+(?:-(?:[[:alnum:]]+))*(?:\/[[:alnum:]]+(?:-(?:[[:alnum:]]+))*)*`, //nolint:lll // can't split.
+					next.ServeHTTP(w, r)
+				},
+			)
+		},
 	)
 
-	nodeRouter := nodesRouter.
-		PathPrefix(fmt.Sprintf("/{path:%s}", pathRe.String())).
-		Subrouter()
+	nodeRouter := router.PathPrefix("/node/{path:.*}").Subrouter()
 
-	nodeRouter.HandleFunc("/", httputil.Wrap(h.log, h.read)).
+	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.read)).
 		Methods(http.MethodGet)
 
-	nodeRouter.HandleFunc("/", httputil.Wrap(h.log, h.create)).
+	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.create)).
 		Methods(http.MethodPost)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.delete)).
@@ -66,9 +72,12 @@ func RegisterRoutes(
 }
 
 func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
-	n, err := h.getNode(w, r)
+	n, err := h.getNode(r)
 	if err != nil {
-		return errors.Wrap(err, "failed to get node error")
+		return httputil.Error(
+			http.StatusInternalServerError,
+			errors.Wrap(err, "failed to get node"),
+		)
 	}
 
 	root := jsonast.NewRootAstPart("document")
@@ -118,12 +127,15 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	n, err := h.getNode(w, r)
+	n, err := h.getNode(r)
 	if err != nil {
-		return errors.Wrap(err, "failed to get node error")
+		return httputil.Error(
+			http.StatusInternalServerError,
+			errors.Wrap(err, "failed to get node"),
+		)
 	}
 
-	child, err := n.AddSub(h.gs.Graph, body.Name)
+	child, err := n.AddSub(h.gs.Provider, body.Name)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
@@ -173,12 +185,15 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	n, err := h.getNode(w, r)
+	n, err := h.getNode(r)
 	if err != nil {
-		return errors.Wrap(err, "failed to get node error")
+		return httputil.Error(
+			http.StatusInternalServerError,
+			errors.Wrap(err, "failed to get node"),
+		)
 	}
 
-	err = h.gs.Graph.Delete(n)
+	err = h.gs.Provider.Delete(n)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to delete node",
@@ -196,7 +211,7 @@ func (h *handler) getChildNodes(
 	w http.ResponseWriter,
 	n *graph.Node,
 ) ([]*response, error) {
-	children, err := n.GetLeafs(h.gs.Graph)
+	children, err := n.GetLeafs(h.gs.Provider)
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -238,39 +253,12 @@ func (h *handler) getChildNodes(
 	return childNodes, nil
 }
 
-func (h *handler) getNode(
-	w http.ResponseWriter,
-	r *http.Request,
-) (*graph.Node, error) {
+func (h *handler) getNode(r *http.Request) (*graph.Node, error) {
 	path := mux.Vars(r)["path"]
 
-	var (
-		n   *graph.Node
-		err error
-	)
-
-	if path == "" {
-		n, err = h.gs.Graph.Root()
-		if err != nil {
-			httputil.WriteError(
-				w,
-				http.StatusInternalServerError,
-				"failed to get node",
-			)
-
-			return nil, errors.Wrap(err, "failed to write error")
-		}
-	} else {
-		n, err = h.gs.Graph.GetByPath(pathutil.NodePath(path))
-		if err != nil {
-			httputil.WriteError(
-				w,
-				http.StatusInternalServerError,
-				"failed to get node",
-			)
-
-			return nil, errors.Wrap(err, "failed to write error")
-		}
+	n, err := h.gs.Provider.GetByPath(pathutil.NodePath(path))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get node %q", path)
 	}
 
 	return n, nil

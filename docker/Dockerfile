@@ -7,7 +7,6 @@ COPY src/web ./
 
 RUN npm install
 RUN npm run build
-RUN rm -rf node_modules
 
 # build rat server binary, embeding web app static files from previous stage.
 FROM golang:1.21-alpine as server-builder
@@ -31,7 +30,6 @@ FROM alpine:3.19.0
 COPY --from=server-builder /usr/local/bin/rat /usr/local/bin/rat
 
 COPY docker/config.yaml /etc/rat-config.yaml
-RUN mkdir /graph
 
 EXPOSE 8888
 

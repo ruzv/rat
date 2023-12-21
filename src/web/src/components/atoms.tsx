@@ -3,6 +3,8 @@ import { Node, NodeAstPart } from "./node";
 
 export const nodeAtom = atom<Node | undefined>(undefined);
 
+export const nodeIDAtom = atom<string | undefined>(undefined);
+
 export const nodePathAtom = atom<string>(
   window.location.pathname.replace(/^\/view\//, ""),
 );

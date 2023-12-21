@@ -15,7 +15,7 @@ import { useEffect } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { useLoaderData } from "react-router-dom";
 
-function View() {
+export function View() {
   const [node, setNode] = useAtom(nodeAtom);
   const setNodeAst = useSetAtom(nodeAstAtom);
   const setChildNodes = useSetAtom(childNodesAtom);
@@ -24,7 +24,7 @@ function View() {
   const path = useLoaderData(); // path from router
 
   useEffect(() => {
-    fetch(`${ratAPIBaseURL()}/graph/nodes/${path}/`)
+    fetch(`${ratAPIBaseURL()}/graph/node/${path}`)
       .then((resp) => resp.json())
       .then((node: Node) => {
         setNode(node);
@@ -49,5 +49,3 @@ function View() {
     </>
   );
 }
-
-export default View;

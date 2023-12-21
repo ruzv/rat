@@ -44,7 +44,7 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
 	log.Infof("%s\nversion: %s", logo, version)
 
-	gs, err := services.NewGraphServices(log, conf.Graph)
+	gs, err := services.NewGraphServices(conf.Services, log)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create graph services")
 	}

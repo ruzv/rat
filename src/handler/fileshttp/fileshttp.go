@@ -8,13 +8,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph/services"
+	"rat/graph/services/urlresolve"
 	"rat/handler/httputil"
 	"rat/logr"
 )
 
 type handler struct {
-	log             *logr.LogR
-	FileURLResolver *services.FileURLResolver
+	log      *logr.LogR
+	resolver *urlresolve.Resolver
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -24,8 +25,8 @@ func RegisterRoutes(
 	log = log.Prefix("fileshttp")
 
 	h := &handler{
-		log:             log,
-		FileURLResolver: gs.FileURLResolver,
+		log:      log,
+		resolver: gs.URLResolver,
 	}
 
 	router.PathPrefix("/file/{path:.+}").
@@ -36,7 +37,7 @@ func RegisterRoutes(
 }
 
 func (h *handler) proxyFile(w http.ResponseWriter, r *http.Request) error {
-	source, err := h.FileURLResolver.Resolve(mux.Vars(r)["path"])
+	source, err := h.resolver.Resolve(mux.Vars(r)["path"])
 	if err != nil {
 		httputil.WriteError(w, http.StatusNotFound, "file not found")
 
