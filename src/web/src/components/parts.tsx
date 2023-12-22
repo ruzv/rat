@@ -18,6 +18,7 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import _ from "lodash";
+import Checkbox from "@mui/material/Checkbox";
 
 import { CSS } from "@dnd-kit/utilities";
 
@@ -425,16 +426,18 @@ function TodoHints({ part }: { part: NodeAstPart }) {
 function TodoEntry({ part }: { part: NodeAstPart }) {
   return (
     <div className={styles.todoEntry}>
-      <div>
-        <input
-          className={styles.todoEntryCheckbox}
-          type={"checkbox"}
-          checked={part.attributes["done"] as boolean}
-        />
-      </div>
-      <div>{part.attributes["text"]}</div>
+      <TodoCheckbox done={part.attributes["done"] as boolean} />
+      <div className={styles.todoEntryText}>{part.attributes["text"]}</div>
     </div>
   );
+}
+
+function TodoCheckbox({ done }: { done: boolean }) {
+  if (!done) {
+    return <Checkbox color="secondary" />;
+  }
+
+  return <Checkbox defaultChecked color="secondary" />;
 }
 
 function Kanban({ part }: { part: NodeAstPart }) {
