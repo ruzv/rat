@@ -52,15 +52,21 @@ func RegisterRoutes(
 	}
 
 	router.PathPrefix("/view/{path:.*}").
-		HandlerFunc(httputil.Wrap(h.log, h.serveFile("index.html"))).
+		HandlerFunc(
+			httputil.Wrap(h.serveFile("index.html"), h.log, "view-node"),
+		).
 		Methods(http.MethodGet)
 
 	router.PathPrefix("/view").
-		HandlerFunc(httputil.Wrap(h.log, h.serveFile("index.html"))).
+		HandlerFunc(
+			httputil.Wrap(h.serveFile("index.html"), h.log, "view-root"),
+		).
 		Methods(http.MethodGet)
 
 	router.PathPrefix("/favicon.png").
-		HandlerFunc(httputil.Wrap(h.log, h.serveFile("favicon.png"))).
+		HandlerFunc(
+			httputil.Wrap(h.serveFile("favicon.png"), h.log, "favicon"),
+		).
 		Methods(http.MethodGet)
 
 	staticContent, err := fs.Sub(webStaticContent, "static")

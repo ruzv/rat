@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.8.1
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gomarkdown/markdown v0.0.0-20230922105210-14b16010c2ee
+	github.com/google/go-cmp v0.5.9
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/sahilm/fuzzy v0.1.0

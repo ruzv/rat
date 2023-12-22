@@ -42,7 +42,7 @@ func (t *Token) renderKanban(
 				Type: "kanban_column",
 				Attributes: jsonast.AstAttributes{
 					"id":   n.Header.ID.String(),
-					"name": n.Name,
+					"name": n.Name(),
 					"path": n.Path.String(),
 				},
 			},
@@ -55,7 +55,7 @@ func (t *Token) renderKanban(
 					Type: "kanban_card",
 					Attributes: jsonast.AstAttributes{
 						"id":   child.Header.ID.String(),
-						"name": child.Name,
+						"name": child.Name(),
 						"path": child.Path.String(),
 					},
 				},

@@ -35,6 +35,8 @@ type response struct {
 func RegisterRoutes(
 	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
 ) error {
+	log = log.Prefix("nodeshttp")
+
 	h := &handler{
 		log: log,
 		gs:  gs,
@@ -59,13 +61,13 @@ func RegisterRoutes(
 
 	nodeRouter := router.PathPrefix("/node/{path:.*}").Subrouter()
 
-	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.read)).
+	nodeRouter.HandleFunc("", httputil.Wrap(h.read, log, "read")).
 		Methods(http.MethodGet)
 
-	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.create)).
+	nodeRouter.HandleFunc("", httputil.Wrap(h.create, h.log, "create")).
 		Methods(http.MethodPost)
 
-	nodeRouter.HandleFunc("", httputil.Wrap(h.log, h.delete)).
+	nodeRouter.HandleFunc("", httputil.Wrap(h.delete, h.log, "delete")).
 		Methods(http.MethodDelete, http.MethodOptions)
 
 	return nil
@@ -105,7 +107,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 		http.StatusOK,
 		response{
 			ID:         n.Header.ID,
-			Name:       n.Name,
+			Name:       n.Name(),
 			Path:       n.Path,
 			Length:     len(strings.Split(n.Content, "\n")),
 			ChildNodes: childNodes,
@@ -135,7 +137,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		)
 	}
 
-	child, err := n.AddSub(h.gs.Provider, body.Name)
+	sub, err := n.AddSub(h.gs.Provider, body.Name)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to create node",
@@ -146,7 +148,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	root := jsonast.NewRootAstPart("document")
 
-	err = h.r.Render(root, child)
+	err = h.r.Render(root, sub)
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -163,9 +165,9 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		w,
 		http.StatusOK,
 		response{
-			ID:     child.Header.ID,
-			Name:   child.Name,
-			Path:   child.Path,
+			ID:     sub.Header.ID,
+			Name:   sub.Name(),
+			Path:   sub.Path,
 			Length: len(strings.Split(n.Content, "\n")),
 			AST:    root,
 		},
@@ -242,7 +244,7 @@ func (h *handler) getChildNodes(
 			childNodes,
 			&response{
 				ID:     child.Header.ID,
-				Name:   child.Name,
+				Name:   child.Name(),
 				Path:   child.Path,
 				Length: len(strings.Split(child.Content, "\n")),
 				AST:    root,
