@@ -1,3 +1,14 @@
+---
+id: 29544d51-3b60-44c8-b895-d5c67a96db2d
+weight: 1
+---
+
+# Readme
+
+<rat graph depth=1 />
+
+---
+
 # Rat
 
 Personal knowledge management tool.

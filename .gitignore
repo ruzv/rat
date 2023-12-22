@@ -1,6 +1,5 @@
 
 
-./docs
 logs.log
 content
 test-graph
@@ -42,4 +41,5 @@ Temporary Items
 # iCloud generated files
 *.icloud
 
-rat
+
+/rat
