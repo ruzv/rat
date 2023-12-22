@@ -35,12 +35,14 @@ export function Console({ id }: { id: string }) {
         <ButtonRow>
           <TextButton
             text={id}
+            tooltip="copy to clipboard"
             onClick={() => {
               navigator.clipboard.writeText(id);
             }}
           />
           <TextButton
             text={nodePath}
+            tooltip="copy to clipboard"
             onClick={() => {
               navigator.clipboard.writeText(nodePath);
             }}
@@ -51,18 +53,22 @@ export function Console({ id }: { id: string }) {
       <ButtonRow>
         <IconButton
           icon={rootIcon}
+          tooltip="navigate to root node"
           onClick={() => {
             navigate(`/view`);
           }}
         />
 
         {pathParts.map((part, idx) => {
+          let path = pathParts.slice(0, idx + 1).join("/");
+
           return (
             <TextButton
               key={idx}
               text={part}
+              tooltip={`navigate to ${path}`}
               onClick={() => {
-                navigate(`/view/${pathParts.slice(0, idx + 1).join("/")}`);
+                navigate(`/view/${path}`);
               }}
             />
           );
@@ -117,7 +123,11 @@ function NewNodeButton() {
 
   return (
     <>
-      <IconButton icon={addNodeIcon} onClick={showNewNodeModal} />
+      <IconButton
+        icon={addNodeIcon}
+        onClick={showNewNodeModal}
+        tooltip="add new sub node"
+      />
 
       {newNodeModalOpen && (
         <ContentModal>
@@ -184,7 +194,11 @@ function SearchButton() {
 
   return (
     <>
-      <IconButton icon={loupeIcon} onClick={showSearchModal} />
+      <IconButton
+        icon={loupeIcon}
+        onClick={showSearchModal}
+        tooltip="search by path"
+      />
 
       {searchModalOpen && (
         <ContentModal>
@@ -244,6 +258,7 @@ function DeleteButton({ pathParts }: { pathParts: string[] }) {
           setShowConfirm(true);
           setModalOpen(true);
         }}
+        tooltip="delete node"
       />
       {showConfirm && (
         <ConfirmModal

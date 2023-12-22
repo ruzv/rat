@@ -1,15 +1,19 @@
 import styles from "./buttons.module.css";
 
+import Tooltip from "@mui/material/Tooltip";
+
 export function TextButton({
   text,
+  tooltip,
   onClick,
 }: {
   text: string;
+  tooltip?: string;
   onClick: () => void;
 }) {
   return (
-    <Button className={styles.textButton} onClick={onClick}>
-      {text}
+    <Button className={styles.textButton} onClick={onClick} tooltip={tooltip}>
+      <span>{text}</span>
     </Button>
   );
 }
@@ -17,12 +21,14 @@ export function TextButton({
 export function IconButton({
   icon,
   onClick,
+  tooltip,
 }: {
   icon: string;
   onClick: () => void;
+  tooltip?: string;
 }) {
   return (
-    <Button className={styles.iconButton} onClick={onClick}>
+    <Button className={styles.iconButton} onClick={onClick} tooltip={tooltip}>
       <img className={styles.icon} src={icon} />
     </Button>
   );
@@ -36,14 +42,16 @@ function Button(
   props: React.PropsWithChildren<{
     onClick: () => void;
     className?: string;
+    tooltip?: string;
   }>,
 ) {
+  if (!props.tooltip) {
+    return <div {...props} className={`${styles.button} ${props.className}`} />;
+  }
+
   return (
-    <div
-      className={`${styles.button} ${props.className}`}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </div>
+    <Tooltip title={props.tooltip}>
+      <div {...props} className={`${styles.button} ${props.className}`} />
+    </Tooltip>
   );
 }
