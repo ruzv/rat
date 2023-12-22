@@ -1,9 +1,20 @@
 #!/bin/bash
 
-cd src || exit
+_PWD=$(pwd)
 
-/Users/rzvejs/go/bin/gow run . -c ../test-config.yaml
+function start_server() {
+    cd "$_PWD" || exit 1
+    cd src || exit 1
+    /Users/rzvejs/go/bin/gow run . -c ../config-test.yaml
+}
 
-# cd web || exit
-#
-# npm run dev
+function start_web() {
+    cd "$_PWD" || exit 1
+    cd src/web || exit 1
+    npm start
+}
+
+start_server &
+start_web &
+
+wait

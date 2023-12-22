@@ -60,7 +60,7 @@ func renderGraphTokenWithDepth(
 		).AddLeaf(&jsonast.AstPart{
 			Type: "graph_link",
 			Attributes: jsonast.AstAttributes{
-				"title":       child.Name,
+				"title":       child.Name(),
 				"destination": fmt.Sprintf("/view/%s", child.Path),
 			},
 		})

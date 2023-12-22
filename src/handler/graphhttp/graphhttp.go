@@ -35,15 +35,19 @@ func RegisterRoutes(
 
 	graphRouter := router.PathPrefix("/graph").Subrouter()
 
-	graphRouter.HandleFunc("/search/", httputil.Wrap(h.log, h.search)).
+	graphRouter.HandleFunc(
+		"/search/",
+		httputil.Wrap(h.search, h.log, "search"),
+	).
 		Methods(http.MethodPost)
 
 	idRe := regexp.MustCompile(
 		`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`,
 	)
 
-	graphRouter.HandleFunc(fmt.Sprintf(
-		"/move/{id:%s}", idRe.String()), httputil.Wrap(h.log, h.move),
+	graphRouter.HandleFunc(
+		fmt.Sprintf("/move/{id:%s}", idRe.String()),
+		httputil.Wrap(h.move, h.log, "move"),
 	).
 		Methods(http.MethodPost, http.MethodOptions)
 

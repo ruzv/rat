@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 
@@ -18,9 +19,11 @@ var (
 	ErrPartialTemplate = errors.New("partial or missing template")
 )
 
+var allowedPathNameSymbols = regexp.MustCompile(`[a-zA-Z0-9_\-]`)
+
 // Node describes a single node.
 type Node struct {
-	Name    string            `json:"name"`
+	// Name    string            `json:"name"`
 	Path    pathutil.NodePath `json:"path"`
 	Header  NodeHeader        `json:"header"`
 	Content string            `json:"content"`
@@ -29,6 +32,7 @@ type Node struct {
 // NodeHeader describes info stored in nodes header.
 type NodeHeader struct {
 	ID       uuid.UUID      `yaml:"id"`
+	Name     string         `yaml:"name,omitempty"`
 	Weight   int            `yaml:"weight,omitempty"`
 	Template *NodeTemplate  `yaml:"template,omitempty"`
 	Any      map[string]any `yaml:",inline"`
@@ -45,6 +49,16 @@ type Metrics struct {
 type metric struct {
 	Max int     `json:"max"`
 	Avg float64 `json:"avg"`
+}
+
+// Name returns the name of a node. That being either the defined name in node
+// header or first element of nodes path.
+func (n *Node) Name() string {
+	if n.Header.Name != "" {
+		return n.Header.Name
+	}
+
+	return n.Path.Name()
 }
 
 // GetLeafs returns all leafs of node.
@@ -64,7 +78,7 @@ func (n *Node) GetLeafs(r Reader) ([]*Node, error) {
 			}
 
 			if leafs[i].Header.Weight == 0 && leafs[j].Header.Weight == 0 {
-				return leafs[i].Name < leafs[j].Name
+				return leafs[i].Name() < leafs[j].Name()
 			}
 
 			if leafs[i].Header.Weight == 0 {
@@ -378,14 +392,39 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to fill weight")
 	}
 
+	pathName := parsePathName(name)
+	if pathName == "" {
+		return nil, errors.Errorf("empty path name, pared from %q", name)
+	}
+
+	var headerName string
+
+	if pathName != name { // mismatch, need te set.
+		headerName = name
+	}
+
 	return &Node{
-		Name: name,
-		Path: n.Path.JoinName(name),
+		Path: n.Path.JoinName(pathName),
 		Header: NodeHeader{
 			ID:       id,
+			Name:     headerName,
 			Weight:   weight,
 			Template: templ.Template,
 		},
 		Content: content,
 	}, nil
+}
+
+func parsePathName(name string) string {
+	var pathName string
+
+	for _, r := range name {
+		if !allowedPathNameSymbols.MatchString(string(r)) {
+			continue
+		}
+
+		pathName += string(r)
+	}
+
+	return pathName
 }

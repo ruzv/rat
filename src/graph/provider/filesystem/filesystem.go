@@ -22,8 +22,6 @@ var (
 
 var _ graph.RootsProvider = (*Provider)(nil)
 
-// _ graph.Writer = (*SingleFile)(nil)
-
 // Provider is a graph provider implementation that reads and creates graph
 // nodes as standalone markdown files as opposed to FileSystem implementation
 // creates a content.md .metadata.json and a dir for each node. Maintaining
@@ -167,7 +165,6 @@ func (p *Provider) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	}
 
 	n := &graph.Node{
-		Name: path.Name(),
 		Path: path,
 	}
 

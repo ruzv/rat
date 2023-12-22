@@ -30,7 +30,7 @@ func RegisterRoutes(
 	}
 
 	router.PathPrefix("/file/{path:.+}").
-		HandlerFunc(httputil.Wrap(h.log, h.proxyFile)).
+		HandlerFunc(httputil.Wrap(h.proxyFile, h.log, "read")).
 		Methods(http.MethodGet)
 
 	return nil

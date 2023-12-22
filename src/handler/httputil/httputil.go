@@ -62,7 +62,9 @@ func (w *BufferResponseWriter) WriteHeader(code int) {
 }
 
 // Wrap wraps a RatHandlerFunc to be used with mux.
-func Wrap(log *logr.LogR, f RatHandlerFunc) MuxHandlerFunc {
+func Wrap(f RatHandlerFunc, log *logr.LogR, name string) MuxHandlerFunc {
+	log = log.Prefix(name)
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := f(w, r)
 		if err != nil {
@@ -84,7 +86,7 @@ func WriteResponse(w http.ResponseWriter, code int, body any) error {
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, "failed to encode body")
 
-		return errors.Wrap(err, "failed to encode body")
+		return errors.Wrapf(err, "failed to encode body - %v", body)
 	}
 
 	w.WriteHeader(code)

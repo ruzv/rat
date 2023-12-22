@@ -320,7 +320,7 @@ func (jr *JSONRenderer) renderGraphLink(
 	title := string(link.Title)
 
 	if title == "" {
-		title = destNode.Name
+		title = destNode.Name()
 	}
 
 	return part.AddContainer(
