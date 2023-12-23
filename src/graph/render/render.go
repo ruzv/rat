@@ -7,12 +7,10 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown/ast"
-	"github.com/gomarkdown/markdown/parser"
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
-	"rat/graph/render/token"
 	"rat/logr"
 )
 
@@ -45,22 +43,7 @@ func (jr *JSONRenderer) Render(
 	var err error
 
 	ast.WalkFunc(
-		parser.NewWithExtensions(
-			parser.NoIntraEmphasis|
-				parser.Tables|
-				parser.FencedCode|
-				parser.Autolink|
-				parser.Strikethrough|
-				parser.SpaceHeadings|
-				parser.HeadingIDs|
-				parser.BackslashLineBreak|
-				parser.DefinitionLists|
-				parser.MathJax|
-				parser.LaxHTMLBlocks|
-				parser.AutoHeadingIDs|
-				parser.Attributes|
-				parser.SuperSubscript,
-		).Parse([]byte(token.WrapContentTokens(n.Content))),
+		Parse(n.Content),
 		func(node ast.Node, entering bool) ast.WalkStatus {
 			part, err = jr.renderNode(part, n, node, entering)
 			if err != nil {
@@ -88,6 +71,20 @@ func (jr *JSONRenderer) renderNode(
 	switch node := node.(type) {
 	case *ast.Document:
 		part = part.AddContainer(&jsonast.AstPart{Type: "document"}, entering)
+	case *RatTokenNode:
+		err := node.Token.Render(part, n, jr.p, jr)
+		if err != nil {
+			part.AddLeaf(
+				&jsonast.AstPart{
+					Type: "rat_error",
+					Attributes: jsonast.AstAttributes{
+						"err": errors.Wrapf(
+							err, "failed to render %q token", node.Token.Type,
+						).Error(),
+					},
+				},
+			)
+		}
 	case *ast.Text:
 		part.AddLeaf(
 			&jsonast.AstPart{
@@ -161,21 +158,6 @@ func (jr *JSONRenderer) renderNode(
 			},
 		)
 	case *ast.HTMLBlock:
-		literal := string(node.Literal)
-		raw := strings.TrimPrefix(literal, "<div>")
-		raw = strings.TrimSuffix(raw, "</div>")
-
-		if strings.HasPrefix(literal, "<div>") &&
-			strings.HasSuffix(literal, "</div>") &&
-			token.IsToken(raw) {
-			err := token.Render(part, raw, n, jr.p, jr)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to render token")
-			}
-
-			break
-		}
-
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "html_block",
@@ -272,6 +254,15 @@ func (jr *JSONRenderer) renderNode(
 				},
 			},
 			entering,
+		)
+	case *RatErrorNode:
+		part.AddLeaf(
+			&jsonast.AstPart{
+				Type: "rat_error",
+				Attributes: jsonast.AstAttributes{
+					"err": node.Err.Error(),
+				},
+			},
 		)
 	default:
 		if node.AsLeaf() == nil { // container

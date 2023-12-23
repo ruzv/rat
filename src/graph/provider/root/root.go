@@ -126,7 +126,7 @@ func (c *Config) fillDefaults() Config {
 	}
 
 	if c.Template == nil {
-		c.Template = defaultConfig.Template
+		fill.Template = defaultConfig.Template
 	} else {
 		if c.Template.Name == "" {
 			fill.Template.Name = defaultConfig.Template.Name

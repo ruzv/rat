@@ -191,6 +191,8 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <Image part={part} />;
     case "embed":
       return <Embed url={part.attributes["url"] as string} />;
+    case "rat_error":
+      return <Error err={part.attributes["err"] as string} />;
     case "table":
       return (
         <table className={styles.table}>
@@ -443,6 +445,10 @@ function TodoCheckbox({ done }: { done: boolean }) {
 function Kanban({ part }: { part: NodeAstPart }) {
   const [kanbanPart, setKanbanPart] = useState(part);
 
+  if (!part.children || part.children.length === 0) {
+    return <></>;
+  }
+
   return (
     <div
       className={styles.kanban}
@@ -581,6 +587,15 @@ function Embed({ url }: { url: string }) {
   return (
     <div className={styles.embedContainer}>
       <iframe className={styles.embedIframe} src={url} />
+    </div>
+  );
+}
+
+function Error({ err }: { err: string }) {
+  return (
+    <div className={styles.errorContainer}>
+      <div className={styles.errorHeader}>ERROR</div>
+      {err}
     </div>
   );
 }

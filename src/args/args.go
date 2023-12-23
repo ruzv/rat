@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/pflag"
+	"rat/buildinfo"
 )
 
 // Args are the command line arguments.
@@ -13,7 +14,7 @@ type Args struct {
 }
 
 // Load parses the command line arguments in to a Args struct.
-func Load(ratVersion string) (*Args, bool) {
+func Load() (*Args, bool) {
 	configPath := pflag.StringP(
 		"config", "c", "./config.yaml", "path to yaml or json config file",
 	)
@@ -30,7 +31,7 @@ func Load(ratVersion string) (*Args, bool) {
 	}
 
 	if *version {
-		fmt.Fprintf(os.Stdout, "rat version %s\n", ratVersion)
+		fmt.Fprintf(os.Stdout, "rat server version %s\n", buildinfo.Version())
 
 		return nil, false
 	}
