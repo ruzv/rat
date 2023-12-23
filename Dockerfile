@@ -20,7 +20,10 @@ COPY src .
 COPY --from=web-builder /rat-web/build ./web/build
 
 ARG RAT_VERSION="v0.0.0+unknown"
-RUN go build -ldflags "-X main.version=$RAT_VERSION" -v -o /rat/rat
+RUN go build \
+    -ldflags "-X rat/buildinfo.version=$RAT_VERSION" \
+    -v \
+    -o /rat/rat
 
 # build final image
 FROM scratch

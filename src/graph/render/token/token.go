@@ -1,8 +1,6 @@
 package token
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
 	"text/scanner"
 
@@ -13,24 +11,35 @@ import (
 )
 
 const (
-	// GraphToken graph tokens provide an overview of a nodes child nodes.
+	// Graph tokens provide an overview of a nodes child nodes.
 	// Graph tokens get substituted with a list tree of links to child nodes of
 	// specified depth. Unlimited depth if omitted.
-	GraphToken Type = "graph"
-	// TodoToken todo searches for todos in child nodes and collects them
+	Graph Type = "graph"
+	// Todo searches for todos in child nodes and collects them
 	// into a large singular todo. Token args can be used to specify search
 	// options.
-	TodoToken Type = "todo"
-	// KanbanToken kanban tokens provide a kanban board of child nodes.
-	KanbanToken Type = "kanban"
-	// EmbedToken embed tokens provide allow embeding links.
-	EmbedToken Type = "embed"
+	//
+	//nolint:godox
+	Todo Type = "todo"
+	// Kanban tokens provide a kanban board of child nodes.
+	Kanban Type = "kanban"
+	// Embed tokens allow embeding links.
+	Embed Type = "embed"
+	// Version token renders the rat server version as a in line code ast node.
+	Version Type = "version"
 )
+
+var allTypes = []Type{ //nolint:gochecknoglobals
+	Graph,
+	Todo,
+	Kanban,
+	Embed,
+	Version,
+}
 
 var (
 	errUnknownTokenType = errors.New("unknown token type")
 	errMissingArgument  = errors.New("missing argument")
-	tokenRegex          = regexp.MustCompile(`<rat(?:\s((?:.|\s)+?))/>`)
 )
 
 // Type describes rat token types.
@@ -49,75 +58,11 @@ type Token struct {
 	Args map[string]string
 }
 
-// IsToken returns true if the raw string is a token.
-func IsToken(raw string) bool {
-	return tokenRegex.MatchString(raw)
-}
-
-// WrapContentTokens wraps tokens in content with <div></div> tags. Allowing
-// markdown parser to parse them as HTML blocks.
-func WrapContentTokens(content string) string {
-	matches := tokenRegex.FindAllStringIndex(content, -1)
-
-	if len(matches) == 0 {
-		return content
-	}
-
-	var (
-		prevTokenEnd int
-		parts        = make([]string, 0, 2*len(matches)+1)
-	)
-
-	for _, match := range matches {
-		tokenStart := match[0]
-		tokenEnd := match[1]
-
-		parts = append(
-			parts,
-			content[prevTokenEnd:tokenStart],
-			fmt.Sprintf("<div>%s</div>", content[tokenStart:tokenEnd]),
-		)
-
-		prevTokenEnd = tokenEnd
-	}
-
-	// last tokens end to end of content
-	parts = append(parts, content[matches[len(matches)-1][1]:])
-
-	return strings.Join(parts, "")
-}
-
-// Render renders a token to JSON AST.
-func Render(
-	root *jsonast.AstPart,
-	rawToken string,
-	n *graph.Node,
-	p graph.Provider,
-	r jsonast.Renderer,
-) error {
-	t, err := parse(rawToken)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse token - %q", rawToken)
-	}
-
-	switch t.Type {
-	case TodoToken:
-		return t.renderTodo(root, p)
-	case GraphToken:
-		return t.renderGraph(root, n, p)
-	case KanbanToken:
-		return t.renderKanban(root, p, r)
-	case EmbedToken:
-		return t.renderEmbed(root)
-	default:
-		return errors.Errorf("unknown token type - %s", t.Type)
-	}
-}
-
-// parse attempts to parse a new woken from raw string.
+// Parse attempts to parse a new woken from raw string. The raw string commes
+// from rat markdown AST parser and should not have start and end markers.
 //
-//nolint:cyclop,gocyclo //TODO: fix.
-func parse(raw string) (*Token, error) {
+//nolint:cyclop,gocyclo
+func Parse(raw string) (*Token, error) {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))
 
@@ -133,11 +78,6 @@ func parse(raw string) (*Token, error) {
 
 	sf := util.NewStringFeed(parts)
 
-	err := sf.PopParts("<", "rat")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse beginning of token")
-	}
-
 	rawTokenType, err := sf.MustPop()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get token type")
@@ -146,12 +86,7 @@ func parse(raw string) (*Token, error) {
 	tokenType, err := func(raw string) (Type, error) {
 		target := Type(raw)
 
-		for _, valid := range []Type{
-			GraphToken,
-			TodoToken,
-			KanbanToken,
-			EmbedToken,
-		} {
+		for _, valid := range allTypes {
 			if target == valid {
 				return target, nil
 			}
@@ -167,12 +102,7 @@ func parse(raw string) (*Token, error) {
 
 	args := make(map[string]string)
 
-	for {
-		err := sf.PopParts("/", ">")
-		if err == nil {
-			break
-		}
-
+	for sf.More() {
 		key, err := sf.MustPop()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get arg key")
@@ -195,4 +125,29 @@ func parse(raw string) (*Token, error) {
 		Type: tokenType,
 		Args: args,
 	}, nil
+}
+
+// Render renders a token to JSON AST.
+func (t *Token) Render(
+	root *jsonast.AstPart,
+	n *graph.Node,
+	p graph.Provider,
+	r jsonast.Renderer,
+) error {
+	switch t.Type {
+	case Todo:
+		return t.renderTodo(root, p)
+	case Graph:
+		return t.renderGraph(root, n, p)
+	case Kanban:
+		return t.renderKanban(root, p, r)
+	case Embed:
+		return t.renderEmbed(root)
+	case Version:
+		renderVersion(root)
+
+		return nil
+	default:
+		return errors.Errorf("unknown token type - %s", t.Type)
+	}
 }

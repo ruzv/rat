@@ -145,7 +145,7 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 func (t *Token) getArgSources() ([]uuid.UUID, []uuid.UUID, error) {
 	columnsArg, ok := t.Args["sources"]
 	if !ok {
-		return nil, nil, nil
+		return nil, nil, errors.New(`missing "sources" argument`)
 	}
 
 	parts := strings.Split(columnsArg, ",")
@@ -175,6 +175,12 @@ func (t *Token) getArgSources() ([]uuid.UUID, []uuid.UUID, error) {
 		}
 
 		include = append(include, id)
+	}
+
+	if len(include) == 0 {
+		return nil, nil, errors.New(
+			"sources arg must contain at least one include ID",
+		)
 	}
 
 	return include, exclude, nil

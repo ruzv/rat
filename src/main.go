@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	stderrors "errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 	"rat/args"
+	"rat/buildinfo"
 	"rat/config"
 	"rat/graph/services"
 	"rat/handler/router"
@@ -24,8 +26,6 @@ var embedStaticContent embed.FS
 
 //go:embed logo.txt
 var logo string
-
-var version = "dev"
 
 // Rat describes the rat server.
 type Rat struct {
@@ -42,7 +42,7 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 	}
 
 	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
-	log.Infof("%s\nversion: %s", logo, version)
+	log.Infof("%s\nversion: %s", logo, buildinfo.Version())
 
 	gs, err := services.NewGraphServices(conf.Services, log)
 	if err != nil {
@@ -72,35 +72,59 @@ func NewRat(cmdArgs *args.Args) (*Rat, error) {
 }
 
 // Serve starts the rat server. Blocks.
-func (r *Rat) Serve() {
-	for {
-		r.log.Infof("serving on %s", r.s.Addr)
+func (r *Rat) Serve(exit chan error) {
+	r.log.Infof("serving on %s", r.s.Addr)
 
-		err := r.s.ListenAndServe()
-		if err != nil {
-			if errors.Is(err, http.ErrServerClosed) {
-				return
-			}
+	start := time.Now()
 
-			r.log.Errorf("failed to listen and server: %s", err.Error())
+	err := r.s.ListenAndServe()
+	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
 		}
 	}
+
+	r.log.Infof("uptime: %s", time.Since(start).String())
+
+	exit <- errors.Wrap(err, "listen and serve error")
 }
 
-// Stop stops the rat server.
-func (r *Rat) Stop() error {
-	r.log.Infof("stopping rat server")
+// RunServer runs the rat server. Listens for SIGINT, to stop server.
+func (r *Rat) RunServer() error {
+	var (
+		exit = make(chan error)
+		stop = make(chan os.Signal, 1)
+	)
 
-	err := r.s.Shutdown(context.Background())
-	if err != nil {
-		return errors.Wrap(err, "failed to stop server")
-	}
+	defer func() {
+		close(exit)
+		close(stop)
+	}()
 
-	r.log.Infof("stopping rat services")
+	signal.Notify(stop, syscall.SIGINT)
 
-	err = r.gs.Close()
-	if err != nil {
-		return errors.Wrap(err, "failed to close graph services")
+	go r.Serve(exit)
+
+	select {
+	case err := <-exit:
+		if err != nil {
+			return errors.Wrap(err, "serve failed")
+		}
+
+	case <-stop:
+		r.log.Infof("stopping server")
+
+		err := r.s.Shutdown(context.Background()) // trigger exit
+		if err != nil {
+			r.log.Debugf("not waiting for server exit: %s", err.Error())
+
+			return errors.Wrap(err, "failed to shutdown server")
+		}
+
+		err = <-exit // wait for exit
+		if err != nil {
+			return errors.Wrap(err, "failed to serve")
+		}
 	}
 
 	return nil
@@ -114,7 +138,7 @@ func main() {
 }
 
 func run() error {
-	cmdArgs, ok := args.Load(version)
+	cmdArgs, ok := args.Load()
 	if !ok {
 		return nil
 	}
@@ -124,19 +148,15 @@ func run() error {
 		return errors.Wrap(err, "failed to create rat")
 	}
 
-	go rat.Serve()
+	rErr := rat.RunServer()
 
-	quit := make(chan os.Signal, 1)
+	cErr := rat.gs.Close()
 
-	signal.Notify(quit, syscall.SIGINT)
-
-	<-quit
-
-	defer close(quit)
-
-	err = rat.Stop()
-	if err != nil {
-		return errors.Wrap(err, "failed to stop rat")
+	if rErr != nil || cErr != nil {
+		return errors.Wrap(
+			stderrors.Join(rErr, cErr),
+			"failed to run server and/or close services",
+		)
 	}
 
 	rat.log.Infof("bye")

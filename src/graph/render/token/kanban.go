@@ -19,12 +19,7 @@ func (t *Token) renderKanban(
 		return errors.Wrap(err, "failed to get columns")
 	}
 
-	kanbanPart := part.AddContainer(
-		&jsonast.AstPart{
-			Type: "kanban",
-		},
-		true,
-	)
+	kanbanPart := jsonast.NewRootAstPart("kanban")
 
 	for _, col := range cols {
 		n, err := p.GetByID(col)
@@ -69,13 +64,15 @@ func (t *Token) renderKanban(
 		}
 	}
 
+	part.AddLeaf(kanbanPart)
+
 	return nil
 }
 
 func (t *Token) getArgColumns() ([]uuid.UUID, error) {
 	columnsArg, ok := t.Args["columns"]
 	if !ok {
-		return nil, nil
+		return nil, errors.New(`missing "columns" argument`)
 	}
 
 	return parseListOfUUIDs(columnsArg)
@@ -83,6 +80,7 @@ func (t *Token) getArgColumns() ([]uuid.UUID, error) {
 
 func parseListOfUUIDs(raw string) ([]uuid.UUID, error) {
 	parts := strings.Split(raw, ",")
+
 	ids := make([]uuid.UUID, 0, len(parts))
 
 	for _, raw := range parts {
@@ -94,6 +92,10 @@ func parseListOfUUIDs(raw string) ([]uuid.UUID, error) {
 		}
 
 		ids = append(ids, id)
+	}
+
+	if len(ids) == 0 {
+		return nil, errors.New("need to specify at least one column ID")
 	}
 
 	return ids, nil
