@@ -84,16 +84,7 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 
 	root := jsonast.NewRootAstPart("document")
 
-	err = h.r.Render(root, n)
-	if err != nil {
-		httputil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to render node content to JSON",
-		)
-
-		return errors.Wrap(err, "failed to render node content to JSON")
-	}
+	h.r.Render(root, n, n.Content)
 
 	childNodes, err := h.getChildNodes(w, n)
 	if err != nil {
@@ -148,18 +139,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	root := jsonast.NewRootAstPart("document")
 
-	err = h.r.Render(root, sub)
-	if err != nil {
-		httputil.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"failed to render node content to JSON",
-		)
-
-		return errors.Wrap(err, "failed to render node content to JSON")
-	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	h.r.Render(root, sub, sub.Content)
 
 	err = httputil.WriteResponse(
 		w,
@@ -180,7 +160,6 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
 
 	if r.Method == http.MethodOptions {
@@ -229,16 +208,7 @@ func (h *handler) getChildNodes(
 	for _, child := range children {
 		root := jsonast.NewRootAstPart("document")
 
-		err := h.r.Render(root, child)
-		if err != nil {
-			httputil.WriteError(
-				w,
-				http.StatusInternalServerError,
-				"failed to render child node",
-			)
-
-			return nil, errors.Wrap(err, "failed to render child node")
-		}
+		h.r.Render(root, child, child.Content)
 
 		childNodes = append(
 			childNodes,

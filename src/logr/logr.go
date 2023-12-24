@@ -107,6 +107,19 @@ func (lvl LogLevel) String() string {
 	return [5]string{"DEBUG", "INFO", "WARN", "ERROR"}[lvl]
 }
 
+// Preview prepares long string for preview, so that they fit into a 80 column
+// long terminal window. with pretty log format, adding a newline at the
+// beginning. should be used as %s format string.
+func Preview(s string) string {
+	const maxLen = 63
+
+	if len(s) > maxLen {
+		return fmt.Sprintf("\npreview:\n%s\n---cut---", s[:maxLen])
+	}
+
+	return fmt.Sprintf("\npreview:\n%s", s)
+}
+
 func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 	if level < lr.level {
 		return

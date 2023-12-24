@@ -14,7 +14,9 @@ import (
 
 func (t *Token) renderTodo(
 	part *jsonast.AstPart,
+	n *graph.Node,
 	p graph.Provider,
+	r jsonast.Renderer,
 ) error {
 	filtersHas, err := t.getArgFilterHas()
 	if err != nil {
@@ -65,7 +67,7 @@ func (t *Token) renderTodo(
 	sort.SliceStable(todo.NewSorter(sortRules)(todos))
 
 	for _, t := range todos {
-		t.Render(part)
+		t.Render(part, n, r)
 	}
 
 	return nil

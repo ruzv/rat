@@ -36,29 +36,34 @@ func NewJSONRenderer(
 
 // Render renders the markdown content of the specified node to JSON.
 func (jr *JSONRenderer) Render(
-	root *jsonast.AstPart, n *graph.Node,
-) error {
+	root *jsonast.AstPart, n *graph.Node, data string,
+) {
+	jr.log.Debugf("rendering for node %q %s", n.Path, logr.Preview(data))
+
 	part := root
 
-	var err error
-
 	ast.WalkFunc(
-		Parse(n.Content),
+		Parse(data),
 		func(node ast.Node, entering bool) ast.WalkStatus {
-			part, err = jr.renderNode(part, n, node, entering)
+			newPart, err := jr.renderNode(part, n, node, entering)
 			if err != nil {
-				return ast.Terminate
+				part.AddLeaf(
+					&jsonast.AstPart{
+						Type: "rat_error",
+						Attributes: jsonast.AstAttributes{
+							"err": err.Error(),
+						},
+					},
+				)
+
+				return ast.GoToNext
 			}
+
+			part = newPart
 
 			return ast.GoToNext
 		},
 	)
-
-	if err != nil {
-		return errors.Wrap(err, "failed walk ast and render")
-	}
-
-	return nil
 }
 
 //nolint:cyclop,gocyclo,maintidx // big switch.
@@ -74,15 +79,8 @@ func (jr *JSONRenderer) renderNode(
 	case *RatTokenNode:
 		err := node.Token.Render(part, n, jr.p, jr)
 		if err != nil {
-			part.AddLeaf(
-				&jsonast.AstPart{
-					Type: "rat_error",
-					Attributes: jsonast.AstAttributes{
-						"err": errors.Wrapf(
-							err, "failed to render %q token", node.Token.Type,
-						).Error(),
-					},
-				},
+			return nil, errors.Wrapf(
+				err, "failed to render %q token", node.Token.Type,
 			)
 		}
 	case *ast.Text:
@@ -198,12 +196,26 @@ func (jr *JSONRenderer) renderNode(
 				},
 			)
 		case "todo":
+			jr.log.Debugf(
+				"parsing todo %s",
+				logr.Preview(string(node.Literal)),
+			)
+
 			t, err := todo.Parse(string(node.Literal))
 			if err != nil {
+				jr.log.Errorf("failed to parse todo: %s", err)
+
 				return nil, errors.Wrap(err, "failed to parse todo")
 			}
 
-			t.Render(part)
+			jr.log.Debugf(
+				"rendering todo %s",
+				logr.Preview(string(node.Literal)),
+			)
+
+			t.Render(part, n, jr)
+
+			jr.log.Debugf("rendered todo")
 		default:
 			part.AddLeaf(
 				&jsonast.AstPart{
@@ -256,6 +268,7 @@ func (jr *JSONRenderer) renderNode(
 			entering,
 		)
 	case *RatErrorNode:
+		// for when markdown parser for rat tokens faild with something
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "rat_error",

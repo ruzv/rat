@@ -4,7 +4,7 @@ import "rat/graph"
 
 // Renderer allows rendering nodes markdown content to JSON.
 type Renderer interface {
-	Render(root *AstPart, n *graph.Node) error
+	Render(root *AstPart, n *graph.Node, data string)
 }
 
 // AstAttributes describes a abstract syntax tree part attributes.
