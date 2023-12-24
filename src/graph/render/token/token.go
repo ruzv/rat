@@ -136,7 +136,7 @@ func (t *Token) Render(
 ) error {
 	switch t.Type {
 	case Todo:
-		return t.renderTodo(root, p)
+		return t.renderTodo(root, n, p, r)
 	case Graph:
 		return t.renderGraph(root, n, p)
 	case Kanban:

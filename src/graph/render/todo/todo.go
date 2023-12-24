@@ -50,7 +50,7 @@ func Parse(raw string) (*Todo, error) {
 	sf := util.NewStringFeed(
 		util.Filter(
 			strings.Split(raw, "\n"),
-			func(s string) bool { return len(s) > 0 },
+			func(s string) bool { return len(strings.TrimSpace(s)) > 0 },
 		),
 	)
 
@@ -97,6 +97,8 @@ func Parse(raw string) (*Todo, error) {
 
 			continue
 		}
+
+		return nil, errors.Errorf("invalid todo line - %q", line)
 	}
 
 	return &Todo{
@@ -106,24 +108,31 @@ func Parse(raw string) (*Todo, error) {
 }
 
 // Render renders a todo into a JSON AST representation.
-func (t *Todo) Render(part *jsonast.AstPart) {
-	todoPart := part.AddContainer(
-		&jsonast.AstPart{
-			Type: "todo", Attributes: jsonast.AstAttributes{"hints": t.Hints},
-		},
-		true,
-	)
+func (t *Todo) Render(
+	part *jsonast.AstPart,
+	n *graph.Node,
+	r jsonast.Renderer,
+) {
+	todoPart := &jsonast.AstPart{
+		Type:       "todo",
+		Attributes: jsonast.AstAttributes{"hints": t.Hints},
+	}
+
 	for _, e := range t.Entries {
-		todoPart.AddLeaf(
+		todoEntryPart := todoPart.AddContainer(
 			&jsonast.AstPart{
 				Type: "todo_entry",
 				Attributes: jsonast.AstAttributes{
 					"done": e.Done,
-					"text": e.Text,
 				},
 			},
+			true,
 		)
+
+		r.Render(todoEntryPart, n, e.Text)
 	}
+
+	part.AddLeaf(todoPart)
 }
 
 // OrderHints sorts t.Hints by a predefined order, and returns it.

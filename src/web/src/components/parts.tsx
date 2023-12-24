@@ -19,6 +19,12 @@ import {
 } from "@dnd-kit/core";
 import _ from "lodash";
 import Checkbox from "@mui/material/Checkbox";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import MuiTableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 
 import { CSS } from "@dnd-kit/utilities";
 
@@ -195,26 +201,39 @@ export function NodePart({ part }: { part: NodeAstPart }) {
       return <Error err={part.attributes["err"] as string} />;
     case "table":
       return (
-        <table className={styles.table}>
-          <NodePartChildren part={part} />
-        </table>
+        <MuiTableContainer component={TableContainer}>
+          <Table
+            sx={{ color: "#acacac" }}
+            size="small"
+            aria-label="a dense table"
+          >
+            <NodePartChildren part={part} />
+          </Table>
+        </MuiTableContainer>
       );
     case "table_header":
-      return <NodePartChildren part={part} />;
+      return (
+        <TableHead>
+          <NodePartChildren part={part} />
+        </TableHead>
+      );
     case "table_body":
-      return <NodePartChildren part={part} />;
-
+      return (
+        <TableBody>
+          <NodePartChildren part={part} />
+        </TableBody>
+      );
     case "table_row":
       return (
-        <tr className={styles.tableRow}>
+        <TableRow>
           <NodePartChildren part={part} />
-        </tr>
+        </TableRow>
       );
     case "table_cell":
       return (
-        <td className={styles.tableData}>
+        <TableCell sx={{ color: "#acacac" }}>
           <NodePartChildren part={part} />
-        </td>
+        </TableCell>
       );
     case "strong":
       return (
@@ -259,6 +278,10 @@ export function NodePart({ part }: { part: NodeAstPart }) {
         </p>
       );
   }
+}
+
+function TableContainer({ children }: { children: React.ReactNode }) {
+  return <div className={styles.tableContainer}>{children}</div>;
 }
 
 function Document({ part }: { part: NodeAstPart }) {
@@ -390,9 +413,9 @@ function ListItem({ part }: { part: NodeAstPart }) {
 
 function Paragraph({ part }: { part: NodeAstPart }) {
   return (
-    <p>
+    <div className={styles.paragraph}>
       <NodePartChildren part={part} />
-    </p>
+    </div>
   );
 }
 
@@ -428,18 +451,39 @@ function TodoHints({ part }: { part: NodeAstPart }) {
 function TodoEntry({ part }: { part: NodeAstPart }) {
   return (
     <div className={styles.todoEntry}>
-      <TodoCheckbox done={part.attributes["done"] as boolean} />
-      <div className={styles.todoEntryText}>{part.attributes["text"]}</div>
+      <div className={styles.todoEntryCheckbox}>
+        <TodoCheckbox done={part.attributes["done"] as boolean} />
+      </div>
+      <div className={styles.todoEntryTextContainer}>
+        <div className={styles.todoEntryText}>
+          <NodePartChildren part={part} />
+        </div>
+      </div>
     </div>
   );
 }
 
 function TodoCheckbox({ done }: { done: boolean }) {
   if (!done) {
-    return <Checkbox color="secondary" />;
+    return (
+      <div className={styles.todoEntryCheckbox}>
+        <Checkbox
+          sx={{ "& .MuiSvgIcon-root": { fontSize: 32 } }}
+          color="secondary"
+        />
+      </div>
+    );
   }
 
-  return <Checkbox defaultChecked color="secondary" />;
+  return (
+    <div className={styles.todoEntryCheckbox}>
+      <Checkbox
+        sx={{ "& .MuiSvgIcon-root": { fontSize: 32 } }}
+        defaultChecked
+        color="secondary"
+      />
+    </div>
+  );
 }
 
 function Kanban({ part }: { part: NodeAstPart }) {
@@ -586,7 +630,7 @@ function Image({ part }: { part: NodeAstPart }) {
 function Embed({ url }: { url: string }) {
   return (
     <div className={styles.embedContainer}>
-      <iframe className={styles.embedIframe} src={url} />
+      <iframe className={styles.embedIframe} src={url} title={url} />
     </div>
   );
 }
@@ -595,7 +639,7 @@ function Error({ err }: { err: string }) {
   return (
     <div className={styles.errorContainer}>
       <div className={styles.errorHeader}>ERROR</div>
-      {err}
+      <div className={styles.errorText}>{err}</div>
     </div>
   );
 }
