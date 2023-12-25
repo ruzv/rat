@@ -321,23 +321,27 @@ func (jr *JSONRenderer) renderGraphLink(
 		return nil, errors.Wrap(err, "failed to get view url")
 	}
 
-	title := string(link.Title)
-
-	if title == "" {
-		title = destNode.Name()
-	}
-
-	return part.AddContainer(
+	linkPart := part.AddContainer(
+		&jsonast.AstPart{
+			Type: "graph_link",
+			Attributes: jsonast.AstAttributes{
+				"destination": dest,
+			},
+		},
+		entering,
+	)
+	if entering && strings.TrimSpace(string(link.Title)) == "" {
+		linkPart.AddLeaf(
 			&jsonast.AstPart{
-				Type: "graph_link",
+				Type: "text",
 				Attributes: jsonast.AstAttributes{
-					"title":       title,
-					"destination": dest,
+					"text": destNode.Name(),
 				},
 			},
-			entering,
-		),
-		nil
+		)
+	}
+
+	return linkPart, nil
 }
 
 func resolveFileURL(file string) string {

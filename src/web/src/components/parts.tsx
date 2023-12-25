@@ -365,14 +365,6 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
 function Link({ part }: { part: NodeAstPart }) {
   const href = part.attributes["destination"] as string;
 
-  if (part.children === undefined) {
-    return (
-      <a className={styles.link} href={href}>
-        {part.attributes["title"]}
-      </a>
-    );
-  }
-
   return (
     <a className={styles.link} href={href}>
       <NodePartChildren part={part} />
@@ -381,12 +373,11 @@ function Link({ part }: { part: NodeAstPart }) {
 }
 
 function GraphLink({ part }: { part: NodeAstPart }) {
+  const href = part.attributes["destination"] as string;
+
   return (
-    <RouterLink
-      to={part.attributes["destination"] as string}
-      className={styles.link}
-    >
-      {part.attributes["title"]}
+    <RouterLink to={href} className={styles.link}>
+      <NodePartChildren part={part} />
     </RouterLink>
   );
 }
