@@ -484,16 +484,28 @@ function Kanban({ part }: { part: NodeAstPart }) {
     return <></>;
   }
 
+  const cols = part.children.length;
+  const gridCols = `repeat(${cols}, minmax(max(300px, calc(100% - (10px * ${
+    cols - 1
+  }))/${cols}), 1fr))`;
+
+  console.log(gridCols);
+
   return (
-    <div
-      className={styles.kanban}
-      style={{
-        gridTemplateColumns: `repeat(${part.children.length}, minmax(0, 1fr))`,
-      }}
-    >
-      <DndContext onDragEnd={handleDragEnd}>
-        <NodePartChildren part={kanbanPart} />
-      </DndContext>
+    <div className={styles.kanbanContainer}>
+      <div
+        className={styles.kanban}
+        style={{
+          display: "grid",
+          columnGap: "10px",
+          gridTemplateColumns: gridCols,
+          overflow: "auto",
+        }}
+      >
+        <DndContext onDragEnd={handleDragEnd}>
+          <NodePartChildren part={kanbanPart} />
+        </DndContext>
+      </div>
     </div>
   );
 
@@ -582,7 +594,13 @@ function KanbanCard({ part }: { part: NodeAstPart }) {
     <Draggable id={part.attributes["id"]}>
       <Spacer height={10} />
       <Container>
-        <NodePartChildren part={part} />
+        <div
+          style={{
+            overflow: "auto",
+          }}
+        >
+          <NodePartChildren part={part} />
+        </div>
       </Container>
     </Draggable>
   );

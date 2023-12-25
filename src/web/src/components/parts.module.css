@@ -92,11 +92,9 @@
   display: block;
 }
 
-.kanban {
-  display: grid;
-  column-gap: 10px;
-  background-color: rgb(7, 7, 7);
+.kanbanContainer {
   padding: 10px;
+  background-color: rgb(7, 7, 7);
   border-radius: 8px;
   margin-top: 20px;
   margin-bottom: 20px;
