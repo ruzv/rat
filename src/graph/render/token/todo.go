@@ -88,15 +88,16 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 			return nil, errors.Wrap(err, "failed to get excluded node")
 		}
 
-		excludedNodes[exID] = true
+		err = exNode.Walk(
+			p,
+			func(_ int, node *graph.Node) (bool, error) {
+				excludedNodes[node.Header.ID] = true
 
-		exNodes, err := exNode.ChildNodes(p)
+				return true, nil
+			},
+		)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get excluded nodes")
-		}
-
-		for _, exNode := range exNodes {
-			excludedNodes[exNode.Header.ID] = true
+			return nil, errors.Wrap(err, "failed to walk exclude nodes")
 		}
 	}
 
@@ -111,13 +112,6 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get included node")
 		}
-
-		nodeTodos, err := todo.ParseNode(inNode)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse node todos")
-		}
-
-		todos = append(todos, nodeTodos...)
 
 		err = inNode.Walk(
 			p,

@@ -52,18 +52,29 @@ func renderGraphTokenWithDepth(
 	)
 
 	for _, child := range children {
-		listPart.AddContainer(
+		linkPart := listPart.AddContainer(
 			&jsonast.AstPart{
 				Type: "list_item",
 			},
 			true,
-		).AddLeaf(&jsonast.AstPart{
-			Type: "graph_link",
-			Attributes: jsonast.AstAttributes{
-				"title":       child.Name(),
-				"destination": fmt.Sprintf("/view/%s", child.Path),
+		).AddContainer(
+			&jsonast.AstPart{
+				Type: "graph_link",
+				Attributes: jsonast.AstAttributes{
+					"destination": fmt.Sprintf("/view/%s", child.Path),
+				},
 			},
-		})
+			true,
+		)
+
+		linkPart.AddLeaf(
+			&jsonast.AstPart{
+				Type: "text",
+				Attributes: jsonast.AstAttributes{
+					"text": child.Name(),
+				},
+			},
+		)
 
 		err := renderGraphTokenWithDepth(listPart, child, p, depth, d+1)
 		if err != nil {
