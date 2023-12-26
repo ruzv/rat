@@ -568,7 +568,7 @@ function Kanban({ part }: { part: NodeAstPart }) {
 
     move(
       targetCard.attributes["id"],
-      `${destColumn.attributes["path"]}/${targetCard.attributes["name"]}`,
+      `${destColumn.attributes["path"]}/${targetCard.attributes["nameFromPath"]}`,
     );
 
     setKanbanPart(newKanbanPart);

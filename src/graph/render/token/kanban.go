@@ -49,9 +49,9 @@ func (t *Token) renderKanban(
 				&jsonast.AstPart{
 					Type: "kanban_card",
 					Attributes: jsonast.AstAttributes{
-						"id":   child.Header.ID.String(),
-						"name": child.Name(),
-						"path": child.Path.String(),
+						"id":           child.Header.ID.String(),
+						"nameFromPath": child.Path.Name(),
+						"path":         child.Path.String(),
 					},
 				},
 				true,
