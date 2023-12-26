@@ -1,8 +1,10 @@
 import React from "react";
 
-import { Node, NodeAstPart } from "./node";
+import { Node, NodeAstPart } from "../types/node";
 import { nodeAstAtom, childNodesAtom } from "./atoms";
-import { Spacer, ratAPIBaseURL } from "./util";
+import { Spacer } from "./util";
+import { move } from "../api/graph";
+
 import styles from "./parts.module.css";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -489,8 +491,6 @@ function Kanban({ part }: { part: NodeAstPart }) {
     cols - 1
   }))/${cols}), 1fr))`;
 
-  console.log(gridCols);
-
   return (
     <div className={styles.kanbanContainer}>
       <div
@@ -566,12 +566,10 @@ function Kanban({ part }: { part: NodeAstPart }) {
     destColumn.children.push(targetCard);
     srcColumn.children.splice(targetCardIdx, 1);
 
-    fetch(`${ratAPIBaseURL()}/graph/move/${targetCard.attributes["id"]}`, {
-      method: "POST",
-      body: JSON.stringify({
-        newPath: `${destColumn.attributes["path"]}/${targetCard.attributes["name"]}`,
-      }),
-    });
+    move(
+      targetCard.attributes["id"],
+      `${destColumn.attributes["path"]}/${targetCard.attributes["nameFromPath"]}`,
+    );
 
     setKanbanPart(newKanbanPart);
     console.log("done");

@@ -3,15 +3,14 @@ import { TextButton, IconButton, ButtonRow } from "./buttons/buttons";
 import { ConfirmModal, ContentModal } from "./modals";
 import { Spacer } from "./util";
 import { Code } from "./parts";
-import { Node } from "./node";
+import { create, remove } from "../api/node";
+import { search } from "../api/graph";
 
 import styles from "./console.module.css";
 import binIcon from "./icons/bin.png";
 import loupeIcon from "./icons/loupe.png";
 import addNodeIcon from "./icons/add-node.png";
 import rootIcon from "./icons/root.png";
-
-import { ratAPIBaseURL } from "./util";
 
 import { useAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
@@ -137,19 +136,14 @@ function NewNodeButton() {
             handleSubmit={() => {
               closeNewNodeModal();
 
-              fetch(`${ratAPIBaseURL()}/graph/node/${nodePath}`, {
-                method: "POST",
-                body: JSON.stringify({ name: name }),
-              })
-                .then((resp) => resp.json())
-                .then((node: Node) => {
-                  if (!childNodes) {
-                    setChildNodes([node]);
-                    return;
-                  }
+              create(nodePath, name).then((node) => {
+                if (!childNodes) {
+                  setChildNodes([node]);
+                  return;
+                }
 
-                  setChildNodes([...childNodes, node]);
-                });
+                setChildNodes([...childNodes, node]);
+              });
             }}
           />
         </ContentModal>
@@ -205,12 +199,7 @@ function SearchButton() {
           <Input
             handleClose={closeSearchModal}
             handleChange={(query) => {
-              fetch(`${ratAPIBaseURL()}/graph/search/`, {
-                method: "POST",
-                body: JSON.stringify({ query: query }),
-              })
-                .then((resp) => resp.json())
-                .then((resp) => setResults(resp.results));
+              search(query).then((resp) => setResults(resp.results));
             }}
             handleSubmit={() => {
               if (results.length === 0) {
@@ -266,14 +255,7 @@ function DeleteButton({ pathParts }: { pathParts: string[] }) {
             let parentPath = pathParts.slice(0, -1).join("/");
             let path = pathParts.join("/");
 
-            fetch(`${ratAPIBaseURL()}/graph/node/${path}`, {
-              method: "DELETE",
-            }).then((resp) => {
-              if (!resp.ok) {
-                console.log("failed to delete node");
-                return;
-              }
-
+            remove(path).then(() => {
               navigate(`/view/${parentPath}`);
               setModalOpen(false);
               setShowConfirm(false);

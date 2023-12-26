@@ -22,6 +22,22 @@ func NewRouter(
 	log = log.Prefix("router")
 	router := mux.NewRouter()
 
+	router.Use(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					w.Header().
+						Set(
+							"Access-Control-Allow-Origin",
+							"http://localhost:3000",
+						)
+
+					next.ServeHTTP(w, r)
+				},
+			)
+		},
+	)
+
 	router.NotFoundHandler = http.HandlerFunc(
 		func(w http.ResponseWriter, _ *http.Request) {
 			httputil.WriteError(w, http.StatusNotFound, "not found")
@@ -48,6 +64,12 @@ func NewRouter(
 		return nil, errors.Wrap(err, "failed to register web routes")
 	}
 
+	router.HandleFunc("/test",
+		func(w http.ResponseWriter, _ *http.Request) {
+			httputil.WriteError(w, http.StatusOK, "not found")
+		},
+	)
+
 	logRoutes(log, router)
 
 	return router, nil
@@ -69,7 +91,7 @@ func logRoutes(log *logr.LogR, router *mux.Router) {
 			methods, err := route.GetMethods()
 			if err != nil {
 				// route does not have a methods.
-				return nil //nolint:nilerr // ignore.
+				return nil //nolint:nilerr
 			}
 
 			for _, m := range methods {

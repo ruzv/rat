@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import { Node, NodeAstPart } from "./node";
+import { Node, NodeAstPart } from "../types/node";
 
 export const nodeAtom = atom<Node | undefined>(undefined);
 
