@@ -29,7 +29,7 @@ export function IconButton({
 }) {
   return (
     <Button className={styles.iconButton} onClick={onClick} tooltip={tooltip}>
-      <img className={styles.icon} src={icon} />
+      <img className={styles.icon} src={icon} alt="icon" />
     </Button>
   );
 }

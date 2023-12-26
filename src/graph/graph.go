@@ -94,6 +94,13 @@ func (n *Node) GetLeafs(r Reader) ([]*Node, error) {
 
 // AddSub new node as child with name.
 func (n *Node) AddSub(p Provider, name string) (*Node, error) {
+	subPath := n.Path.JoinName(name)
+
+	_, err := p.GetByPath(subPath)
+	if err == nil {
+		return nil, errors.Errorf("node %q already exists", subPath)
+	}
+
 	sub, err := n.sub(p, name)
 	if err != nil {
 		return nil, errors.Wrapf(

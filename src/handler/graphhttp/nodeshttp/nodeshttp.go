@@ -43,23 +43,20 @@ func RegisterRoutes(
 		r:   render.NewJSONRenderer(log, gs.Provider),
 	}
 
-	router.Use(
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(
-				func(w http.ResponseWriter, r *http.Request) {
-					w.Header().
-						Set(
-							"Access-Control-Allow-Origin",
-							"http://localhost:3000",
-						)
-
-					next.ServeHTTP(w, r)
-				},
-			)
-		},
-	)
-
 	nodeRouter := router.PathPrefix("/node/{path:.*}").Subrouter()
+
+	nodeRouter.HandleFunc(
+		"",
+		httputil.Wrap(
+			httputil.WrapOptions(
+				func(w http.ResponseWriter, r *http.Request) error {
+					return nil
+				},
+				[]string{http.MethodGet, http.MethodPost, http.MethodDelete},
+				[]string{"Content-Type"},
+			),
+			log, "read"),
+	).Methods(http.MethodOptions)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.read, log, "read")).
 		Methods(http.MethodGet)
@@ -68,7 +65,7 @@ func RegisterRoutes(
 		Methods(http.MethodPost)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.delete, h.log, "delete")).
-		Methods(http.MethodDelete, http.MethodOptions)
+		Methods(http.MethodDelete)
 
 	return nil
 }
@@ -90,8 +87,6 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get child node paths")
 	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	err = httputil.WriteResponse(
 		w,
@@ -130,11 +125,10 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 
 	sub, err := n.AddSub(h.gs.Provider, body.Name)
 	if err != nil {
-		httputil.WriteError(
-			w, http.StatusInternalServerError, "failed to create node",
+		return httputil.Error(
+			http.StatusInternalServerError,
+			errors.Wrap(err, "failed to create node"),
 		)
-
-		return errors.Wrap(err, "failed to create node")
 	}
 
 	root := jsonast.NewRootAstPart("document")
@@ -160,12 +154,6 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
-
-	if r.Method == http.MethodOptions {
-		return nil
-	}
-
 	n, err := h.getNode(r)
 	if err != nil {
 		return httputil.Error(

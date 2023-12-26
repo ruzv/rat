@@ -1,9 +1,7 @@
 package graphhttp
 
 import (
-	"fmt"
 	"net/http"
-	"regexp"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
@@ -36,20 +34,30 @@ func RegisterRoutes(
 	graphRouter := router.PathPrefix("/graph").Subrouter()
 
 	graphRouter.HandleFunc(
-		"/search/",
-		httputil.Wrap(h.search, h.log, "search"),
-	).
-		Methods(http.MethodPost)
-
-	idRe := regexp.MustCompile(
-		`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`,
-	)
+		"/search",
+		httputil.Wrap(
+			httputil.WrapOptions(
+				h.search,
+				[]string{http.MethodPost},
+				[]string{"Content-Type"},
+			),
+			h.log,
+			"search",
+		),
+	).Methods(http.MethodPost, http.MethodOptions)
 
 	graphRouter.HandleFunc(
-		fmt.Sprintf("/move/{id:%s}", idRe.String()),
-		httputil.Wrap(h.move, h.log, "move"),
-	).
-		Methods(http.MethodPost, http.MethodOptions)
+		"/move/{id:.+}",
+		httputil.Wrap(
+			httputil.WrapOptions(
+				h.move,
+				[]string{http.MethodPost},
+				[]string{"Content-Type"},
+			),
+			h.log,
+			"move",
+		),
+	).Methods(http.MethodPost, http.MethodOptions)
 
 	err := nodeshttp.RegisterRoutes(graphRouter, h.log, gs)
 	if err != nil {
@@ -65,8 +73,6 @@ func RegisterRoutes(
 }
 
 func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	body, err := httputil.Body[struct {
 		Query string `json:"query"`
 	}](w, r)
@@ -83,14 +89,12 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to search index")
 	}
 
-	type response struct {
-		Results []string `json:"results"`
-	}
-
 	err = httputil.WriteResponse(
 		w,
 		http.StatusOK,
-		response{
+		struct {
+			Results []string `json:"results"`
+		}{
 			Results: util.Map(
 				res,
 				func(n *graph.Node) string {
@@ -107,19 +111,12 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	if r.Method == http.MethodOptions {
-		return nil
-	}
-
 	id, err := uuid.FromString(mux.Vars(r)["id"])
 	if err != nil {
-		httputil.WriteError(
-			w, http.StatusBadRequest, "invalid node id",
+		return httputil.Error(
+			http.StatusBadRequest,
+			errors.Wrap(err, "failed to parse node id"),
 		)
-
-		return errors.Wrap(err, "failed to parse node id")
 	}
 
 	body, err := httputil.Body[struct {

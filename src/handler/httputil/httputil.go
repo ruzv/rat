@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pkg/errors"
 	"rat/logr"
@@ -37,7 +38,10 @@ type httpError struct {
 
 // NewBufferResponseWriter creates a new buffered response writer.
 func NewBufferResponseWriter(w http.ResponseWriter) *BufferResponseWriter {
-	return &BufferResponseWriter{w: w}
+	return &BufferResponseWriter{
+		w:    w,
+		Code: http.StatusOK,
+	}
 }
 
 // Header returns the header.
@@ -59,6 +63,31 @@ func (w *BufferResponseWriter) Write(b []byte) (int, error) {
 func (w *BufferResponseWriter) WriteHeader(code int) {
 	w.Code = code
 	w.w.WriteHeader(code)
+}
+
+// WrapOptions wraps a handler function to respond to OPTIONS requests.
+func WrapOptions(
+	handler RatHandlerFunc,
+	methods, headers []string,
+) RatHandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method != http.MethodOptions {
+			return handler(w, r)
+		}
+
+		w.Header().
+			Set(
+				"Access-Control-Allow-Methods", strings.Join(methods, ", "),
+			)
+		w.Header().
+			Set(
+				"Access-Control-Allow-Headers", strings.Join(headers, ", "),
+			)
+
+		w.WriteHeader(http.StatusNoContent)
+
+		return nil
+	}
 }
 
 // Wrap wraps a RatHandlerFunc to be used with mux.
@@ -88,6 +117,8 @@ func WriteResponse(w http.ResponseWriter, code int, body any) error {
 
 		return errors.Wrapf(err, "failed to encode body - %v", body)
 	}
+
+	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(code)
 
