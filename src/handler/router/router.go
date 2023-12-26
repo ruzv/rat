@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph/services"
+	auth "rat/handler/authhttp"
 	"rat/handler/graphhttp"
 	"rat/handler/httputil"
 	"rat/handler/viewhttp"
@@ -51,6 +52,8 @@ func NewRouter(
 			)
 		},
 	)
+
+	auth.RegisterRoutes(router, log, conf.Graph.Auth)
 
 	router.Use(GetAccessLoggerMW(log, false))
 
