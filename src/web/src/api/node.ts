@@ -3,15 +3,19 @@ import { Node } from "../types/node";
 import axios from "axios";
 
 export async function create(path: string, name: string) {
-  const url = `${ratAPIBaseURL()}/graph/node/${path}`;
-
-  let resp = await axios.post<Node>(url, { name });
+  let resp = await axios.post<Node>(`${ratAPIBaseURL()}/graph/node/${path}`, {
+    name,
+  });
 
   return resp.data;
 }
 
-export async function read(path: string) {
-  let resp = await axios.get<Node>(`${ratAPIBaseURL()}/graph/node/${path}`);
+export async function read(token: string, path: string) {
+  let resp = await axios.get<Node>(`${ratAPIBaseURL()}/graph/node/${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   return resp.data;
 }

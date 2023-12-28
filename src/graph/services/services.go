@@ -7,6 +7,7 @@ import (
 	"rat/graph"
 	"rat/graph/index"
 	"rat/graph/provider"
+	"rat/graph/services/auth"
 	"rat/graph/services/urlresolve"
 	"rat/graph/sync"
 	"rat/logr"
@@ -17,6 +18,7 @@ type Config struct {
 	Provider    *provider.Config   `yaml:"provider"`
 	URLResolver *urlresolve.Config `yaml:"urlResolver"`
 	Sync        *sync.Config       `yaml:"sync"`
+	Auth        *auth.Config       `yaml:"auth"`
 }
 
 // GraphServices contains service components of a graph.
@@ -25,6 +27,7 @@ type GraphServices struct {
 	Syncer      *sync.Syncer
 	Index       *index.GraphIndex
 	URLResolver *urlresolve.Resolver
+	Auth        *auth.Config
 	log         *logr.LogR
 }
 
@@ -36,6 +39,7 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 		err error
 		gs  = &GraphServices{
 			URLResolver: urlresolve.NewResolver(c.URLResolver, log),
+			Auth:        c.Auth,
 			log:         log,
 		}
 	)

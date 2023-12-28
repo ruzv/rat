@@ -53,23 +53,40 @@ func NewRouter(
 		},
 	)
 
-	auth.RegisterRoutes(router, log, conf.Graph.Auth)
-
 	router.Use(GetAccessLoggerMW(log, false))
 
-	err := graphhttp.RegisterRoutes(router, log, gs)
+	exposedRouter := router.PathPrefix("").Subrouter()
+	protectedRouter := router.PathPrefix("").Subrouter()
+
+	if gs.Auth != nil {
+		log.Infof("registering auth routes")
+
+		mw, err := auth.RegisterRoutes(
+			exposedRouter,
+			log,
+			gs.Auth.AllUsers(),
+			gs.Auth.Token,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to register auth routes")
+		}
+
+		protectedRouter.Use(mw)
+	}
+
+	err := graphhttp.RegisterRoutes(protectedRouter, log, gs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
 	}
 
-	err = viewhttp.RegisterRoutes(router, log, webStaticContent)
+	err = viewhttp.RegisterRoutes(exposedRouter, log, webStaticContent)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register web routes")
 	}
 
-	router.HandleFunc("/test",
+	protectedRouter.HandleFunc("/test",
 		func(w http.ResponseWriter, _ *http.Request) {
-			httputil.WriteError(w, http.StatusOK, "not found")
+			httputil.WriteError(w, http.StatusOK, "r we testing, huh?")
 		},
 	)
 

@@ -1,17 +1,24 @@
 package main
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
+	"rat/logr"
 )
 
 func main() {
 	var (
 		password string
 		cost     int
+		log      = logr.NewLogR(
+			os.Stdout,
+			"rat-gen-paswd-hash",
+			logr.LogLevelDebug,
+		)
 	)
+
 	cli := &cobra.Command{
 		Use:   "gen-paswd-hash",
 		Short: "generate a password hash",
@@ -22,17 +29,24 @@ func main() {
 				panic(err)
 			}
 
-			fmt.Println(hash)
-			fmt.Println(string(hash))
+			log.Infof("password hash:\n%s", string(hash))
 		},
 	}
 
 	cli.Flags().
 		StringVarP(&password, "password", "p", "", "password to hash")
-	cli.MarkFlagRequired("password")
 
-	cli.Flags().
-		IntVarP(&cost, "cost", "c", bcrypt.MinCost, "cost of bcrypt hash function")
+	err := cli.MarkFlagRequired("password")
+	if err != nil {
+		panic(err)
+	}
 
-	cli.Execute()
+	cli.Flags().IntVarP(
+		&cost, "cost", "c", bcrypt.MinCost, "cost of bcrypt hash function",
+	)
+
+	err = cli.Execute()
+	if err != nil {
+		panic(err)
+	}
 }

@@ -2,7 +2,13 @@ import React from "react";
 
 import { Node, NodeAstPart } from "../types/node";
 import { nodeAstAtom, childNodesAtom } from "./atoms";
-import { Spacer } from "./util";
+import {
+  ClickableContainer,
+  Container,
+  ExternalLink,
+  InternalLink,
+  Spacer,
+} from "./util";
 import { move } from "../api/graph";
 
 import styles from "./parts.module.css";
@@ -12,7 +18,7 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import { useState, useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { graphviz } from "d3-graphviz";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   useDroppable,
   useDraggable,
@@ -164,9 +170,17 @@ export function NodePart({ part }: { part: NodeAstPart }) {
     case "code_block":
       return <CodeBlock part={part} />;
     case "link":
-      return <Link part={part} />;
+      return (
+        <ExternalLink href={part.attributes["url"] as string}>
+          <NodePartChildren part={part} />
+        </ExternalLink>
+      );
     case "graph_link":
-      return <GraphLink part={part} />;
+      return (
+        <InternalLink href={part.attributes["url"] as string}>
+          <NodePartChildren part={part} />
+        </InternalLink>
+      );
     case "list":
       return <List part={part} />;
     case "list_item":
@@ -361,26 +375,6 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
     >
       {part.attributes["text"] as string}
     </SyntaxHighlighter>
-  );
-}
-
-function Link({ part }: { part: NodeAstPart }) {
-  const href = part.attributes["destination"] as string;
-
-  return (
-    <a className={styles.link} href={href}>
-      <NodePartChildren part={part} />
-    </a>
-  );
-}
-
-function GraphLink({ part }: { part: NodeAstPart }) {
-  const href = part.attributes["destination"] as string;
-
-  return (
-    <RouterLink to={href} className={styles.link}>
-      <NodePartChildren part={part} />
-    </RouterLink>
   );
 }
 
@@ -663,21 +657,4 @@ function NodePartChildren({ part }: { part: NodeAstPart }) {
       ))}
     </>
   );
-}
-
-function ClickableContainer(
-  props: React.PropsWithChildren<{ onClick?: () => void }>,
-) {
-  return (
-    <div
-      className={`${styles.container} ${styles.clickable}`}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </div>
-  );
-}
-
-function Container(props: React.PropsWithChildren<{}>) {
-  return <div className={styles.container}>{props.children}</div>;
 }

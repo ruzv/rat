@@ -7,11 +7,11 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/go-git/go-git/v5 v5.8.1
 	github.com/gofrs/uuid v4.2.0+incompatible
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gomarkdown/markdown v0.0.0-20230922105210-14b16010c2ee
 	github.com/google/go-cmp v0.5.9
-	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/mux v1.8.0
-	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/sahilm/fuzzy v0.1.0
 	github.com/spf13/cobra v1.7.0

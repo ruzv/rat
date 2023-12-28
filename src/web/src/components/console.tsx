@@ -1,4 +1,4 @@
-import { modalOpenAtom, nodePathAtom, childNodesAtom } from "./atoms";
+import { nodeAtom, modalOpenAtom, nodePathAtom, childNodesAtom } from "./atoms";
 import { TextButton, IconButton, ButtonRow } from "./buttons/buttons";
 import { ConfirmModal, ContentModal } from "./modals";
 import { Spacer } from "./util";
@@ -17,15 +17,20 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-export function Console({ id }: { id: string }) {
+export function Console() {
   const navigate = useNavigate();
-  const nodePath = useAtomValue(nodePathAtom);
-  const isRoot = nodePath === "";
+  const node = useAtomValue(nodeAtom);
+
+  if (!node) {
+    return <></>;
+  }
+
+  const isRoot = node.path === "";
 
   let pathParts: string[] = [];
 
-  if (nodePath) {
-    pathParts = nodePath.split("/");
+  if (node.path) {
+    pathParts = node.path.split("/");
   }
 
   return (
@@ -33,17 +38,17 @@ export function Console({ id }: { id: string }) {
       {!isRoot && (
         <ButtonRow>
           <TextButton
-            text={id}
+            text={node.id}
             tooltip="copy to clipboard"
             onClick={() => {
-              navigator.clipboard.writeText(id);
+              navigator.clipboard.writeText(node.id);
             }}
           />
           <TextButton
-            text={nodePath}
+            text={node.path}
             tooltip="copy to clipboard"
             onClick={() => {
-              navigator.clipboard.writeText(nodePath);
+              navigator.clipboard.writeText(node.path);
             }}
           />
         </ButtonRow>

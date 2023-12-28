@@ -53,7 +53,7 @@ func RegisterRoutes(
 					return nil
 				},
 				[]string{http.MethodGet, http.MethodPost, http.MethodDelete},
-				[]string{"Content-Type"},
+				[]string{"Content-Type", "Authorization"},
 			),
 			log, "read"),
 	).Methods(http.MethodOptions)
