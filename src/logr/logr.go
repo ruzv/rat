@@ -93,8 +93,10 @@ func (lr *LogR) Group(level LogLevel) *LogGroup {
 }
 
 // Log adds a log to the group.
-func (lg *LogGroup) Log(fmtStr string, args ...any) {
+func (lg *LogGroup) Log(fmtStr string, args ...any) *LogGroup {
 	lg.parts = append(lg.parts, fmt.Sprintf(fmtStr, args...))
+
+	return lg
 }
 
 // Close closes the log group writeing all grouped logs.

@@ -85,7 +85,10 @@ func (r *Resolver) resolve(
 	}
 
 	dest.Path = path
-	dest.User = url.UserPassword(c.User, c.Password)
+
+	if c.User != "" && c.Password != "" {
+		dest.User = url.UserPassword(c.User, c.Password)
+	}
 
 	redactedDestURL := dest.Redacted()
 	destURL := dest.String()
