@@ -27,7 +27,7 @@ type GraphServices struct {
 	Syncer      *sync.Syncer
 	Index       *index.GraphIndex
 	URLResolver *urlresolve.Resolver
-	Auth        *auth.Config
+	Auth        *auth.TokenControl
 	log         *logr.LogR
 }
 
@@ -39,7 +39,7 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 		err error
 		gs  = &GraphServices{
 			URLResolver: urlresolve.NewResolver(c.URLResolver, log),
-			Auth:        c.Auth,
+			Auth:        auth.NewTokenControl(c.Auth, log),
 			log:         log,
 		}
 	)

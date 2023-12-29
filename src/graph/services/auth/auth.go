@@ -3,40 +3,16 @@ package auth
 import (
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"golang.org/x/crypto/bcrypt"
+	"rat/logr"
 )
 
-//nolint:gochecknoglobals
-var (
-	// Owner role gives a user unlimited access to the graph.
-	Owner Role = "owner"
-	// Member role gives a user full access to graph nodes marked with
-	// access: member and its sub-nodes.
-	Member Role = "member"
-	// Viewer role gives a user read access to graph nodes marked with
-	// access: viewer and its sub-nodes.
-	Viewer Role = "viewer"
-	// Visitor role gives read access unauthenticated users to graph nodes
-	// marked with access: visitor and its sub-nodes.
-	Visitor Role = "visitor"
-)
-
-var _ yaml.Unmarshaler = (*Role)(nil)
-
-// Role defines a user role.
-type Role string
-
-// Credentials defines users username and password.
-type Credentials struct {
-	Username string `yaml:"username" validate:"nonzero"`
-	Password string `yaml:"password" validate:"nonzero"`
-}
-
-// User defines a user with credentials and role.
-type User struct {
-	Credentials `yaml:",inline"`
-	Role        Role `yaml:"role" validate:"nonzero"`
+// Config defines configuration params for authentication.
+type Config struct {
+	Users []*User      `yaml:"users"`
+	Token *TokenConfig `yaml:"token" validate:"nonzero"`
 }
 
 // TokenConfig defines configuration params for JWT token generation.
@@ -45,45 +21,129 @@ type TokenConfig struct {
 	Expiration time.Duration `yaml:"expiration" validate:"nonzero"`
 }
 
-// Config defines configuration params for authentication.
-type Config struct {
-	Owner *Credentials `yaml:"owner" validate:"nonzero"`
-	Users []*User      `yaml:"users"`
-	Token *TokenConfig `yaml:"token" validate:"nonzero"`
+// User defines a user with credentials and role.
+type User struct {
+	Credentials `yaml:",inline"`
+	Scopes      *Scopes `yaml:"scopes" validate:"nonzero"`
 }
 
-// AllUsers returns all users, with roles and credentials, including the owner
-// user.
-func (c *Config) AllUsers() []*User {
-	return append(
-		[]*User{
-			{
-				Credentials: *c.Owner,
-				Role:        Owner,
-			},
-		},
-		c.Users...,
+// Credentials defines users username and password.
+type Credentials struct {
+	Username string `yaml:"username" validate:"nonzero"`
+	Password string `yaml:"password" validate:"nonzero"`
+}
+
+// func (r Role) Allowed(access Role, scope string) bool {
+// 	if r == Owner {
+// 		return true
+// 	}
+//
+// 	// owner scopes
+//
+// 	scpoes := map[Role][]string{
+// 		Owner:   {"read", "write"},
+// 		Member:  {"read", "write"},
+// 		Viewer:  {"read"},
+// 		Visitor: {"read"},
+// 	}
+// }
+
+type TokenControl struct {
+	tokenConfig *TokenConfig
+	users       map[string]*User
+	log         *logr.LogR
+}
+
+func NewTokenControl(config *Config, log *logr.LogR) *TokenControl {
+	log = log.Prefix("token-control")
+
+	lg := log.Group(logr.LogLevelInfo)
+	defer lg.Close()
+
+	lg.Log("users:")
+
+	users := make(map[string]*User)
+	for _, user := range config.Users {
+		users[user.Username] = user
+
+		lg.Log("  %s", user.Username)
+	}
+
+	return &TokenControl{
+		tokenConfig: config.Token,
+		users:       users,
+		log:         log,
+	}
+}
+
+func (tc *TokenControl) Generate(
+	username, password string,
+) (string, *Token, error) {
+	user, ok := tc.users[username]
+	if !ok {
+		return "", nil, errors.Errorf("user %q not found", username)
+	}
+
+	err := bcrypt.CompareHashAndPassword(
+		[]byte(user.Password),
+		[]byte(password),
 	)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "failed to authenticate user")
+	}
+
+	token := &Token{
+		Username: user.Username,
+		Expires:  time.Now().Add(tc.tokenConfig.Expiration).Unix(),
+		Scopes:   user.Scopes.Slice(),
+	}
+
+	signed, err := jwt.NewWithClaims(
+		jwt.SigningMethodHS512,
+		token.ToMapClaims(),
+	).
+		SignedString([]byte(tc.tokenConfig.Secret))
+	if err != nil {
+		return "", nil, errors.Wrap(err, "failed to sign token")
+	}
+
+	return signed, token, nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler for Role type to check for valid
-// values.
-func (r *Role) UnmarshalYAML(unmarshal func(any) error) error {
-	var raw string
-
-	err := unmarshal(&raw)
+func (tc *TokenControl) Validate(signed string) (*Token, error) {
+	token, err := jwt.Parse(
+		signed,
+		func(token *jwt.Token) (any, error) {
+			return []byte(tc.tokenConfig.Secret), nil
+		},
+		jwt.WithValidMethods([]string{"HS512"}),
+	)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal role")
+		return nil, errors.Wrap(err, "failed to parse token")
 	}
 
-	role := Role(raw)
-
-	switch role {
-	case Owner, Member, Viewer:
-		*r = role
-
-		return nil
-	default:
-		return errors.Errorf("invalid role: %s", raw)
+	if !token.Valid {
+		return nil, errors.New("token not valid")
 	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("failed to parse claims")
+	}
+
+	t, err := FromMapClaims(claims)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse token from claims")
+	}
+
+	if t.Expired() {
+		return nil, errors.New("token expired")
+	}
+
+	_, ok = tc.users[t.Username]
+	if !ok {
+		return nil, errors.New("user not found")
+	}
+
+	return t, nil
 }

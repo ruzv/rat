@@ -61,12 +61,7 @@ func NewRouter(
 	if gs.Auth != nil {
 		log.Infof("registering auth routes")
 
-		mw, err := auth.RegisterRoutes(
-			exposedRouter,
-			log,
-			gs.Auth.AllUsers(),
-			gs.Auth.Token,
-		)
+		mw, err := auth.RegisterRoutes(exposedRouter, log, gs)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to register auth routes")
 		}

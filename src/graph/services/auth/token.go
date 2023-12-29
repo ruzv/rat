@@ -10,9 +10,9 @@ import (
 
 // Token defines data stored in JWT token.
 type Token struct {
-	Username string `mapstructure:"username"`
-	Expires  int64  `mapstructure:"expires"`
-	Role     Role   `mapstructure:"role"`
+	Username string  `mapstructure:"username"`
+	Expires  int64   `mapstructure:"expires"`
+	Scopes   []Scope `mapstructure:"scopes"`
 }
 
 // FromMapClaims converts jwt.MapClaims to token claims.
@@ -32,7 +32,7 @@ func (t Token) ToMapClaims() jwt.MapClaims {
 	return jwt.MapClaims{
 		"username": t.Username,
 		"expires":  t.Expires,
-		"role":     t.Role,
+		"scopes":   t.Scopes,
 	}
 }
 

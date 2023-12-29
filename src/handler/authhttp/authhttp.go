@@ -3,40 +3,28 @@ package auth
 import (
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/bcrypt"
-	"rat/graph/services/auth"
-	"rat/graph/util"
+	"rat/graph/services"
 	"rat/handler/httputil"
 	"rat/logr"
 )
 
 type handler struct {
-	log         *logr.LogR
-	users       map[string]*auth.User
-	tokenConfig *auth.TokenConfig
+	log *logr.LogR
+	gs  *services.GraphServices
 }
 
 // RegisterRoutes registers auth routes on given router.
 func RegisterRoutes(
-	router *mux.Router,
-	log *logr.LogR,
-	users []*auth.User,
-	tokenConfig *auth.TokenConfig,
+	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
 ) (mux.MiddlewareFunc, error) {
 	log = log.Prefix("auth")
 
 	h := &handler{
 		log: log,
-		users: util.ObjectMap(
-			users,
-			func(u *auth.User) string { return u.Username },
-		),
-		tokenConfig: tokenConfig,
+		gs:  gs,
 	}
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
@@ -68,41 +56,10 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 		)
 	}
 
-	user, ok := h.users[body.Username]
-	if !ok {
-		return httputil.Error(
-			http.StatusBadRequest,
-			errors.New("failed to authenticate user"),
-		)
-	}
-
-	err = bcrypt.CompareHashAndPassword(
-		[]byte(user.Password),
-		[]byte(body.Password),
-	)
-	if err != nil {
-		h.log.Warnf(
-			"failed to authenticate user - %q: %s", user.Username, err.Error(),
-		)
-
-		return httputil.Error(
-			http.StatusBadRequest,
-			errors.New("failed to authenticate user"),
-		)
-	}
-
-	token, err := jwt.NewWithClaims(
-		jwt.SigningMethodHS512,
-		auth.Token{
-			Username: user.Username,
-			Expires:  time.Now().Add(h.tokenConfig.Expiration).Unix(),
-			Role:     user.Role,
-		}.ToMapClaims(),
-	).SignedString([]byte(h.tokenConfig.Secret))
+	signed, _, err := h.gs.Auth.Generate(body.Username, body.Password)
 	if err != nil {
 		return httputil.Error(
-			http.StatusBadRequest,
-			errors.Wrap(err, "failed to sign token"),
+			http.StatusBadRequest, errors.Wrap(err, "failed to generate token"),
 		)
 	}
 
@@ -112,7 +69,7 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 		struct {
 			Token string `json:"token"`
 		}{
-			Token: token,
+			Token: signed,
 		},
 	)
 	if err != nil {
@@ -126,92 +83,54 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) authMW(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
+	return http.HandlerFunc(httputil.Wrap(
+		func(w http.ResponseWriter, r *http.Request) error {
+			if r.Method == http.MethodOptions {
+				next.ServeHTTP(w, r)
+
+				return nil
+			}
+
+			signed, err := getToken(r)
+			if err != nil {
+				return httputil.Error(
+					http.StatusBadRequest,
+					errors.Wrap(err, "failed to get token"),
+				)
+			}
+
+			_, err = h.gs.Auth.Validate(signed)
+			if err != nil {
+				return httputil.Error(
+					http.StatusUnauthorized,
+					errors.Wrap(err, "failed to validate token"),
+				)
+			}
+
 			next.ServeHTTP(w, r)
 
-			return
-		}
+			return nil
+		},
+		h.log,
+		"auth-middleware",
+	))
+}
 
-		headerParts := strings.Fields(r.Header.Get("Authorization"))
+func getToken(r *http.Request) (string, error) {
+	headerParts := strings.Fields(r.Header.Get("Authorization"))
 
-		if len(headerParts) != 2 ||
-			strings.EqualFold("Bearer", headerParts[0]) {
-			h.log.Debugf(
-				"malformed authorization header: %q",
-				r.Header.Get("Authorization"),
-			)
-
-			httputil.WriteError(
-				w, http.StatusBadRequest, "invalid Authorization header",
-			)
-
-			return
-		}
-
-		token, err := jwt.Parse(
-			headerParts[1],
-			func(token *jwt.Token) (any, error) {
-				return []byte(h.tokenConfig.Secret), nil
-			},
-			jwt.WithValidMethods([]string{"HS512"}),
+	if len(headerParts) != 2 {
+		return "", errors.New(
+			`invalid Authorization header, expected 2 parts - "Bearer <token>"`,
 		)
-		if err != nil {
-			h.log.Debugf("failed to parse token: %s", err.Error())
+	}
 
-			httputil.WriteError(
-				w, http.StatusBadRequest, "invalid authorization token",
-			)
+	if !strings.EqualFold("Bearer", headerParts[0]) {
+		return "", errors.Errorf(
+			`invalid Authorization token kind - %q, expected "Bearer"`,
+			headerParts[0],
+		)
+	}
 
-			return
-		}
-
-		if !token.Valid {
-			h.log.Debugf("token not valid")
-
-			httputil.WriteError(
-				w, http.StatusBadRequest, "invalid authorization token",
-			)
-
-			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			h.log.Debugf("failed to parse claims")
-
-			httputil.WriteError(
-				w, http.StatusBadRequest, "invalid authorization token",
-			)
-
-			return
-		}
-
-		tc, err := auth.FromMapClaims(claims)
-		if err != nil {
-			h.log.Debugf("failed to parse token claims")
-
-			httputil.WriteError(
-				w, http.StatusBadRequest, "invalid authorization token",
-			)
-
-			return
-		}
-
-		if tc.Expired() {
-			h.log.Debugf(
-				"token expired, expires - %d, now - %d",
-				tc.Expires,
-				time.Now().Unix(),
-			)
-
-			httputil.WriteError(
-				w, http.StatusUnauthorized, "token expired",
-			)
-
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return headerParts[1], nil
 }

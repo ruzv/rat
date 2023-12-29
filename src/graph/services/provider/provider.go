@@ -31,7 +31,7 @@ func New( //nolint:ireturn // i know better.
 	var p graph.Provider = root.NewProvider(fs, c.Root)
 
 	if c.EnablePathCache == nil || *c.EnablePathCache {
-		p = pathcache.NewPathCache(p, log)
+		p = pathcache.NewProvider(p, log)
 	}
 
 	return p, nil
