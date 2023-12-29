@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/pkg/errors"
 	"rat/logr"
 )
@@ -14,10 +14,11 @@ import (
 // Config defines configuration params for periodically syncing graph to a
 // git repository.
 type Config struct {
-	RepoDir     string        `yaml:"repoDir" validate:"nonzero"`
-	Interval    time.Duration `yaml:"interval" validate:"nonzero"`
-	KeyPath     string        `yaml:"keyPath" validate:"nonzero"`
-	KeyPassword string        `yaml:"keyPassword"`
+	RepoDir            string        `yaml:"repoDir" validate:"nonzero"`
+	Interval           time.Duration `yaml:"interval" validate:"nonzero"`
+	PrivateKeyPath     string        `yaml:"privateKeyPath" validate:"nonzero"`
+	PrivateKeyPassword string        `yaml:"privateKeyPassword"`
+	KnownHostsPath     string        `yaml:"knownHostsPath" validate:"nonzero"`
 }
 
 // Syncer is a git syncer.
@@ -25,7 +26,7 @@ type Syncer struct {
 	log           *logr.LogR
 	interval      time.Duration
 	repo          *git.Repository
-	auth          *ssh.PublicKeys
+	auth          *gitssh.PublicKeys
 	worktree      *git.Worktree
 	trigger, stop chan struct{}
 	lock          sync.Mutex
@@ -35,26 +36,35 @@ type Syncer struct {
 func NewSyncer(
 	c *Config, log *logr.LogR,
 ) (*Syncer, error) {
+	log = log.Prefix("syncer")
+
 	var (
 		err error
 		s   = &Syncer{
-			log:      log.Prefix("syncer"),
+			log:      log,
 			interval: c.Interval,
 			trigger:  make(chan struct{}),
 			stop:     make(chan struct{}),
 		}
 	)
 
-	s.repo, err = git.PlainOpen(c.RepoDir)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open repository")
-	}
-
-	s.auth, err = ssh.NewPublicKeysFromFile(
-		"git", c.KeyPath, c.KeyPassword,
+	s.auth, err = gitssh.NewPublicKeysFromFile(
+		"git", c.PrivateKeyPath, c.PrivateKeyPassword,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create auth")
+	}
+
+	callback, err := gitssh.NewKnownHostsCallback(c.KnownHostsPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create known hosts callback")
+	}
+
+	s.auth.HostKeyCallbackHelper.HostKeyCallback = callback
+
+	s.repo, err = git.PlainOpen(c.RepoDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open repository")
 	}
 
 	s.worktree, err = s.repo.Worktree()
