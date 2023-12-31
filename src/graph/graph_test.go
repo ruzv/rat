@@ -41,7 +41,17 @@ func Test_parsePathName(t *testing.T) {
 		{
 			"-emoji",
 			args{` 🎥 Viewed `},
-			"Viewed",
+			"viewed",
+		},
+		{
+			"-spaces",
+			args{`Dijkstra’s shortest path`},
+			"dijkstras-shortest-path",
+		},
+		{
+			"-spacesAndForbiddenChars",
+			args{` 🎥 Dijkstra’s  🎥  shortest  🎥  path  🎥  `},
+			"dijkstras-shortest-path",
 		},
 	}
 	for _, tt := range tests {
