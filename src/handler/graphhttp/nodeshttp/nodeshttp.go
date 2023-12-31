@@ -1,6 +1,7 @@
 package nodeshttp
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 	"rat/graph/render"
 	"rat/graph/render/jsonast"
 	"rat/graph/services"
+	"rat/graph/services/auth"
+	"rat/graph/services/provider/access"
 	pathutil "rat/graph/util/path"
 	"rat/handler/httputil"
 	"rat/logr"
@@ -29,6 +32,41 @@ type response struct {
 	Length     int               `json:"length"`
 	AST        *jsonast.AstPart  `json:"ast"`
 	ChildNodes []*response       `json:"childNodes,omitempty"`
+}
+
+func accessWrapper(
+	base graph.Provider,
+	log *logr.LogR,
+	handler func(
+		p graph.Provider, w http.ResponseWriter, r *http.Request,
+	) error,
+) httputil.RatHandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		token, ok := r.Context().Value(auth.AuthTokenCtxKey).(*auth.Token)
+		if !ok || token == nil {
+			return httputil.Error(
+				http.StatusInternalServerError,
+				errors.New("failed to get auth token from context"),
+			)
+		}
+
+		b, err := json.MarshalIndent(token, "", "  ")
+		if err != nil {
+			return httputil.Error(
+				http.StatusInternalServerError,
+				errors.Wrap(err, "failed to marshal token"),
+			)
+		}
+
+		log.Debugf("token:\n%s", string(b))
+
+		err = handler(access.NewProvider(base, log, token.Scopes), w, r)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -58,8 +96,9 @@ func RegisterRoutes(
 			log, "read"),
 	).Methods(http.MethodOptions)
 
-	nodeRouter.HandleFunc("", httputil.Wrap(h.read, log, "read")).
-		Methods(http.MethodGet)
+	nodeRouter.HandleFunc(
+		"", httputil.Wrap(accessWrapper(gs.Provider, log, h.read), log, "read"),
+	).Methods(http.MethodGet)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.create, h.log, "create")).
 		Methods(http.MethodPost)
@@ -70,8 +109,10 @@ func RegisterRoutes(
 	return nil
 }
 
-func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
-	n, err := h.getNode(r)
+func (h *handler) read(
+	p graph.Provider, w http.ResponseWriter, r *http.Request,
+) error {
+	n, err := getNode(p, r)
 	if err != nil {
 		return httputil.Error(
 			http.StatusInternalServerError,
@@ -81,12 +122,16 @@ func (h *handler) read(w http.ResponseWriter, r *http.Request) error {
 
 	root := jsonast.NewRootAstPart("document")
 
-	h.r.Render(root, n, n.Content)
+	render.NewJSONRenderer(h.log, p).Render(root, n, n.Content)
 
-	childNodes, err := h.getChildNodes(w, n)
+	h.log.Debugf("rendered node %q", n.Path)
+
+	childNodes, err := getChildNodes(p, h.log, w, n)
 	if err != nil {
 		return errors.Wrap(err, "failed to get child node paths")
 	}
+
+	h.log.Debugf("got child nodes for node %q", n.Path)
 
 	err = httputil.WriteResponse(
 		w,
@@ -115,7 +160,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	n, err := h.getNode(r)
+	n, err := getNode(h.gs.Provider, r)
 	if err != nil {
 		return httputil.Error(
 			http.StatusInternalServerError,
@@ -154,7 +199,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
-	n, err := h.getNode(r)
+	n, err := getNode(h.gs.Provider, r)
 	if err != nil {
 		return httputil.Error(
 			http.StatusInternalServerError,
@@ -176,11 +221,13 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *handler) getChildNodes(
+func getChildNodes(
+	p graph.Provider,
+	log *logr.LogR,
 	w http.ResponseWriter,
 	n *graph.Node,
 ) ([]*response, error) {
-	children, err := n.GetLeafs(h.gs.Provider)
+	children, err := n.GetLeafs(p)
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -196,7 +243,7 @@ func (h *handler) getChildNodes(
 	for _, child := range children {
 		root := jsonast.NewRootAstPart("document")
 
-		h.r.Render(root, child, child.Content)
+		render.NewJSONRenderer(log, p).Render(root, child, child.Content)
 
 		childNodes = append(
 			childNodes,
@@ -213,10 +260,10 @@ func (h *handler) getChildNodes(
 	return childNodes, nil
 }
 
-func (h *handler) getNode(r *http.Request) (*graph.Node, error) {
+func getNode(p graph.Provider, r *http.Request) (*graph.Node, error) {
 	path := mux.Vars(r)["path"]
 
-	n, err := h.gs.Provider.GetByPath(pathutil.NodePath(path))
+	n, err := p.GetByPath(pathutil.NodePath(path))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get node %q", path)
 	}

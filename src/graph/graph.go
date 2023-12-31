@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -32,7 +33,7 @@ type Node struct {
 // NodeHeader describes info stored in nodes header.
 type NodeHeader struct {
 	ID       uuid.UUID      `yaml:"id"`
-	Access   *auth.Scopes    `yaml:"access"`
+	Domain   auth.Domain    `yaml:"domain"`
 	Name     string         `yaml:"name,omitempty"`
 	Weight   int            `yaml:"weight,omitempty"`
 	Template *NodeTemplate  `yaml:"template,omitempty"`
@@ -62,17 +63,19 @@ func (n *Node) Name() string {
 	return n.Path.Name()
 }
 
-func (n *Node) Access(p Provider) ([]auth.Scope, error) {
-	if n.Header.Access != nil {
-		return n.Header.Access.Slice(), nil
+func (n *Node) Domain(p Provider) (auth.Domain, error) {
+	if n.Header.Domain != "" {
+		return n.Header.Domain, nil
 	}
 
 	parent, err := n.Parent(p)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get parent")
+		return "", errors.Wrap(err, "failed to get parent")
 	}
 
-	return parent.Access(p)
+	fmt.Printf("parent: %v\n", parent.Path)
+
+	return parent.Domain(p)
 }
 
 // GetLeafs returns all leafs of node.

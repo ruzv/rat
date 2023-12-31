@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -9,10 +10,15 @@ import (
 	"rat/logr"
 )
 
+type ctxKey string
+
+const AuthTokenCtxKey ctxKey = "auth-token"
+
 // Config defines configuration params for authentication.
 type Config struct {
-	Users []*User      `yaml:"users"`
-	Token *TokenConfig `yaml:"token" validate:"nonzero"`
+	Users []*User           `yaml:"users"`
+	Roles map[Role][]*Scope `yaml:"roles"`
+	Token *TokenConfig      `yaml:"token" validate:"nonzero"`
 }
 
 // TokenConfig defines configuration params for JWT token generation.
@@ -33,28 +39,14 @@ type Credentials struct {
 	Password string `yaml:"password" validate:"nonzero"`
 }
 
-// func (r Role) Allowed(access Role, scope string) bool {
-// 	if r == Owner {
-// 		return true
-// 	}
-//
-// 	// owner scopes
-//
-// 	scpoes := map[Role][]string{
-// 		Owner:   {"read", "write"},
-// 		Member:  {"read", "write"},
-// 		Viewer:  {"read"},
-// 		Visitor: {"read"},
-// 	}
-// }
-
 type TokenControl struct {
-	tokenConfig *TokenConfig
 	users       map[string]*User
+	roles       map[Role][]*Scope
+	tokenConfig *TokenConfig
 	log         *logr.LogR
 }
 
-func NewTokenControl(config *Config, log *logr.LogR) *TokenControl {
+func NewTokenControl(config *Config, log *logr.LogR) (*TokenControl, error) {
 	log = log.Prefix("token-control")
 
 	lg := log.Group(logr.LogLevelInfo)
@@ -66,14 +58,31 @@ func NewTokenControl(config *Config, log *logr.LogR) *TokenControl {
 	for _, user := range config.Users {
 		users[user.Username] = user
 
-		lg.Log("  %s", user.Username)
+		b, err := json.MarshalIndent(
+			struct {
+				Username string   `json:"username"`
+				Scopes   []*Scope `json:"scopes"`
+			}{
+				Username: user.Username,
+				Scopes:   user.Scopes.Get(config.Roles),
+			},
+			"",
+			"  ",
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal user for log")
+		}
+
+		lg.Log("%s", string(b))
+
 	}
 
 	return &TokenControl{
-		tokenConfig: config.Token,
 		users:       users,
+		roles:       config.Roles,
+		tokenConfig: config.Token,
 		log:         log,
-	}
+	}, nil
 }
 
 func (tc *TokenControl) Generate(
@@ -95,7 +104,7 @@ func (tc *TokenControl) Generate(
 	token := &Token{
 		Username: user.Username,
 		Expires:  time.Now().Add(tc.tokenConfig.Expiration).Unix(),
-		Scopes:   user.Scopes.Slice(),
+		Scopes:   user.Scopes.Get(tc.roles),
 	}
 
 	signed, err := jwt.NewWithClaims(

@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph/services"
+	"rat/graph/services/auth"
 	"rat/handler/httputil"
 	"rat/logr"
 )
@@ -99,13 +101,17 @@ func (h *handler) authMW(next http.Handler) http.Handler {
 				)
 			}
 
-			_, err = h.gs.Auth.Validate(signed)
+			token, err := h.gs.Auth.Validate(signed)
 			if err != nil {
 				return httputil.Error(
 					http.StatusUnauthorized,
 					errors.Wrap(err, "failed to validate token"),
 				)
 			}
+
+			r = r.WithContext(
+				context.WithValue(r.Context(), auth.AuthTokenCtxKey, token),
+			)
 
 			next.ServeHTTP(w, r)
 

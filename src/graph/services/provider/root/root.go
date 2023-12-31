@@ -4,6 +4,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
 	"rat/graph"
+	"rat/graph/services/auth"
 	pathutil "rat/graph/util/path"
 )
 
@@ -20,6 +21,7 @@ var defaultConfig = Config{ //nolint:gochecknoglobals // constant.
 
 // Config contains root node provider configuration parameters.
 type Config struct {
+	Domain   auth.Domain         `yaml:"domain"`
 	Content  string              `yaml:"content"`
 	Template *graph.NodeTemplate `yaml:"template"`
 }
@@ -108,6 +110,7 @@ func (p *Provider) rootNode() *graph.Node {
 	return &graph.Node{
 		Header: graph.NodeHeader{
 			ID:       uuid.Nil,
+			Domain:   p.root.Domain,
 			Template: p.root.Template,
 		},
 		Content: p.root.Content,
@@ -120,6 +123,10 @@ func (c *Config) fillDefaults() Config {
 	}
 
 	fill := *c
+
+	if c.Domain == "" {
+		fill.Domain = defaultConfig.Domain
+	}
 
 	if c.Content == "" {
 		fill.Content = defaultConfig.Content

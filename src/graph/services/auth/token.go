@@ -1,27 +1,32 @@
 package auth
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
 
 // Token defines data stored in JWT token.
 type Token struct {
-	Username string  `mapstructure:"username"`
-	Expires  int64   `mapstructure:"expires"`
-	Scopes   []Scope `mapstructure:"scopes"`
+	Username string   `json:"username"`
+	Expires  int64    `json:"expires"`
+	Scopes   []*Scope `json:"scopes"`
 }
 
 // FromMapClaims converts jwt.MapClaims to token claims.
 func FromMapClaims(mc jwt.MapClaims) (*Token, error) {
 	t := &Token{}
 
-	err := mapstructure.Decode(mc, t)
+	b, err := json.Marshal(mc)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode token claims")
+		return nil, errors.Wrap(err, "failed to marshal token claims")
+	}
+
+	err = json.Unmarshal(b, t)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal token claims")
 	}
 
 	return t, nil
