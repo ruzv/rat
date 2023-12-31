@@ -423,15 +423,26 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 }
 
 func parsePathName(name string) string {
-	var pathName string
+	fields := strings.Fields(strings.TrimSpace(strings.ToLower(name)))
+	cleanFields := make([]string, 0, len(fields))
 
-	for _, r := range name {
-		if !allowedPathNameSymbols.MatchString(string(r)) {
+	for _, field := range fields {
+		var cleanField string
+
+		for _, r := range field {
+			if !allowedPathNameSymbols.MatchString(string(r)) {
+				continue
+			}
+
+			cleanField += string(r)
+		}
+
+		if cleanField == "" {
 			continue
 		}
 
-		pathName += string(r)
+		cleanFields = append(cleanFields, cleanField)
 	}
 
-	return pathName
+	return strings.Join(cleanFields, "-")
 }
