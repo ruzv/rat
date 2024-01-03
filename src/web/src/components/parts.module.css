@@ -42,6 +42,11 @@
 
 .link {
   overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
 }
 
 .link:link {
