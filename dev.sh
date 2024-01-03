@@ -2,9 +2,9 @@
 
 _SERVER="false"
 _WEB="false"
-_PWD=$(pwd)
+_ROOT_DIR=$(pwd)
 
-while getopts 'swh' OPTION; do
+while getopts 'swhr:' OPTION; do
     case "$OPTION" in
     "s")
         _SERVER="true"
@@ -12,11 +12,15 @@ while getopts 'swh' OPTION; do
     "w")
         _WEB="true"
         ;;
+    "r")
+        _ROOT_DIR="$OPTARG"
+        ;;
     "h")
         cat <<EOF
 usage: $0 [flags...]
   -s start only server
   -w start only web
+  -r filepath to rat project root dir
   -h show this help
 EOF
         exit 0
@@ -27,6 +31,7 @@ EOF
         ;;
     esac
 done
+
 shift "$(($OPTIND - 1))"
 
 if [ "$_SERVER" = "false" ] && [ "$_WEB" = "false" ]; then
@@ -34,9 +39,13 @@ if [ "$_SERVER" = "false" ] && [ "$_WEB" = "false" ]; then
     _WEB="true"
 fi
 
+echo "server:   $_SERVER"
+echo "web:      $_WEB"
+echo "root dir: $_ROOT_DIR"
+
 function start_server() {
     echo "start server"
-    cd "$_PWD" || exit 1
+    cd "$_ROOT_DIR" || exit 1
     cd src || exit 1
     /Users/rzvejs/go/bin/gow run \
         -ldflags "-X rat/buildinfo.version=$(git describe --tags)" \
@@ -45,7 +54,7 @@ function start_server() {
 
 function start_web() {
     echo "start web"
-    cd "$_PWD" || exit 1
+    cd "$_ROOT_DIR" || exit 1
     cd src/web || exit 1
     npm start
 }
