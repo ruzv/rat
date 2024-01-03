@@ -6,7 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/index"
-	"rat/graph/provider"
+	"rat/graph/services/auth"
+	"rat/graph/services/provider"
 	"rat/graph/services/urlresolve"
 	"rat/graph/sync"
 	"rat/logr"
@@ -17,6 +18,7 @@ type Config struct {
 	Provider    *provider.Config   `yaml:"provider"`
 	URLResolver *urlresolve.Config `yaml:"urlResolver"`
 	Sync        *sync.Config       `yaml:"sync"`
+	Auth        *auth.Config       `yaml:"auth"`
 }
 
 // GraphServices contains service components of a graph.
@@ -25,6 +27,7 @@ type GraphServices struct {
 	Syncer      *sync.Syncer
 	Index       *index.GraphIndex
 	URLResolver *urlresolve.Resolver
+	Auth        *auth.TokenControl
 	log         *logr.LogR
 }
 
@@ -39,6 +42,13 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 			log:         log,
 		}
 	)
+
+	if c.Auth != nil {
+		gs.Auth, err = auth.NewTokenControl(c.Auth, log)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create token control")
+		}
+	}
 
 	gs.Provider, err = provider.New(c.Provider, log)
 	if err != nil {

@@ -13,6 +13,9 @@ import (
 	"rat/logr"
 )
 
+// requires graph
+//   
+
 type handler struct {
 	log      *logr.LogR
 	resolver *urlresolve.Resolver

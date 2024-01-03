@@ -20,8 +20,8 @@ type Provider struct {
 	cacheMu sync.Mutex
 }
 
-// NewPathCache returns a new PathCache.
-func NewPathCache(base graph.Provider, log *logr.LogR) *Provider {
+// NewProvider returns a new PathCache.
+func NewProvider(base graph.Provider, log *logr.LogR) *Provider {
 	log = log.Prefix("pathcache")
 	log.Infof("enabled")
 

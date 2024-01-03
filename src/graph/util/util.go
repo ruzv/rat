@@ -23,8 +23,20 @@ func Map[T, R any](s []T, f func(T) R) []R {
 // Values returns all values of a map.
 func Values[K comparable, V any](m map[K]V) []V {
 	r := make([]V, 0, len(m))
+
 	for _, v := range m {
 		r = append(r, v)
+	}
+
+	return r
+}
+
+// ObjectMap returns a map of objects by the given key.
+func ObjectMap[K comparable, V any](objects []V, key func(V) K) map[K]V {
+	r := make(map[K]V, len(objects))
+
+	for _, o := range objects {
+		r[key(o)] = o
 	}
 
 	return r

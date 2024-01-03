@@ -21,7 +21,7 @@ func (p NodePath) Parent() NodePath {
 	parts := p.Parts()
 
 	if len(parts) < 2 {
-		return p
+		return ""
 	}
 
 	return NodePath(strings.Join(parts[:len(parts)-1], "/"))

@@ -1,12 +1,14 @@
 package graph
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
+	"rat/graph/services/auth"
 	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 )
@@ -23,7 +25,6 @@ var allowedPathNameSymbols = regexp.MustCompile(`[a-zA-Z0-9_\-]`)
 
 // Node describes a single node.
 type Node struct {
-	// Name    string            `json:"name"`
 	Path    pathutil.NodePath `json:"path"`
 	Header  NodeHeader        `json:"header"`
 	Content string            `json:"content"`
@@ -32,6 +33,7 @@ type Node struct {
 // NodeHeader describes info stored in nodes header.
 type NodeHeader struct {
 	ID       uuid.UUID      `yaml:"id"`
+	Domain   auth.Domain    `yaml:"domain"`
 	Name     string         `yaml:"name,omitempty"`
 	Weight   int            `yaml:"weight,omitempty"`
 	Template *NodeTemplate  `yaml:"template,omitempty"`
@@ -59,6 +61,21 @@ func (n *Node) Name() string {
 	}
 
 	return n.Path.Name()
+}
+
+func (n *Node) Domain(p Provider) (auth.Domain, error) {
+	if n.Header.Domain != "" {
+		return n.Header.Domain, nil
+	}
+
+	parent, err := n.Parent(p)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get parent")
+	}
+
+	fmt.Printf("parent: %v\n", parent.Path)
+
+	return parent.Domain(p)
 }
 
 // GetLeafs returns all leafs of node.

@@ -40,18 +40,6 @@
   white-space: nowrap;
 }
 
-.link {
-  overflow-wrap: anywhere;
-}
-
-.link:link {
-  color: #f3715d;
-}
-
-.link:visited {
-  color: #f3715d;
-}
-
 .paragraph {
   display: block;
   margin-block-start: 1em;
@@ -110,18 +98,6 @@
   background-color: #191919;
   overflow: auto;
   display: block;
-  border-radius: 8px;
-}
-
-.container {
-  position: relative;
-
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 30px;
-  padding-right: 30px;
-  background-color: #111111;
-  border: 3px solid #111111;
   border-radius: 8px;
 }
 

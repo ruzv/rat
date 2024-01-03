@@ -1,0 +1,35 @@
+.link {
+  overflow-wrap: anywhere;
+}
+
+.link:link {
+  color: #f3715d;
+}
+
+.link:visited {
+  color: #f3715d;
+}
+
+.container {
+  position: relative;
+
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 30px;
+  padding-right: 30px;
+  background-color: #111111;
+  border: 3px solid #111111;
+  border-radius: 8px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border: 3px solid #841a84;
+}
+
+.clickable:active {
+  border: 3px solid #ffffff;
+}
