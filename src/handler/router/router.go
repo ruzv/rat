@@ -81,7 +81,13 @@ func NewRouter(
 
 	protectedRouter.HandleFunc("/test",
 		func(w http.ResponseWriter, _ *http.Request) {
-			httputil.WriteError(w, http.StatusOK, "r we testing, huh?")
+			httputil.WriteResponse(w, http.StatusOK,
+				struct {
+					Message string `json:"message"`
+				}{
+					Message: "r we testing, huh?",
+				},
+			)
 		},
 	)
 

@@ -43,9 +43,11 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 		}
 	)
 
-	gs.Auth, err = auth.NewTokenControl(c.Auth, log)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create token control")
+	if c.Auth != nil {
+		gs.Auth, err = auth.NewTokenControl(c.Auth, log)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create token control")
+		}
 	}
 
 	gs.Provider, err = provider.New(c.Provider, log)

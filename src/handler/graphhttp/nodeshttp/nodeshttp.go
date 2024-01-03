@@ -34,12 +34,22 @@ type response struct {
 	ChildNodes []*response       `json:"childNodes,omitempty"`
 }
 
+
+
+// GraphHandlerFunc defines a handler function for requests that interact with
+// the graph.
+type GraphHandlerFunc func(
+	p graph.Provider, w http.ResponseWriter, r *http.Request,
+) error
+
+func (ghf GraphHandlerFunc) Handler() http.HandlerFunc {
+	return nil
+}
+
 func accessWrapper(
 	base graph.Provider,
 	log *logr.LogR,
-	handler func(
-		p graph.Provider, w http.ResponseWriter, r *http.Request,
-	) error,
+	handler GraphHandlerFunc,
 ) httputil.RatHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		token, ok := r.Context().Value(auth.AuthTokenCtxKey).(*auth.Token)
@@ -93,12 +103,17 @@ func RegisterRoutes(
 				[]string{http.MethodGet, http.MethodPost, http.MethodDelete},
 				[]string{"Content-Type", "Authorization"},
 			),
-			log, "read"),
+			log,
+			"read",
+		),
 	).Methods(http.MethodOptions)
 
 	nodeRouter.HandleFunc(
 		"", httputil.Wrap(accessWrapper(gs.Provider, log, h.read), log, "read"),
 	).Methods(http.MethodGet)
+
+	// nodeRouter.HandleFunc("", GraphHandlerFunc(h.read).Handler()).
+	// 	Methods(http.MethodGet)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.create, h.log, "create")).
 		Methods(http.MethodPost)

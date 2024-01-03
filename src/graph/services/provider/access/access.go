@@ -19,6 +19,9 @@ type Provider struct {
 	scopes []*auth.Scope
 }
 
+
+
+
 // NewProvider creates a new filesystem graph provider.
 func NewProvider(
 	base graph.Provider,
