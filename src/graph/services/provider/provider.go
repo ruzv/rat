@@ -3,9 +3,9 @@ package provider
 import (
 	"github.com/pkg/errors"
 	"rat/graph"
-	"rat/graph/provider/filesystem"
-	"rat/graph/provider/pathcache"
-	"rat/graph/provider/root"
+	"rat/graph/services/provider/filesystem"
+	"rat/graph/services/provider/pathcache"
+	"rat/graph/services/provider/root"
 	"rat/logr"
 )
 

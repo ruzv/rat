@@ -5,12 +5,17 @@ import (
 
 	"github.com/pkg/errors"
 	"rat/graph"
-	"rat/graph/index"
-	"rat/graph/provider"
+	"rat/graph/services/index"
+	"rat/graph/services/provider"
+	"rat/graph/services/sync"
 	"rat/graph/services/urlresolve"
-	"rat/graph/sync"
 	"rat/logr"
 )
+
+type Service interface {
+	Start() error
+	Stop() error
+}
 
 // Config contains graph services configuration parameters.
 type Config struct {
