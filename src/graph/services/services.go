@@ -10,6 +10,7 @@ import (
 	"rat/graph/services/provider"
 	"rat/graph/services/urlresolve"
 	"rat/graph/sync"
+	"rat/handler/api"
 	"rat/logr"
 )
 
@@ -19,6 +20,7 @@ type Config struct {
 	URLResolver *urlresolve.Config `yaml:"urlResolver"`
 	Sync        *sync.Config       `yaml:"sync"`
 	Auth        *auth.Config       `yaml:"auth"`
+	API         *api.Config        `yaml:"api"`
 }
 
 // GraphServices contains service components of a graph.
@@ -28,6 +30,7 @@ type GraphServices struct {
 	Index       *index.GraphIndex
 	URLResolver *urlresolve.Resolver
 	Auth        *auth.TokenControl
+	API         *api.API
 	log         *logr.LogR
 }
 
@@ -70,6 +73,11 @@ func NewGraphServices(c *Config, log *logr.LogR) (*GraphServices, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create index")
 	}
+
+    gs.API, err = api.NewAPI(c.API, log)
+    if err != nil {
+        return nil, errors.Wrap(err, "failed to create api")
+    }
 
 	logMetrics(gs.Provider, log.Prefix("metrics"))
 

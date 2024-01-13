@@ -1,29 +1,33 @@
 package router
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"rat/graph"
+	"rat/graph/services/auth"
+	"rat/graph/services/provider/access"
+	"rat/handler/httputil"
 	"rat/logr"
 )
 
 // GraphHandlerFunc defines a handler function signature for HTTP request
-// that request handler functons that interact with the graph.
+// that request handler functions that interact with the graph.
 type GraphHandlerFunc func(
 	p graph.Provider, w http.ResponseWriter, r *http.Request,
 ) error
 
 type Router struct {
-	log      *logr.LogR
-	provider graph.Provider
-	muxRouter   *mux.Router
+	log       *logr.LogR
+	provider  graph.Provider
+	muxRouter *mux.Router
 }
 
 type Handler struct {
-    router *Router
-    method string
-
+	router *Router
+	method string
 }
 
 func NewRouter(log *logr.LogR, provider graph.Provider) (*Router, error) {
@@ -32,34 +36,38 @@ func NewRouter(log *logr.LogR, provider graph.Provider) (*Router, error) {
 	// router := mux.NewRouter()
 
 	return &Router{
-		log:      log,
-		provider: provider,
-		muxRouter:   mux.NewRouter(),
+		log:       log,
+		provider:  provider,
+		muxRouter: mux.NewRouter(),
 	}, nil
 }
 
 func (r *Router) Path(path string) *Router {
-    newMuxRouter := r.muxRouter.PathPrefix(path).Subrouter()
-    
-    return &Router{
+	newMuxRouter := r.muxRouter.PathPrefix(path).Subrouter()
 
-        muxRouter: newMuxRouter,
-    }
+	return &Router{
+		muxRouter: newMuxRouter,
+	}
 }
 
-func (r *Router) Method(method string) *Handler {
-    return &Handler{
-        router: r,
-        method: method,
-    }
+func (r *Router) Handler(method string) *Handler {
+	return &Handler{
+		router: r,
+		method: method,
+	}
 }
 
 func (h *Handler) GraphHandler(
-    handler GraphHandlerFunc,
+	handler GraphHandlerFunc,
 ) {
-    r.router.HandleFunc(path, r.graphAccessWrapper(r.provider, r.log, handler))
+	r.router.HandleFunc(path, r.graphAccessWrapper(r.provider, r.log, handler))
 }
 
+var _ http.Handler = (*Router)(nil)
+
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.muxRouter.ServeHTTP(w, req)
+}
 
 func (r *Router) graphAccessWrapper(
 	base graph.Provider,
@@ -93,5 +101,3 @@ func (r *Router) graphAccessWrapper(
 		return nil
 	}
 }
-
-
