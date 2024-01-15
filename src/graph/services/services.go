@@ -12,6 +12,7 @@ import (
 	"rat/logr"
 )
 
+// Service describes the common methods all rat services must implement.
 type Service interface {
 	Start() error
 	Stop() error

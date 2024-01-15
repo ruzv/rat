@@ -8,11 +8,11 @@ import (
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/services"
+	"rat/graph/services/api/fileshttp"
+	"rat/graph/services/api/graphhttp/nodeshttp"
+	"rat/graph/services/api/httputil"
 	"rat/graph/util"
 	pathutil "rat/graph/util/path"
-	"rat/handler/fileshttp"
-	"rat/handler/graphhttp/nodeshttp"
-	"rat/handler/httputil"
 	"rat/logr"
 )
 

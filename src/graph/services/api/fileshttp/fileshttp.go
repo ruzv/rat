@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"rat/graph/services"
 	"rat/graph/services/urlresolve"
-	"rat/handler/httputil"
+	"rat/graph/services/api/httputil"
 	"rat/logr"
 )
 

@@ -17,7 +17,6 @@ import (
 	"rat/buildinfo"
 	"rat/config"
 	"rat/graph/services"
-	"rat/handler/router"
 	"rat/logr"
 )
 

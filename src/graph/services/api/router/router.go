@@ -8,15 +8,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph/services"
-	"rat/handler/graphhttp"
-	"rat/handler/httputil"
-	"rat/handler/viewhttp"
+	"rat/graph/services/api/graphhttp"
+	"rat/graph/services/api/httputil"
+	"rat/graph/services/api/viewhttp"
 	"rat/logr"
 )
 
-// NewRouter creates a new router, loads templates and registers handlers for
+// New creates a new router, loads templates and registers handlers for
 // routes.
-func NewRouter(
+func New(
 	log *logr.LogR, gs *services.GraphServices, webStaticContent fs.FS,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")

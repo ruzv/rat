@@ -12,7 +12,7 @@ import (
 	"rat/graph/render/jsonast"
 	"rat/graph/services"
 	pathutil "rat/graph/util/path"
-	"rat/handler/httputil"
+	"rat/graph/services/api/httputil"
 	"rat/logr"
 )
 
