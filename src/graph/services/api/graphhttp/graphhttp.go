@@ -7,28 +7,34 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"rat/graph"
-	"rat/graph/services"
 	"rat/graph/services/api/fileshttp"
 	"rat/graph/services/api/graphhttp/nodeshttp"
 	"rat/graph/services/api/httputil"
+	"rat/graph/services/index"
+	"rat/graph/services/urlresolve"
 	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
 )
 
 type handler struct {
-	log *logr.LogR
-
-	gs *services.GraphServices
+	log      *logr.LogR
+	provider graph.Provider
+	index    *index.GraphIndex
 }
 
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
-	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
+	router *mux.Router,
+	log *logr.LogR,
+	provider graph.Provider,
+	resolver *urlresolve.Resolver,
+	graphIndex *index.GraphIndex,
 ) error {
 	h := &handler{
-		log: log.Prefix("graphhttp"),
-		gs:  gs,
+		log:      log.Prefix("graphhttp"),
+		provider: provider,
+		index:    graphIndex,
 	}
 
 	graphRouter := router.PathPrefix("/graph").Subrouter()
@@ -59,12 +65,12 @@ func RegisterRoutes(
 		),
 	).Methods(http.MethodPost, http.MethodOptions)
 
-	err := nodeshttp.RegisterRoutes(graphRouter, h.log, gs)
+	err := nodeshttp.RegisterRoutes(graphRouter, h.log, provider)
 	if err != nil {
 		return errors.Wrap(err, "failed to register nodes routes")
 	}
 
-	err = fileshttp.RegisterRoutes(graphRouter, h.log, gs)
+	err = fileshttp.RegisterRoutes(graphRouter, h.log, resolver)
 	if err != nil {
 		return errors.Wrap(err, "failed to register fileshttp routes")
 	}
@@ -80,7 +86,7 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	res, err := h.gs.Index.Search(body.Query)
+	res, err := h.index.Search(body.Query)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to search",
@@ -126,7 +132,7 @@ func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	err = h.gs.Provider.Move(id, pathutil.NodePath(body.NewPath))
+	err = h.provider.Move(id, pathutil.NodePath(body.NewPath))
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to move node",
@@ -135,7 +141,7 @@ func (h *handler) move(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to move node")
 	}
 
-	n, err := h.gs.Provider.GetByID(id)
+	n, err := h.provider.GetByID(id)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to get node",

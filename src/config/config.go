@@ -7,15 +7,14 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/validator.v2"
 	"gopkg.in/yaml.v2"
-	"rat/graph/services"
+	"rat/graph/services/runner"
 	"rat/logr"
 )
 
 // Config is the configuration for the application.
 type Config struct {
-	Port     int              `yaml:"port" validate:"min=1"`
-	LogLevel logr.LogLevel    `yaml:"logLevel"`
-	Services *services.Config `yaml:"services"`
+	LogLevel logr.LogLevel  `yaml:"logLevel"`
+	Services *runner.Config `yaml:"services"`
 }
 
 // Load loads the configuration from a file.
