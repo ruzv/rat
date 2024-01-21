@@ -21,10 +21,10 @@ var _ services.Service = (*Runner)(nil)
 
 // Config contains graph services configuration parameters.
 type Config struct {
-	Provider    *provider.Config   `yaml:"provider"`
+	Provider    *provider.Config   `yaml:"provider" validate:"nonzero"`
 	URLResolver *urlresolve.Config `yaml:"urlResolver"`
 	Sync        *sync.Config       `yaml:"sync"`
-	API         *api.Config        `yaml:"api"`
+	API         *api.Config        `yaml:"api" validate:"nonzero"`
 }
 
 // Runner contains service components of a graph.
