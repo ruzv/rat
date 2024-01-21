@@ -143,6 +143,15 @@
   width: 100%;
 }
 
+.mediaContainer {
+  display: flex;
+  container-type: inline-size;
+  justify-content: center;
+  padding-left: 20px;
+  padding-right: 20px;
+  margin-bottom: 20px;
+}
+
 .embedIframe {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -150,11 +159,13 @@
   border-radius: 5px;
 }
 
-.embedContainer {
-  display: flex;
-  padding-left: 20px;
-  padding-right: 20px;
-  margin-bottom: 20px;
+@container (width > 800px) {
+  .embedIframe {
+    width: 800px;
+  }
+  .image {
+    width: 800px;
+  }
 }
 
 .errorHeader {

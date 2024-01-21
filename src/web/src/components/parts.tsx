@@ -626,17 +626,19 @@ function Graphviz({ dot }: { dot: string }) {
 
 function Image({ part }: { part: NodeAstPart }) {
   return (
-    <img
-      className={styles.image}
-      src={part.attributes["src"]}
-      alt={part.children[0].attributes["text"]}
-    />
+    <div className={styles.mediaContainer}>
+      <img
+        className={styles.image}
+        src={part.attributes["src"]}
+        alt={part.children[0].attributes["text"]}
+      />
+    </div>
   );
 }
 
 function Embed({ url }: { url: string }) {
   return (
-    <div className={styles.embedContainer}>
+    <div className={styles.mediaContainer}>
       <iframe className={styles.embedIframe} src={url} title={url} />
     </div>
   );
