@@ -33,16 +33,16 @@ type Runner struct {
 	log      *logr.LogR
 }
 
-// NewGraphServices creates a new graph services.
+// New creates a new graph services.
 func New(
 	c *Config, log *logr.LogR, webStaticContent fs.FS,
 ) (*Runner, error) {
 	log = log.Prefix("services-runner")
-	services := []services.Service{}
+	runnerServices := []services.Service{}
 
 	resolver := urlresolve.NewResolver(c.URLResolver, log)
 
-	provider, err := provider.New(c.Provider, log)
+	graphProvider, err := provider.New(c.Provider, log)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create graph provider")
 	}
@@ -53,10 +53,10 @@ func New(
 			return nil, errors.Wrap(err, "failed to create syncer")
 		}
 
-		services = append(services, syncer)
+		runnerServices = append(runnerServices, syncer)
 	}
 
-	graphIndex, err := index.NewIndex(log, provider)
+	graphIndex, err := index.NewIndex(log, graphProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create index")
 	}
@@ -64,7 +64,7 @@ func New(
 	graphAPI, err := api.New(
 		c.API,
 		log,
-		provider,
+		graphProvider,
 		resolver,
 		graphIndex,
 		webStaticContent,
@@ -73,14 +73,16 @@ func New(
 		return nil, errors.Wrap(err, "failed to create api")
 	}
 
-	services = append(services, graphAPI)
+	runnerServices = append(runnerServices, graphAPI)
 
 	return &Runner{
-		services: services,
+		services: runnerServices,
 		log:      log,
 	}, nil
 }
 
+// Run starts all the configured services. It blocks until all services are
+// stopped or an unrecoverable error occurs.
 func (r *Runner) Run() error {
 	var (
 		runWG   = stdsync.WaitGroup{}
@@ -91,12 +93,19 @@ func (r *Runner) Run() error {
 		stop    = stdsync.OnceFunc(func() {
 			r.log.Debugf("stopping services (once func)")
 
-			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				10*time.Second,
+			)
+
+			defer cancel()
+
 			stopErr = r.Stop(ctx)
 		})
 	)
 
 	errsWG.Add(1)
+
 	go func() {
 		defer errsWG.Done()
 
@@ -125,9 +134,10 @@ func (r *Runner) Run() error {
 	close(errs)
 	errsWG.Wait()
 
-	return stderrors.Join(runErr, stopErr)
+	return stderrors.Join(runErr, stopErr) //nolint:wrapcheck
 }
 
+// Stop stops all the configured services.
 func (r *Runner) Stop(ctx context.Context) error {
 	var stopErr error
 
@@ -138,5 +148,5 @@ func (r *Runner) Stop(ctx context.Context) error {
 		}
 	}
 
-	return stopErr
+	return stopErr //nolint:wrapcheck
 }

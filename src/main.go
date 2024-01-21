@@ -49,7 +49,7 @@ func run() error {
 	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
 	log.Infof("%s\nversion: %s", logo, buildinfo.Version())
 
-	runner, err := runner.New(conf.Services, log, webStaticContent)
+	servicesRunner, err := runner.New(conf.Services, log, webStaticContent)
 	if err != nil {
 		return errors.Wrap(err, "failed to create services runner")
 	}
@@ -67,13 +67,15 @@ func run() error {
 	signal.Notify(stop, syscall.SIGINT)
 
 	go func() {
-		exit <- runner.Run()
+		exit <- servicesRunner.Run()
+
 		log.Debugf("runner.Run() returned")
 	}()
 
 	select {
 	case err := <-exit:
 		log.Debugf("runner exit received")
+
 		if err != nil {
 			return errors.Wrap(err, "runner failed")
 		}
@@ -81,8 +83,11 @@ func run() error {
 	case <-stop:
 		log.Infof("stopping runner")
 
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		err := runner.Stop(ctx)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		defer cancel()
+
+		err := servicesRunner.Stop(ctx)
 		if err != nil {
 			log.Debugf("not waiting for runner exit: %s", err.Error())
 

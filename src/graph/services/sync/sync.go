@@ -79,7 +79,7 @@ func NewSyncer(
 	return s, nil
 }
 
-// Start starts the sync ticker and goroutine.
+// Run starts the graph sync.
 func (s *Syncer) Run() error {
 	ticker := time.NewTicker(s.interval)
 

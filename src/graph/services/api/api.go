@@ -19,7 +19,9 @@ import (
 var _ services.Service = (*API)(nil)
 
 // DefaultTimeouts is the default timeout values for the api server.
-var DefaultTimeouts = &Timeouts{
+//
+//nolint:gochecknoglobals
+var DefaultTimeouts = &timeouts{
 	Read:  15 * time.Second,
 	Write: 15 * time.Second,
 }
@@ -27,11 +29,11 @@ var DefaultTimeouts = &Timeouts{
 // Config defines configuration parameters for the api server.
 type Config struct {
 	Port     int       `yaml:"port" validate:"nonzero"`
-	Timeouts *Timeouts `yaml:"timeouts"`
+	Timeouts *timeouts `yaml:"timeouts"`
 }
 
-// Timeouts defines timeout values for the api server.
-type Timeouts struct {
+// timeouts defines timeout values for the api server.
+type timeouts struct {
 	Read  time.Duration `yaml:"read"`
 	Write time.Duration `yaml:"write"`
 }
@@ -39,11 +41,11 @@ type Timeouts struct {
 // API is the API server service. Implements services.Service.
 type API struct {
 	log    *logr.LogR
-	auth   bool
 	config *Config
 	server *http.Server
 }
 
+// New creates a new API server service.
 func New(
 	config *Config,
 	log *logr.LogR,
@@ -59,7 +61,7 @@ func New(
 		return nil, errors.Wrap(err, "failed to create router")
 	}
 
-	timeouts := config.Timeouts.FillDefaults()
+	timeouts := config.Timeouts.fillDefaults()
 
 	return &API{
 		log:    log,
@@ -74,6 +76,7 @@ func New(
 	}, nil
 }
 
+// Run runs the API server.
 func (api *API) Run() error {
 	api.log.Infof("serving on http://localhost:%d", api.config.Port)
 
@@ -89,6 +92,7 @@ func (api *API) Run() error {
 	return nil
 }
 
+// Stop stops the API server.
 func (api *API) Stop(ctx context.Context) error {
 	api.log.Infof("shutting down")
 
@@ -100,7 +104,7 @@ func (api *API) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (t *Timeouts) FillDefaults() *Timeouts {
+func (t *timeouts) fillDefaults() *timeouts {
 	if t == nil {
 		return DefaultTimeouts
 	}

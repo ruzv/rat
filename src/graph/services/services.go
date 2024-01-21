@@ -11,5 +11,5 @@ type Service interface {
 	Run() error
 	// Stops the service. Retruns error on failure to stop service. Either
 	// with error or without must stop the service.
-	Stop(context.Context) error
+	Stop(ctx context.Context) error
 }
