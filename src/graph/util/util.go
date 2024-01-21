@@ -30,6 +30,16 @@ func Values[K comparable, V any](m map[K]V) []V {
 	return r
 }
 
+// Keys returns all keys of a map.
+func Keys[K comparable, V any](m map[K]V) []K {
+	r := make([]K, 0, len(m))
+	for k := range m {
+		r = append(r, k)
+	}
+
+	return r
+}
+
 // Filter creates a new slice of entries of s that valid function return's
 // true to.
 func Filter[T any](s []T, valid func(T) bool) []T {

@@ -1,7 +1,10 @@
-logLevel: 0
 services:
+  log:
+    defaultLevel: debug
+    prefixLevels:
+      rat.services.api.router.graphhttp.nodeshttp.json-renderer: info
   api:
-    port : 8888
+    port: 8888
   provider:
     dir: /path/to/graph/dir
     enablePathCache: true
