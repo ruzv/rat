@@ -1,6 +1,7 @@
-port: 8888
 logLevel: 0
 services:
+  api:
+    port : 8888
   provider:
     dir: /path/to/graph/dir
     enablePathCache: true

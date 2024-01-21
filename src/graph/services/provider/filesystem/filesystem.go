@@ -195,7 +195,9 @@ func (p *Provider) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 
 	err = yaml.Unmarshal(data, &header)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal header as yaml")
+		return nil, errors.Wrapf(
+			err, "failed to unmarshal header as yaml for node %q", path,
+		)
 	}
 
 	n.Header = header

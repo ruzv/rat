@@ -1,15 +1,19 @@
 package sync
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/pkg/errors"
+	"rat/graph/services"
 	"rat/logr"
 )
+
+var _ services.Service = (*Syncer)(nil)
 
 // Config defines configuration params for periodically syncing graph to a
 // git repository.
@@ -26,7 +30,7 @@ type Syncer struct {
 	log           *logr.LogR
 	interval      time.Duration
 	repo          *git.Repository
-	auth          *gitssh.PublicKeys
+	auth          *ssh.PublicKeys
 	worktree      *git.Worktree
 	trigger, stop chan struct{}
 	lock          sync.Mutex
@@ -48,14 +52,14 @@ func NewSyncer(
 		}
 	)
 
-	s.auth, err = gitssh.NewPublicKeysFromFile(
+	s.auth, err = ssh.NewPublicKeysFromFile(
 		"git", c.PrivateKeyPath, c.PrivateKeyPassword,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create auth")
 	}
 
-	callback, err := gitssh.NewKnownHostsCallback(c.KnownHostsPath)
+	callback, err := ssh.NewKnownHostsCallback(c.KnownHostsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create known hosts callback")
 	}
@@ -75,37 +79,39 @@ func NewSyncer(
 	return s, nil
 }
 
-// Start starts the sync ticker and goroutine.
-func (s *Syncer) Start() {
+// Run starts the graph sync.
+func (s *Syncer) Run() error {
 	ticker := time.NewTicker(s.interval)
 
-	go func() {
-		for {
-			var err error
-			select {
-			case <-ticker.C:
-				err = s.sync()
-			case <-s.trigger:
-				err = s.sync()
-			case <-s.stop:
-				ticker.Stop()
-				close(s.trigger)
-				close(s.stop)
+	for {
+		var err error
+		select {
+		case <-ticker.C:
+			err = s.sync()
+		case <-s.trigger:
+			err = s.sync()
+		case <-s.stop:
+			ticker.Stop()
+			close(s.trigger)
+			close(s.stop)
 
-				return
-			}
-
-			if err != nil {
-				s.log.Errorf("failed to sync graph: %s", err.Error())
-			}
+			return nil
 		}
-	}()
+
+		if err != nil {
+			s.log.Errorf("failed to sync graph: %s", err.Error())
+		}
+	}
 }
 
 // Stop stops the sync ticker and goroutine, cleans up allocated resources.
-func (s *Syncer) Stop() {
+func (s *Syncer) Stop(_ context.Context) error {
 	// NOTE: stop should wait for sync to finish.
+	s.log.Infof("stopping syncer")
+
 	s.stop <- struct{}{}
+
+	return nil
 }
 
 // Trigger triggers a sync.

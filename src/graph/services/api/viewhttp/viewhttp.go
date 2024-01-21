@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"rat/handler/httputil"
+	"rat/graph/services/api/httputil"
 	"rat/logr"
 )
 

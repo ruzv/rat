@@ -33,11 +33,6 @@ func NewIndex(
 	return gi, nil
 }
 
-// Close closes the index.
-func (*GraphIndex) Close() error {
-	return nil
-}
-
 // Search queries the index.
 func (gi *GraphIndex) Search(query string) ([]*graph.Node, error) {
 	const matchLimit = 20

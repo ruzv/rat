@@ -1,11 +1,13 @@
 package provider
 
 import (
+	"encoding/json"
+
 	"github.com/pkg/errors"
 	"rat/graph"
-	"rat/graph/provider/filesystem"
-	"rat/graph/provider/pathcache"
-	"rat/graph/provider/root"
+	"rat/graph/services/provider/filesystem"
+	"rat/graph/services/provider/pathcache"
+	"rat/graph/services/provider/root"
 	"rat/logr"
 )
 
@@ -34,5 +36,32 @@ func New( //nolint:ireturn // i know better.
 		p = pathcache.NewPathCache(p, log)
 	}
 
+	logMetrics(p, log.Prefix("metrics"))
+
 	return p, nil
+}
+
+func logMetrics(p graph.Provider, log *logr.LogR) {
+	r, err := p.GetByID(graph.RootNodeID)
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
+
+		return
+	}
+
+	m, err := r.Metrics(p)
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
+
+		return
+	}
+
+	b, err := json.MarshalIndent(m, "", "    ")
+	if err != nil {
+		log.Errorf("failed to log metrics: %s", err.Error())
+
+		return
+	}
+
+	log.Infof(string(b))
 }

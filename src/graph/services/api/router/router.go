@@ -7,17 +7,23 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"rat/graph/services"
-	"rat/handler/graphhttp"
-	"rat/handler/httputil"
-	"rat/handler/viewhttp"
+	"rat/graph"
+	"rat/graph/services/api/graphhttp"
+	"rat/graph/services/api/httputil"
+	"rat/graph/services/api/viewhttp"
+	"rat/graph/services/index"
+	"rat/graph/services/urlresolve"
 	"rat/logr"
 )
 
-// NewRouter creates a new router, loads templates and registers handlers for
+// New creates a new router, loads templates and registers handlers for
 // routes.
-func NewRouter(
-	log *logr.LogR, gs *services.GraphServices, webStaticContent fs.FS,
+func New(
+	log *logr.LogR,
+	provider graph.Provider,
+	resolver *urlresolve.Resolver,
+	graphIndex *index.GraphIndex,
+	webStaticContent fs.FS,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")
 	router := mux.NewRouter()
@@ -54,7 +60,7 @@ func NewRouter(
 
 	router.Use(GetAccessLoggerMW(log, false))
 
-	err := graphhttp.RegisterRoutes(router, log, gs)
+	err := graphhttp.RegisterRoutes(router, log, provider, resolver, graphIndex)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
 	}

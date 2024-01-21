@@ -10,16 +10,15 @@ import (
 	"rat/graph"
 	"rat/graph/render"
 	"rat/graph/render/jsonast"
-	"rat/graph/services"
+	"rat/graph/services/api/httputil"
 	pathutil "rat/graph/util/path"
-	"rat/handler/httputil"
 	"rat/logr"
 )
 
 type handler struct {
-	log *logr.LogR
-	gs  *services.GraphServices
-	r   jsonast.Renderer
+	log      *logr.LogR
+	provider graph.Provider
+	r        jsonast.Renderer
 }
 
 type response struct {
@@ -33,14 +32,14 @@ type response struct {
 
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
-	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
+	router *mux.Router, log *logr.LogR, provider graph.Provider,
 ) error {
 	log = log.Prefix("nodeshttp")
 
 	h := &handler{
-		log: log,
-		gs:  gs,
-		r:   render.NewJSONRenderer(log, gs.Provider),
+		log:      log,
+		provider: provider,
+		r:        render.NewJSONRenderer(log, provider),
 	}
 
 	nodeRouter := router.PathPrefix("/node/{path:.*}").Subrouter()
@@ -123,7 +122,7 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		)
 	}
 
-	sub, err := n.AddSub(h.gs.Provider, body.Name)
+	sub, err := n.AddSub(h.provider, body.Name)
 	if err != nil {
 		return httputil.Error(
 			http.StatusInternalServerError,
@@ -162,7 +161,7 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 		)
 	}
 
-	err = h.gs.Provider.Delete(n)
+	err = h.provider.Delete(n)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to delete node",
@@ -180,7 +179,7 @@ func (h *handler) getChildNodes(
 	w http.ResponseWriter,
 	n *graph.Node,
 ) ([]*response, error) {
-	children, err := n.GetLeafs(h.gs.Provider)
+	children, err := n.GetLeafs(h.provider)
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -216,7 +215,7 @@ func (h *handler) getChildNodes(
 func (h *handler) getNode(r *http.Request) (*graph.Node, error) {
 	path := mux.Vars(r)["path"]
 
-	n, err := h.gs.Provider.GetByPath(pathutil.NodePath(path))
+	n, err := h.provider.GetByPath(pathutil.NodePath(path))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get node %q", path)
 	}

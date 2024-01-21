@@ -7,9 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"rat/graph/services"
+	"rat/graph/services/api/httputil"
 	"rat/graph/services/urlresolve"
-	"rat/handler/httputil"
 	"rat/logr"
 )
 
@@ -20,13 +19,13 @@ type handler struct {
 
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
-	router *mux.Router, log *logr.LogR, gs *services.GraphServices,
+	router *mux.Router, log *logr.LogR, resolver *urlresolve.Resolver,
 ) error {
 	log = log.Prefix("fileshttp")
 
 	h := &handler{
 		log:      log,
-		resolver: gs.URLResolver,
+		resolver: resolver,
 	}
 
 	router.PathPrefix("/file/{path:.+}").
