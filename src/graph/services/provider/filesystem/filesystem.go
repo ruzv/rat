@@ -35,6 +35,7 @@ var _ graph.RootsProvider = (*Provider)(nil)
 // in - rootDir/notes/tests/integration/cases.md.
 type Provider struct {
 	graphDir string
+	log      *logr.LogR
 }
 
 // NewProvider creates a new filesystem graph provider.
@@ -61,6 +62,7 @@ func NewProvider(graphDir string, log *logr.LogR) (*Provider, error) {
 
 	return &Provider{
 		graphDir: graphDir,
+		log:      log,
 	}, nil
 }
 
@@ -118,9 +120,11 @@ func (p *Provider) GetByID(id uuid.UUID) (*graph.Node, error) {
 				if node.Header.ID == id {
 					n = node
 					found = true
+
+					return false, nil
 				}
 
-				return !found, nil
+				return true, nil
 			},
 		)
 		if err != nil {
