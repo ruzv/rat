@@ -4,10 +4,12 @@ import (
 	"context"
 	stderrors "errors"
 	"io/fs"
+	"os"
 	stdsync "sync"
 	"time"
 
 	"github.com/pkg/errors"
+	"rat/buildinfo"
 	"rat/graph/services"
 	"rat/graph/services/api"
 	"rat/graph/services/index"
@@ -19,8 +21,16 @@ import (
 
 var _ services.Service = (*Runner)(nil)
 
+//nolint:gochecknoglobals
+var logo = //
+` ___      _
+| _ \__ _| |_
+|   / _' |  _|
+|_|_\__._|\__|`
+
 // Config contains graph services configuration parameters.
 type Config struct {
+	Log         *logr.Config       `yaml:"log" validate:"nonzero"`
 	Provider    *provider.Config   `yaml:"provider" validate:"nonzero"`
 	URLResolver *urlresolve.Config `yaml:"urlResolver"`
 	Sync        *sync.Config       `yaml:"sync"`
@@ -35,22 +45,26 @@ type Runner struct {
 
 // New creates a new graph services.
 func New(
-	c *Config, log *logr.LogR, webStaticContent fs.FS,
-) (*Runner, error) {
-	log = log.Prefix("services-runner")
+	c *Config, webStaticContent fs.FS,
+) (*Runner, *logr.LogR, error) {
+	ratLog := logr.NewLogR(os.Stdout, "rat", c.Log)
+
+	ratLog.Infof("%s\nversion: %s", logo, buildinfo.Version())
+
+	log := ratLog.Prefix("services")
 	runnerServices := []services.Service{}
 
 	resolver := urlresolve.NewResolver(c.URLResolver, log)
 
 	graphProvider, err := provider.New(c.Provider, log)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create graph provider")
+		return nil, nil, errors.Wrap(err, "failed to create graph provider")
 	}
 
 	if c.Sync != nil {
 		syncer, err := sync.NewSyncer(c.Sync, log)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create syncer")
+			return nil, nil, errors.Wrap(err, "failed to create syncer")
 		}
 
 		runnerServices = append(runnerServices, syncer)
@@ -58,7 +72,7 @@ func New(
 
 	graphIndex, err := index.NewIndex(log, graphProvider)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create index")
+		return nil, nil, errors.Wrap(err, "failed to create index")
 	}
 
 	graphAPI, err := api.New(
@@ -70,15 +84,17 @@ func New(
 		webStaticContent,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create api")
+		return nil, nil, errors.Wrap(err, "failed to create api")
 	}
 
 	runnerServices = append(runnerServices, graphAPI)
 
 	return &Runner{
-		services: runnerServices,
-		log:      log,
-	}, nil
+			services: runnerServices,
+			log:      log,
+		},
+		ratLog,
+		nil
 }
 
 // Run starts all the configured services. It blocks until all services are

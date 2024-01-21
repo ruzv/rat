@@ -11,17 +11,12 @@ import (
 
 	"github.com/pkg/errors"
 	"rat/args"
-	"rat/buildinfo"
 	"rat/config"
 	"rat/graph/services/runner"
-	"rat/logr"
 )
 
 //go:embed web/build/*
 var embedStaticContent embed.FS
-
-//go:embed logo.txt
-var logo string
 
 func main() {
 	err := run()
@@ -46,10 +41,7 @@ func run() error {
 		return errors.Wrap(err, "failed to create sub fs from embed")
 	}
 
-	log := logr.NewLogR(os.Stdout, "rat", conf.LogLevel)
-	log.Infof("%s\nversion: %s", logo, buildinfo.Version())
-
-	servicesRunner, err := runner.New(conf.Services, log, webStaticContent)
+	servicesRunner, log, err := runner.New(conf.Services, webStaticContent)
 	if err != nil {
 		return errors.Wrap(err, "failed to create services runner")
 	}
