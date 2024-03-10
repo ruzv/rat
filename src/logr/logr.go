@@ -127,7 +127,7 @@ func Preview(s string) string {
 		return fmt.Sprintf("\npreview:\n%s\n---cut---", s[:maxLen])
 	}
 
-	return fmt.Sprintf("\npreview:\n%s", s)
+	return "\npreview:\n" + s
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler for LogLevel type to check for

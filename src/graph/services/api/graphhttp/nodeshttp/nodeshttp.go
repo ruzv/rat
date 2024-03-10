@@ -48,9 +48,7 @@ func RegisterRoutes(
 		"",
 		httputil.Wrap(
 			httputil.WrapOptions(
-				func(w http.ResponseWriter, r *http.Request) error {
-					return nil
-				},
+				func(http.ResponseWriter, *http.Request) error { return nil },
 				[]string{http.MethodGet, http.MethodPost, http.MethodDelete},
 				[]string{"Content-Type"},
 			),
