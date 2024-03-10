@@ -131,9 +131,11 @@ func (c *Config) fillDefaults() Config {
 		if c.Template.Name == "" {
 			fill.Template.Name = defaultConfig.Template.Name
 		}
+
 		if c.Template.Weight == "" {
 			fill.Template.Weight = defaultConfig.Template.Weight
 		}
+
 		if c.Template.Content == "" {
 			fill.Template.Content = defaultConfig.Template.Content
 		}

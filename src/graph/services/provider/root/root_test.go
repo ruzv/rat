@@ -145,7 +145,9 @@ func TestConfig_fillDefaults(t *testing.T) {
 				Content:  tt.fields.Content,
 				Template: tt.fields.Template,
 			}
+
 			got := c.fillDefaults()
+
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("Config.fillDefaults() = %s", diff)
 			}

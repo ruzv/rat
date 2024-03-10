@@ -14,16 +14,11 @@ import (
 )
 
 // Constant block describes log levels.
-// debug 0
-// info  1
-// warn  2
-// error 3
-// .
 const (
-	LogLevelDebug LogLevel = iota
-	LogLevelInfo
-	LogLevelWarn
-	LogLevelError
+	LogLevelDebug LogLevel = iota // 0 (default)
+	LogLevelInfo                  // 1
+	LogLevelWarn                  // 2
+	LogLevelError                 // 3
 )
 
 // Config describes logr configuration.
@@ -132,7 +127,7 @@ func Preview(s string) string {
 		return fmt.Sprintf("\npreview:\n%s\n---cut---", s[:maxLen])
 	}
 
-	return fmt.Sprintf("\npreview:\n%s", s)
+	return "\npreview:\n" + s
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler for LogLevel type to check for

@@ -381,7 +381,7 @@ func (p *Provider) fullPath(path pathutil.NodePath) (string, string) {
 	if path.Depth() == 1 {
 		return filepath.Join(
 				p.graphDir,
-				fmt.Sprintf("%s.md", path.Name()),
+				path.Name()+".md",
 			),
 			filepath.Join(
 				p.graphDir,
@@ -392,7 +392,7 @@ func (p *Provider) fullPath(path pathutil.NodePath) (string, string) {
 	return filepath.Join(
 			p.graphDir,
 			filepath.Clean(path.Parent().String()),
-			fmt.Sprintf("%s.md", path.Name()),
+			path.Name()+".md",
 		),
 		filepath.Join(
 			p.graphDir,

@@ -50,7 +50,7 @@ func Parse(raw string) (*Todo, error) {
 	sf := util.NewStringFeed(
 		util.Filter(
 			strings.Split(raw, "\n"),
-			func(s string) bool { return len(strings.TrimSpace(s)) > 0 },
+			func(s string) bool { return strings.TrimSpace(s) != "" },
 		),
 	)
 
