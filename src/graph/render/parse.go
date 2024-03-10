@@ -32,7 +32,7 @@ func Parse(content string) ast.Node { //nolint:ireturn
 			parser.SpaceHeadings |
 			parser.HeadingIDs |
 			parser.BackslashLineBreak |
-			parser.DefinitionLists |
+			// parser.DefinitionLists | // not part of CommonMark
 			parser.MathJax |
 			parser.LaxHTMLBlocks |
 			parser.AutoHeadingIDs |

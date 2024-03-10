@@ -47,6 +47,9 @@ func renderGraphTokenWithDepth(
 	listPart := part.AddContainer(
 		&jsonast.AstPart{
 			Type: "list",
+			Attributes: jsonast.AstAttributes{
+				"type": "unordered",
+			},
 		},
 		true,
 	)
@@ -55,6 +58,9 @@ func renderGraphTokenWithDepth(
 		linkPart := listPart.AddContainer(
 			&jsonast.AstPart{
 				Type: "list_item",
+				Attributes: jsonast.AstAttributes{
+					"type": "unordered",
+				},
 			},
 			true,
 		).AddContainer(

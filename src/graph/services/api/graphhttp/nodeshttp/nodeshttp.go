@@ -54,7 +54,9 @@ func RegisterRoutes(
 				[]string{http.MethodGet, http.MethodPost, http.MethodDelete},
 				[]string{"Content-Type"},
 			),
-			log, "read"),
+			log,
+			"read",
+		),
 	).Methods(http.MethodOptions)
 
 	nodeRouter.HandleFunc("", httputil.Wrap(h.read, log, "read")).

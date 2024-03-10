@@ -111,28 +111,28 @@ func (jr *JSONRenderer) renderNode(
 
 		return p, nil
 	case *ast.List:
+		listType := "unordered"
+		if node.ListFlags&ast.ListTypeOrdered != 0 {
+			listType = "ordered"
+		}
+
 		part = part.AddContainer(
 			&jsonast.AstPart{
-				Type: "list",
-				Attributes: jsonast.AstAttributes{
-					"ordered":    node.ListFlags&ast.ListTypeOrdered != 0,
-					"definition": node.ListFlags&ast.ListTypeDefinition != 0,
-					"term":       node.ListFlags&ast.ListTypeTerm != 0,
-				},
+				Type:       "list",
+				Attributes: jsonast.AstAttributes{"type": listType},
 			},
 			entering,
 		)
 	case *ast.ListItem:
+		listItemType := "unordered"
+		if node.ListFlags&ast.ListTypeOrdered != 0 {
+			listItemType = "ordered"
+		}
+
 		part = part.AddContainer(
 			&jsonast.AstPart{
-				Type: "list_item",
-				Attributes: jsonast.AstAttributes{
-					"type": map[ast.ListType]string{
-						ast.ListTypeOrdered:    "ordered",
-						ast.ListTypeDefinition: "definition",
-						ast.ListTypeTerm:       "term",
-					}[node.ListFlags],
-				},
+				Type:       "list_item",
+				Attributes: jsonast.AstAttributes{"type": listItemType},
 			},
 			entering,
 		)
@@ -156,6 +156,7 @@ func (jr *JSONRenderer) renderNode(
 			},
 		)
 	case *ast.HTMLBlock:
+		jr.log.Infof("html block %s", logr.Preview(string(node.Literal)))
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "html_block",
@@ -330,7 +331,9 @@ func (jr *JSONRenderer) renderGraphLink(
 		},
 		entering,
 	)
-	if entering && strings.TrimSpace(string(link.Title)) == "" {
+	if entering &&
+		strings.TrimSpace(string(link.Title)) == "" &&
+		len(link.GetChildren()) == 0 {
 		linkPart.AddLeaf(
 			&jsonast.AstPart{
 				Type: "text",

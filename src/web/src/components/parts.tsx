@@ -182,11 +182,14 @@ export function NodePart({ part }: { part: NodeAstPart }) {
     case "todo_entry":
       return <TodoEntry part={part} />;
     case "html_block":
-      return (
-        <>
-          <p>{part.attributes["text"]}</p>
-        </>
-      );
+      //   return (
+      //     <>
+      //       <p>{part.attributes["text"]}</p>
+      //     </>
+      //   );
+
+      // Disabled for now, as it's used for only comments. AFAIK.
+      return <></>;
     case "kanban":
       return <Kanban part={part} />;
     case "kanban_column":
@@ -368,7 +371,12 @@ function Link({ part }: { part: NodeAstPart }) {
   const href = part.attributes["destination"] as string;
 
   return (
-    <a className={styles.link} href={href}>
+    <a
+      className={styles.link}
+      href={href}
+      target="_blank" // open in new tab
+      rel="noopener noreferrer"
+    >
       <NodePartChildren part={part} />
     </a>
   );
@@ -385,9 +393,13 @@ function GraphLink({ part }: { part: NodeAstPart }) {
 }
 
 function List({ part }: { part: NodeAstPart }) {
-  // {(part.attributes["ordered"] as boolean) && <p>ordered</p>}
-  // {(part.attributes["definition"] as boolean) && <p>definition</p>}
-  // {(part.attributes["term"] as boolean) && <p>term</p>}
+  if (part.attributes["type"] === "ordered") {
+    return (
+      <ol>
+        <NodePartChildren part={part} />
+      </ol>
+    );
+  }
 
   return (
     <ul>
