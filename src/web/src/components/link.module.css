@@ -1,0 +1,21 @@
+.link {
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:link {
+  color: #f3715d;
+}
+
+.link:visited {
+  color: #f3715d;
+}
+
+.invisibleLink {
+  color: inherit;
+  text-decoration: none;
+}
