@@ -222,8 +222,8 @@ func (jr *JSONRenderer) renderNode(
 				&jsonast.AstPart{
 					Type: "code_block",
 					Attributes: jsonast.AstAttributes{
-						"text": strings.TrimSpace(string(node.Literal)),
-						"info": string(node.Info),
+						"text":     strings.TrimSpace(string(node.Literal)),
+						"language": string(node.Info),
 					},
 				},
 			)

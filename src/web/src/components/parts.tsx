@@ -4,8 +4,10 @@ import { Node, NodeAstPart } from "../types/node";
 import { nodeAstAtom, childNodesAtom } from "./atoms";
 import { Spacer } from "./util";
 import { move } from "../api/graph";
+import { IconButton } from "./buttons/buttons";
 
 import styles from "./parts.module.css";
+import copyIcon from "./icons/copy.png";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -162,7 +164,12 @@ export function NodePart({ part }: { part: NodeAstPart }) {
     case "code":
       return <Code text={part.attributes["text"] as string} />;
     case "code_block":
-      return <CodeBlock part={part} />;
+      return (
+        <CodeBlock
+          language={part.attributes["language"]}
+          text={part.attributes["text"]}
+        />
+      );
     case "link":
       return <Link part={part} />;
     case "graph_link":
@@ -345,8 +352,8 @@ export function Code({ text }: { text: string }) {
   return <code className={styles.code}>{text}</code>;
 }
 
-function CodeBlock({ part }: { part: NodeAstPart }) {
-  let language = part.attributes["info"] as string;
+function CodeBlock({ language, text }: { language: string; text: string }) {
+  const [showCopy, setShowCopy] = useState(false);
 
   // https://github.com/react-syntax-highlighter/react-syntax-highlighter/blob/master/AVAILABLE_LANGUAGES_PRISM.MD
   if (language === "sh") {
@@ -354,16 +361,41 @@ function CodeBlock({ part }: { part: NodeAstPart }) {
   }
 
   return (
-    <SyntaxHighlighter
-      language={language}
-      style={SyntaxHighlighterStyle}
-      wrapLines={true}
-      wrapLongLines={false}
-      useInlineStyles={true}
-      customStyle={{ borderRadius: "8px" }}
+    <div
+      style={{
+        position: "relative",
+      }}
+      onMouseEnter={() => setShowCopy(true)}
+      onMouseLeave={() => setShowCopy(false)}
     >
-      {part.attributes["text"] as string}
-    </SyntaxHighlighter>
+      <div
+        style={{
+          position: "absolute",
+          right: "6px",
+          top: "6px",
+          opacity: showCopy ? 1 : 0,
+          transition: "opacity 0.2s linear",
+        }}
+      >
+        <IconButton
+          icon={copyIcon}
+          onClick={() => {
+            navigator.clipboard.writeText(text);
+          }}
+          tooltip="copy to clipboard"
+        />
+      </div>
+      <SyntaxHighlighter
+        language={language}
+        style={SyntaxHighlighterStyle}
+        wrapLines={true}
+        wrapLongLines={false}
+        useInlineStyles={true}
+        customStyle={{ borderRadius: "8px" }}
+      >
+        {text}
+      </SyntaxHighlighter>
+    </div>
   );
 }
 
