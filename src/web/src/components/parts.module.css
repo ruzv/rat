@@ -40,23 +40,6 @@
   white-space: nowrap;
 }
 
-.link {
-  overflow-wrap: anywhere;
-  text-decoration: none;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-.link:link {
-  color: #f3715d;
-}
-
-.link:visited {
-  color: #f3715d;
-}
-
 .paragraph {
   display: block;
   margin-block-start: 1em;

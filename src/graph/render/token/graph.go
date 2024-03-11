@@ -65,7 +65,7 @@ func renderGraphTokenWithDepth(
 			true,
 		).AddContainer(
 			&jsonast.AstPart{
-				Type: "graph_link",
+				Type: "link",
 				Attributes: jsonast.AstAttributes{
 					"destination": fmt.Sprintf("/view/%s", child.Path),
 				},

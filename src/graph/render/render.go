@@ -324,7 +324,7 @@ func (jr *JSONRenderer) renderGraphLink(
 
 	linkPart := part.AddContainer(
 		&jsonast.AstPart{
-			Type: "graph_link",
+			Type: "link",
 			Attributes: jsonast.AstAttributes{
 				"destination": dest,
 			},

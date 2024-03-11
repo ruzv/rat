@@ -18,7 +18,6 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 export function Console({ id }: { id: string }) {
-  const navigate = useNavigate();
   const nodePath = useAtomValue(nodePathAtom);
   const isRoot = nodePath === "";
 
@@ -53,11 +52,8 @@ export function Console({ id }: { id: string }) {
         <IconButton
           icon={rootIcon}
           tooltip="navigate to root node"
-          onClick={() => {
-            navigate(`/view`);
-          }}
+          href={"/view"}
         />
-
         {pathParts.map((part, idx) => {
           let path = pathParts.slice(0, idx + 1).join("/");
 
@@ -66,13 +62,10 @@ export function Console({ id }: { id: string }) {
               key={idx}
               text={part}
               tooltip={`navigate to ${path}`}
-              onClick={() => {
-                navigate(`/view/${path}`);
-              }}
+              href={`/view/${path}`}
             />
           );
         })}
-
         <SearchButton />
         <NewNodeButton />
         {!isRoot && <DeleteButton pathParts={pathParts} />}

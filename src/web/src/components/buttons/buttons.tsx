@@ -1,18 +1,27 @@
+import { InvisibleLink } from "../link";
+
 import styles from "./buttons.module.css";
 
 import Tooltip from "@mui/material/Tooltip";
 
 export function TextButton({
   text,
-  tooltip,
   onClick,
+  tooltip,
+  href,
 }: {
   text: string;
+  onClick?: () => void;
   tooltip?: string;
-  onClick: () => void;
+  href?: string;
 }) {
   return (
-    <Button className={styles.textButton} onClick={onClick} tooltip={tooltip}>
+    <Button
+      className={styles.textButton}
+      onClick={onClick}
+      tooltip={tooltip}
+      href={href}
+    >
       <span>{text}</span>
     </Button>
   );
@@ -22,13 +31,20 @@ export function IconButton({
   icon,
   onClick,
   tooltip,
+  href,
 }: {
   icon: string;
-  onClick: () => void;
+  onClick?: () => void;
   tooltip?: string;
+  href?: string;
 }) {
   return (
-    <Button className={styles.iconButton} onClick={onClick} tooltip={tooltip}>
+    <Button
+      className={styles.iconButton}
+      onClick={onClick}
+      tooltip={tooltip}
+      href={href}
+    >
       <img className={styles.icon} src={icon} alt="icon" />
     </Button>
   );
@@ -40,18 +56,38 @@ export function ButtonRow(props: React.PropsWithChildren<{}>) {
 
 function Button(
   props: React.PropsWithChildren<{
-    onClick: () => void;
+    onClick?: () => void;
     className?: string;
     tooltip?: string;
+    href?: string;
   }>,
 ) {
+  return (
+    <>
+      <WithHref href={props.href}>
+        <WithTooltip tooltip={props.tooltip}>
+          <div {...props} className={`${styles.button} ${props.className}`} />
+        </WithTooltip>
+      </WithHref>
+    </>
+  );
+}
+
+function WithTooltip(props: {
+  children: React.ReactElement;
+  tooltip?: string;
+}) {
   if (!props.tooltip) {
-    return <div {...props} className={`${styles.button} ${props.className}`} />;
+    return props.children;
   }
 
-  return (
-    <Tooltip title={props.tooltip}>
-      <div {...props} className={`${styles.button} ${props.className}`} />
-    </Tooltip>
-  );
+  return <Tooltip title={props.tooltip}>{props.children}</Tooltip>;
+}
+
+function WithHref(props: { children: React.ReactElement; href?: string }) {
+  if (!props.href) {
+    return props.children;
+  }
+
+  return <InvisibleLink href={props.href}>{props.children}</InvisibleLink>;
 }

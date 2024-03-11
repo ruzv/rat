@@ -5,6 +5,7 @@ import { nodeAstAtom, childNodesAtom } from "./atoms";
 import { Spacer } from "./util";
 import { move } from "../api/graph";
 import { IconButton } from "./buttons/buttons";
+import { Link } from "./link";
 
 import styles from "./parts.module.css";
 import copyIcon from "./icons/copy.png";
@@ -14,7 +15,7 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import { useState, useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { graphviz } from "d3-graphviz";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   useDroppable,
   useDraggable,
@@ -171,9 +172,11 @@ export function NodePart({ part }: { part: NodeAstPart }) {
         />
       );
     case "link":
-      return <Link part={part} />;
-    case "graph_link":
-      return <GraphLink part={part} />;
+      return (
+        <Link href={part.attributes["destination"]}>
+          <NodePartChildren part={part} />
+        </Link>
+      );
     case "list":
       return <List part={part} />;
     case "list_item":
@@ -396,31 +399,6 @@ function CodeBlock({ language, text }: { language: string; text: string }) {
         {text}
       </SyntaxHighlighter>
     </div>
-  );
-}
-
-function Link({ part }: { part: NodeAstPart }) {
-  const href = part.attributes["destination"] as string;
-
-  return (
-    <a
-      className={styles.link}
-      href={href}
-      target="_blank" // open in new tab
-      rel="noopener noreferrer"
-    >
-      <NodePartChildren part={part} />
-    </a>
-  );
-}
-
-function GraphLink({ part }: { part: NodeAstPart }) {
-  const href = part.attributes["destination"] as string;
-
-  return (
-    <RouterLink to={href} className={styles.link}>
-      <NodePartChildren part={part} />
-    </RouterLink>
   );
 }
 
