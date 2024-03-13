@@ -1,88 +1,108 @@
 package index
 
 import (
+	"sort"
+	"sync"
+
 	"github.com/pkg/errors"
 	"github.com/sahilm/fuzzy"
 	"rat/graph"
+	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
 )
 
-// GraphIndex describes a graphs index.
-type GraphIndex struct {
-	log *logr.LogR
-	p   graph.Provider
+const matchLimit = 20
 
-	paths []string
+// Index describes a graphs index.
+type Index struct {
+	log     *logr.LogR
+	pathsMu sync.RWMutex
+	paths   []string
 }
 
 // NewIndex loads or creates a index in the specified location.
 func NewIndex(
-	log *logr.LogR, p graph.Provider,
-) (*GraphIndex, error) {
-	gi := &GraphIndex{
+	log *logr.LogR, provider graph.Provider,
+) (*Index, error) {
+	idx := &Index{
 		log: log.Prefix("index"),
-		p:   p,
 	}
 
-	err := gi.Update()
+	err := idx.load(provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update index")
 	}
 
-	return gi, nil
+	return idx, nil
 }
 
 // Search queries the index.
-func (gi *GraphIndex) Search(query string) ([]*graph.Node, error) {
-	const matchLimit = 20
+func (idx *Index) Search(query string) ([]string, error) {
+	idx.pathsMu.RLock()
+	defer idx.pathsMu.RUnlock()
 
-	matches := fuzzy.Find(query, gi.paths)
+	matches := fuzzy.Find(query, idx.paths)
 
 	if len(matches) > matchLimit {
 		matches = matches[:matchLimit]
 	}
 
-	nodes := make([]*graph.Node, 0, len(matches))
-
-	for _, match := range matches {
-		node, err := gi.p.GetByPath(pathutil.NodePath(match.Str))
-		if err != nil {
-			if errors.Is(err, graph.ErrNodeNotFound) {
-				err := gi.Update()
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to update index")
-				}
-
-				return gi.Search(query)
-			}
-
-			return nil, errors.Wrap(err, "failed to get node")
-		}
-
-		nodes = append(nodes, node)
-	}
-
-	return nodes, nil
+	return util.Map(matches, func(m fuzzy.Match) string { return m.Str }), nil
 }
 
-// Update adds graph nodes to index.
-func (gi *GraphIndex) Update() error {
-	gi.log.Infof("updating index")
+// Add adds node path to index.
+func (idx *Index) Add(path pathutil.NodePath) {
+	idx.pathsMu.Lock()
+	defer idx.pathsMu.Unlock()
 
-	gi.paths = nil
+	pos := sort.SearchStrings(idx.paths, path.String())
+	if pos < len(idx.paths) && idx.paths[pos] == path.String() {
+		return // already in index
+	}
 
-	r, err := gi.p.GetByID(graph.RootNodeID)
+	// paths         [a b c d e f g -]
+	// pos           3      ^
+	// paths[pos+1:]         [e f g -] dst
+	// paths[pos:]         [d e f g -] src
+	// copy          [a b c - d e f g]
+	//                      ^
+	//               [a b c x d e f g]
+
+	idx.paths = append(idx.paths, "")
+	// shift by one position
+	copy(idx.paths[pos+1:], idx.paths[pos:])
+	idx.paths[pos] = path.String()
+}
+
+// Remove node path from index.
+func (idx *Index) Remove(path pathutil.NodePath) {
+	idx.pathsMu.Lock()
+	defer idx.pathsMu.Unlock()
+
+	pos := sort.SearchStrings(idx.paths, path.String())
+	if pos == len(idx.paths) || idx.paths[pos] != path.String() {
+		return // not in index
+	}
+
+	copy(idx.paths[pos:], idx.paths[pos+1:])
+	idx.paths = idx.paths[:len(idx.paths)-1]
+}
+
+func (idx *Index) load(provider graph.Provider) error {
+	idx.pathsMu.Lock()
+	idx.paths = []string{}
+	idx.pathsMu.Unlock()
+
+	r, err := provider.GetByID(graph.RootNodeID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get root node")
 	}
 
-	gi.paths = append(gi.paths, r.Path.String())
-
 	err = r.Walk(
-		gi.p,
+		provider,
 		func(_ int, node *graph.Node) (bool, error) {
-			gi.paths = append(gi.paths, node.Path.String())
+			idx.Add(node.Path)
 
 			return true, nil
 		},
@@ -90,6 +110,8 @@ func (gi *GraphIndex) Update() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to walk root node")
 	}
+
+	idx.log.Infof("loaded %d paths", len(idx.paths))
 
 	return nil
 }

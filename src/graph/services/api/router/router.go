@@ -22,7 +22,7 @@ func New(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	graphIndex *index.GraphIndex,
+	graphIndex *index.Index,
 	webStaticContent fs.FS,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")

@@ -46,13 +46,10 @@ func ParseNode(n *graph.Node) ([]*Todo, error) {
 }
 
 // Parse parses a todo list from a raw string.
+//
+//nolint:gocyclo,cyclop
 func Parse(raw string) (*Todo, error) {
-	sf := util.NewStringFeed(
-		util.Filter(
-			strings.Split(raw, "\n"),
-			func(s string) bool { return strings.TrimSpace(s) != "" },
-		),
-	)
+	sf := util.NewStringFeed(strings.Split(raw, "\n"))
 
 	var (
 		entries []*Entry
@@ -62,43 +59,46 @@ func Parse(raw string) (*Todo, error) {
 	for sf.More() {
 		line := sf.Peek()
 
-		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "x ") {
-			e, err := parseEntry(
-				append(
-					[]string{sf.Pop()},
-					sf.PopUntil(
-						func(s string) bool {
-							return strings.HasPrefix(s, "- ") ||
-								strings.HasPrefix(s, "x ")
-						},
-					)...,
-				),
-			)
+		switch {
+		case strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "x "):
+			entryLines := []string{sf.Pop()}
+
+			for sf.More() {
+				line = sf.Peek()
+
+				// has indent (part of entry), or empty line
+				if strings.HasPrefix(line, "  ") ||
+					strings.TrimSpace(line) == "" {
+					entryLines = append(entryLines, sf.Pop())
+
+					continue
+				}
+
+				// not part of current entry
+				break
+			}
+
+			e, err := parseEntry(entryLines)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse entry")
 			}
 
 			entries = append(entries, e)
 
-			continue
-		}
-
-		if strings.Contains(line, "=") {
+		case strings.Contains(line, "="):
 			h, err := parseHint(sf.Pop())
 			if err != nil {
-				if errors.Is(err, errUnknownHint) {
-					continue
-				}
-
 				return nil, errors.Wrap(err, "failed to parse hint")
 			}
 
 			hints = append(hints, h)
 
-			continue
-		}
+		case strings.TrimSpace(line) == "":
+			sf.Pop()
 
-		return nil, errors.Errorf("invalid todo line - %q", line)
+		default:
+			return nil, errors.Errorf("invalid todo line - %q", line)
+		}
 	}
 
 	return &Todo{

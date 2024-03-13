@@ -11,6 +11,7 @@ import (
 	"rat/graph/render"
 	"rat/graph/render/jsonast"
 	"rat/graph/services/api/httputil"
+	"rat/graph/services/index"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
 )
@@ -18,6 +19,7 @@ import (
 type handler struct {
 	log      *logr.LogR
 	provider graph.Provider
+	idx      *index.Index
 	r        jsonast.Renderer
 }
 
@@ -32,13 +34,17 @@ type response struct {
 
 // RegisterRoutes registers graph routes on given router.
 func RegisterRoutes(
-	router *mux.Router, log *logr.LogR, provider graph.Provider,
+	router *mux.Router,
+	log *logr.LogR,
+	provider graph.Provider,
+	idx *index.Index,
 ) error {
 	log = log.Prefix("nodeshttp")
 
 	h := &handler{
 		log:      log,
 		provider: provider,
+		idx:      idx,
 		r:        render.NewJSONRenderer(log, provider),
 	}
 
@@ -130,6 +136,8 @@ func (h *handler) create(w http.ResponseWriter, r *http.Request) error {
 		)
 	}
 
+	h.idx.Add(sub.Path)
+
 	root := jsonast.NewRootAstPart("document")
 
 	h.r.Render(root, sub, sub.Content)
@@ -169,6 +177,8 @@ func (h *handler) delete(w http.ResponseWriter, r *http.Request) error {
 
 		return errors.Wrap(err, "failed to delete node")
 	}
+
+	h.idx.Remove(n.Path)
 
 	w.WriteHeader(http.StatusNoContent)
 

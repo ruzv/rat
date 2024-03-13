@@ -12,7 +12,6 @@ import (
 	"rat/graph/services/api/httputil"
 	"rat/graph/services/index"
 	"rat/graph/services/urlresolve"
-	"rat/graph/util"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
 )
@@ -20,7 +19,7 @@ import (
 type handler struct {
 	log      *logr.LogR
 	provider graph.Provider
-	index    *index.GraphIndex
+	idx      *index.Index
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -29,12 +28,12 @@ func RegisterRoutes(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	graphIndex *index.GraphIndex,
+	idx *index.Index,
 ) error {
 	h := &handler{
 		log:      log.Prefix("graphhttp"),
 		provider: provider,
-		index:    graphIndex,
+		idx:      idx,
 	}
 
 	graphRouter := router.PathPrefix("/graph").Subrouter()
@@ -65,7 +64,7 @@ func RegisterRoutes(
 		),
 	).Methods(http.MethodPost, http.MethodOptions)
 
-	err := nodeshttp.RegisterRoutes(graphRouter, h.log, provider)
+	err := nodeshttp.RegisterRoutes(graphRouter, h.log, provider, idx)
 	if err != nil {
 		return errors.Wrap(err, "failed to register nodes routes")
 	}
@@ -86,7 +85,7 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get body")
 	}
 
-	res, err := h.index.Search(body.Query)
+	res, err := h.idx.Search(body.Query)
 	if err != nil {
 		httputil.WriteError(
 			w, http.StatusInternalServerError, "failed to search",
@@ -101,12 +100,7 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) error {
 		struct {
 			Results []string `json:"results"`
 		}{
-			Results: util.Map(
-				res,
-				func(n *graph.Node) string {
-					return string(n.Path)
-				},
-			),
+			Results: res,
 		},
 	)
 	if err != nil {

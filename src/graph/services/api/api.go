@@ -51,7 +51,7 @@ func New(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	graphIndex *index.GraphIndex,
+	graphIndex *index.Index,
 	webStaticContent fs.FS,
 ) (*API, error) {
 	log = log.Prefix("api")
