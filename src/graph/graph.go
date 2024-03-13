@@ -23,7 +23,6 @@ var allowedPathNameSymbols = regexp.MustCompile(`[a-zA-Z0-9_\-]`)
 
 // Node describes a single node.
 type Node struct {
-	// Name    string            `json:"name"`
 	Path    pathutil.NodePath `json:"path"`
 	Header  NodeHeader        `json:"header"`
 	Content string            `json:"content"`
@@ -94,18 +93,16 @@ func (n *Node) GetLeafs(r Reader) ([]*Node, error) {
 
 // AddSub new node as child with name.
 func (n *Node) AddSub(p Provider, name string) (*Node, error) {
-	subPath := n.Path.JoinName(name)
-
-	_, err := p.GetByPath(subPath)
-	if err == nil {
-		return nil, errors.Errorf("node %q already exists", subPath)
-	}
-
 	sub, err := n.sub(p, name)
 	if err != nil {
 		return nil, errors.Wrapf(
 			err, "failed to create new sub node %q for %q", name, n.Path,
 		)
+	}
+
+	_, err = p.GetByPath(sub.Path)
+	if err == nil {
+		return nil, errors.Errorf("node %q already exists", sub.Path)
 	}
 
 	err = p.Write(sub)
@@ -401,12 +398,12 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 
 	pathName := parsePathName(name)
 	if pathName == "" {
-		return nil, errors.Errorf("empty path name, pared from %q", name)
+		return nil, errors.Errorf("empty path name, parsed from %q", name)
 	}
 
 	var headerName string
 
-	if pathName != name { // mismatch, need te set.
+	if pathName != name { // mismatch, need to set.
 		headerName = name
 	}
 

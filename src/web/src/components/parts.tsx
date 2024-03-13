@@ -256,6 +256,19 @@ export function NodePart({ part }: { part: NodeAstPart }) {
           <NodePartChildren part={part} />
         </strong>
       );
+    case "block_quote":
+      return (
+        <blockquote
+          style={{
+            borderLeft: "5px solid #acacac",
+            borderRadius: "5px",
+            paddingLeft: "10px",
+            marginLeft: "0",
+          }}
+        >
+          <NodePartChildren part={part} />
+        </blockquote>
+      );
     case "unknown":
       if (part.children === undefined) {
         return (

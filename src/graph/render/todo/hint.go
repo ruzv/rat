@@ -244,42 +244,6 @@ func parseHint(line string) (*Hint, error) {
 	return &Hint{HintType(hType), v}, nil
 }
 
-// HTML returns a string representation of the hints value as it is presented
-// in HTML.
-func (h *Hint) HTML() string {
-	if h.Type == None {
-		return ""
-	}
-
-	p, ok := hintTypeProcessors[h.Type]
-	if !ok {
-		return fmt.Sprintf("%s = %v", h.Type, h.Value)
-	}
-
-	if p.formatHTML == nil {
-		return h.markdown()
-	}
-
-	return p.formatHTML(h.Value)
-}
-
-func (h *Hint) markdown() string {
-	if h.Type == None {
-		return ""
-	}
-
-	p, ok := hintTypeProcessors[h.Type]
-	if !ok {
-		return fmt.Sprintf("%s = %v", h.Type, h.Value)
-	}
-
-	if p.formatMD == nil {
-		return fmt.Sprintf("%s = %v", h.Type, h.Value)
-	}
-
-	return fmt.Sprintf("%s = %s", h.Type, p.formatMD(h.Value))
-}
-
 // Value returns the value of the hint as the given type. Returns an empty
 // value of type T if hint is nil or hint value is not of type T.
 func Value[T any](h *Hint) T {

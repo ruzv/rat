@@ -10,6 +10,7 @@ import (
 var _ graph.Provider = (*Provider)(nil)
 
 var defaultConfig = Config{ //nolint:gochecknoglobals // constant.
+	Name:    "🐀 Rat",
 	Content: "# 🐀🐀🐀 Welcome to rat! 🐀🐀🐀",
 	Template: &graph.NodeTemplate{
 		Name:    "{{ .RawName }}",
@@ -20,6 +21,7 @@ var defaultConfig = Config{ //nolint:gochecknoglobals // constant.
 
 // Config contains root node provider configuration parameters.
 type Config struct {
+	Name     string              `yaml:"name"`
 	Content  string              `yaml:"content"`
 	Template *graph.NodeTemplate `yaml:"template"`
 }
@@ -108,6 +110,7 @@ func (p *Provider) rootNode() *graph.Node {
 	return &graph.Node{
 		Header: graph.NodeHeader{
 			ID:       uuid.Nil,
+			Name:     p.root.Name,
 			Template: p.root.Template,
 		},
 		Content: p.root.Content,
@@ -120,6 +123,10 @@ func (c *Config) fillDefaults() Config {
 	}
 
 	fill := *c
+
+	if c.Name == "" {
+		fill.Name = defaultConfig.Name
+	}
 
 	if c.Content == "" {
 		fill.Content = defaultConfig.Content

@@ -11,6 +11,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
+		Name     string
 		Content  string
 		Template *graph.NodeTemplate
 	}
@@ -23,6 +24,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+valid",
 			fields{
+				Name:    "rootName",
 				Content: "content",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -32,6 +34,29 @@ func TestConfig_fillDefaults(t *testing.T) {
 				},
 			},
 			Config{
+				Name:    "rootName",
+				Content: "content",
+				Template: &graph.NodeTemplate{
+					Name:     "name",
+					Weight:   "weight",
+					Content:  "content",
+					Template: &graph.NodeTemplate{},
+				},
+			},
+		},
+		{
+			"+defaultName",
+			fields{
+				Content: "content",
+				Template: &graph.NodeTemplate{
+					Name:     "name",
+					Weight:   "weight",
+					Content:  "content",
+					Template: &graph.NodeTemplate{},
+				},
+			},
+			Config{
+				Name:    defaultConfig.Name,
 				Content: "content",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -44,6 +69,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+defaultContent",
 			fields{
+				Name:    "rootName",
 				Content: "",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -53,6 +79,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 				},
 			},
 			Config{
+				Name:    "rootName",
 				Content: defaultConfig.Content,
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -65,9 +92,11 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+defaultTemplate",
 			fields{
+				Name:    "rootName",
 				Content: "name",
 			},
 			Config{
+				Name:     "rootName",
 				Content:  "name",
 				Template: defaultConfig.Template,
 			},
@@ -75,6 +104,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+defaultTemplateName",
 			fields{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     "",
@@ -84,6 +114,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 				},
 			},
 			Config{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     defaultConfig.Template.Name,
@@ -96,6 +127,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+defaultTemplateWeight",
 			fields{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -105,6 +137,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 				},
 			},
 			Config{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -117,6 +150,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 		{
 			"+defaultTemplateContent",
 			fields{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -126,6 +160,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 				},
 			},
 			Config{
+				Name:    "rootName",
 				Content: "name",
 				Template: &graph.NodeTemplate{
 					Name:     "name",
@@ -142,6 +177,7 @@ func TestConfig_fillDefaults(t *testing.T) {
 			t.Parallel()
 
 			c := &Config{
+				Name:     tt.fields.Name,
 				Content:  tt.fields.Content,
 				Template: tt.fields.Template,
 			}
@@ -149,7 +185,10 @@ func TestConfig_fillDefaults(t *testing.T) {
 			got := c.fillDefaults()
 
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Fatalf("Config.fillDefaults() = %s", diff)
+				t.Fatalf(
+					"Config.fillDefaults() mismatch (-want +got):\n%s",
+					diff,
+				)
 			}
 		})
 	}
