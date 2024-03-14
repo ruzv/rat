@@ -2,7 +2,6 @@ package render
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/gofrs/uuid"
@@ -11,6 +10,7 @@ import (
 	"rat/graph"
 	"rat/graph/render/jsonast"
 	"rat/graph/render/todo"
+	"rat/graph/services/urlresolve"
 	"rat/logr"
 )
 
@@ -263,7 +263,9 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{
 				Type: "image",
 				Attributes: jsonast.AstAttributes{
-					"src": resolveFileURL(string(node.Destination)),
+					"src": urlresolve.PrefixResolverEndpoint(
+						string(node.Destination),
+					),
 				},
 			},
 			entering,
@@ -350,22 +352,4 @@ func (jr *JSONRenderer) renderGraphLink(
 	}
 
 	return linkPart, nil
-}
-
-func resolveFileURL(file string) string {
-	parsed, err := url.Parse(file)
-	if err != nil {
-		return file
-	}
-
-	if parsed.IsAbs() {
-		return file
-	}
-
-	res, err := url.JoinPath("/graph/file/", file)
-	if err != nil {
-		return file
-	}
-
-	return res
 }

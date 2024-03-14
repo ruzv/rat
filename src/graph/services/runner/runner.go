@@ -19,14 +19,13 @@ import (
 	"rat/logr"
 )
 
-var _ services.Service = (*Runner)(nil)
-
-//nolint:gochecknoglobals
-var logo = //
+const logo = //
 ` ___      _
 | _ \__ _| |_
 |   / _' |  _|
 |_|_\__._|\__|`
+
+var _ services.Service = (*Runner)(nil)
 
 // Config contains graph services configuration parameters.
 type Config struct {

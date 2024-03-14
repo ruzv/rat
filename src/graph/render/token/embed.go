@@ -3,6 +3,7 @@ package token
 import (
 	"github.com/pkg/errors"
 	"rat/graph/render/jsonast"
+	"rat/graph/services/urlresolve"
 )
 
 func (t *Token) renderEmbed(part *jsonast.AstPart) error {
@@ -17,7 +18,9 @@ func (t *Token) renderEmbed(part *jsonast.AstPart) error {
 		&jsonast.AstPart{
 			Type: "embed",
 			Attributes: jsonast.AstAttributes{
-				"url": embedURL,
+				"url": urlresolve.PrefixResolverEndpoint(
+					embedURL,
+				),
 			},
 		},
 	)
