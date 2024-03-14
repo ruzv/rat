@@ -76,6 +76,26 @@ func (r *Resolver) Resolve(path string) (string, error) {
 	return "", errors.Errorf("failed to resolve file url %q", path)
 }
 
+// PrefixResolverEndpoint adds the endpoint resolver API route prefix to the
+// path if it is not an absolute URL.
+func PrefixResolverEndpoint(path string) string {
+	parsed, err := url.Parse(path)
+	if err != nil {
+		return path
+	}
+
+	if parsed.IsAbs() {
+		return path
+	}
+
+	res, err := url.JoinPath("/graph/file/", path)
+	if err != nil {
+		return path
+	}
+
+	return res
+}
+
 func (r *Resolver) resolve(
 	c *FileserverConfig, path string,
 ) (string, error) {
