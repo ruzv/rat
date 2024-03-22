@@ -25,24 +25,35 @@ type FileserverConfig struct {
 // Resolver resolves relative file URLs in node content to absolute urls
 // to password protected, pre-configured fileservers.
 type Resolver struct {
-	fileservers []*FileserverConfig
-	log         *logr.LogR
+	log          *logr.LogR
+	fileservers  []*FileserverConfig
+	apiAuthority string
 }
 
 // NewResolver creates a new relative url resolver, that tries to match a
 // relative URL to a fileserver the resolver is configured to, returning
 // absolute URL to the resource on a fileserver.
-func NewResolver(c *Config, log *logr.LogR) *Resolver {
+func NewResolver(
+	c *Config, log *logr.LogR, apiAuthority string,
+) (*Resolver, error) {
 	var fileservers []*FileserverConfig
 
 	if c != nil {
 		fileservers = c.Fileservers
 	}
 
-	return &Resolver{
-		fileservers: fileservers,
-		log:         log.Prefix("url-resolver"),
+	// validate here, at startup to avoid unexpected runtime errors when
+	// resolving urls.
+	_, err := url.Parse(apiAuthority)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to pares API authority")
 	}
+
+	return &Resolver{
+		log:          log.Prefix("url-resolver"),
+		fileservers:  fileservers,
+		apiAuthority: apiAuthority,
+	}, nil
 }
 
 // Resolve iterates configured fileservers until a match is found and a server
@@ -78,9 +89,11 @@ func (r *Resolver) Resolve(path string) (string, error) {
 
 // PrefixResolverEndpoint adds the endpoint resolver API route prefix to the
 // path if it is not an absolute URL.
-func PrefixResolverEndpoint(path string) string {
+func (r *Resolver) PrefixResolverEndpoint(path string) string {
 	parsed, err := url.Parse(path)
 	if err != nil {
+		r.log.Errorf("failed to parse URL: %s", err.Error())
+
 		return path
 	}
 
@@ -93,7 +106,16 @@ func PrefixResolverEndpoint(path string) string {
 		return path
 	}
 
-	return res
+	u, err := url.Parse(r.apiAuthority)
+	if err != nil {
+		r.log.Errorf("failed to parse API authority: %s", err.Error())
+
+		return path
+	}
+
+	u.Path = res
+
+	return u.String()
 }
 
 func (r *Resolver) resolve(

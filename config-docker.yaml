@@ -1,7 +1,13 @@
 services:
   log:
     defaultLevel: info
-  api:
+  web:
     port: 8888
+    apiAuthority: http://localhost:8877
+  api:
+    port: 8877
+    authority: http://localhost:8877
+    allowedOrigins:
+      - http://localhost:8888
   provider:
     dir: /graph

@@ -8,12 +8,10 @@ import (
 	"gopkg.in/validator.v2"
 	"gopkg.in/yaml.v2"
 	"rat/graph/services/runner"
-	"rat/logr"
 )
 
 // Config is the configuration for the application.
 type Config struct {
-	LogLevel logr.LogLevel  `yaml:"logLevel"`
 	Services *runner.Config `yaml:"services"`
 }
 
