@@ -1,7 +1,6 @@
 package router
 
 import (
-	"io/fs"
 	"net/http"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"rat/graph"
 	"rat/graph/services/api/graphhttp"
 	"rat/graph/services/api/httputil"
-	"rat/graph/services/api/viewhttp"
 	"rat/graph/services/index"
 	"rat/graph/services/urlresolve"
 	"rat/logr"
@@ -23,7 +21,7 @@ func New(
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
 	graphIndex *index.Index,
-	webStaticContent fs.FS,
+	allowedOrigins []string,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")
 	router := mux.NewRouter()
@@ -32,11 +30,16 @@ func New(
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
-					w.Header().
-						Set(
-							"Access-Control-Allow-Origin",
-							"http://localhost:3000",
-						)
+					origin := r.Header.Get("Origin")
+
+					for _, allowed := range allowedOrigins {
+						if origin == allowed {
+							w.Header().
+								Set("Access-Control-Allow-Origin", origin)
+
+							break
+						}
+					}
 
 					next.ServeHTTP(w, r)
 				},
@@ -63,11 +66,6 @@ func New(
 	err := graphhttp.RegisterRoutes(router, log, provider, resolver, graphIndex)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to register graph routes")
-	}
-
-	err = viewhttp.RegisterRoutes(router, log, webStaticContent)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to register web routes")
 	}
 
 	router.HandleFunc("/test",
