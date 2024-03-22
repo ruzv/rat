@@ -25,13 +25,34 @@ RUN go build \
     -v \
     -o /rat/rat
 
+ENV API_AUTHORITY=http://localhost:8877
+ENV WEB_AUTHORITY=http://localhost:8888
+
+RUN cat <<EOF > config.yaml
+services:
+  log:
+    defaultLevel: debug
+  web:
+    port: 8888
+    apiAuthority: ${API_AUTHORITY}
+  api:
+    port: 8877
+    authority: ${API_AUTHORITY}
+    allowedOrigins:
+      - ${WEB_AUTHORITY}
+  provider:
+    dir: /graph
+EOF
+
 # build final image
 FROM scratch
 WORKDIR /rat
 
 COPY --from=server-builder /rat/rat rat
-COPY config-docker.yaml config.yaml
+COPY --from=server-builder /rat/config.yaml config.yaml
 
-EXPOSE 8888
+# 8888 web app
+# 8877 api
+EXPOSE 8888 8877
 
 CMD ["./rat", "-c", "./config.yaml"]

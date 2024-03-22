@@ -6,7 +6,9 @@ import (
 	"rat/graph/services/urlresolve"
 )
 
-func (t *Token) renderEmbed(part *jsonast.AstPart) error {
+func (t *Token) renderEmbed(
+	part *jsonast.AstPart, resolver *urlresolve.Resolver,
+) error {
 	embedURL, ok := t.Args["url"]
 	if !ok {
 		return errors.Wrap(
@@ -18,9 +20,7 @@ func (t *Token) renderEmbed(part *jsonast.AstPart) error {
 		&jsonast.AstPart{
 			Type: "embed",
 			Attributes: jsonast.AstAttributes{
-				"url": urlresolve.PrefixResolverEndpoint(
-					embedURL,
-				),
+				"url": resolver.PrefixResolverEndpoint(embedURL),
 			},
 		},
 	)

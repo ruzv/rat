@@ -19,18 +19,21 @@ var _ jsonast.Renderer = (*JSONRenderer)(nil)
 // JSONRenderer renders a nodes markdown content to JSON representation of the
 // markdown AST.
 type JSONRenderer struct {
-	p   graph.Provider
-	log *logr.LogR
+	log      *logr.LogR
+	provider graph.Provider
+	resolver *urlresolve.Resolver
 }
 
 // NewJSONRenderer creates a new JSONRenderer.
 func NewJSONRenderer(
 	log *logr.LogR,
-	p graph.Provider,
+	provider graph.Provider,
+	resolver *urlresolve.Resolver,
 ) *JSONRenderer {
 	return &JSONRenderer{
-		p:   p,
-		log: log.Prefix("json-renderer"),
+		log:      log.Prefix("json-renderer"),
+		provider: provider,
+		resolver: resolver,
 	}
 }
 
@@ -77,7 +80,7 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.Document:
 		part = part.AddContainer(&jsonast.AstPart{Type: "document"}, entering)
 	case *RatTokenNode:
-		err := node.Token.Render(part, n, jr.p, jr)
+		err := node.Token.Render(part, n, jr.provider, jr.resolver, jr)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err, "failed to render %q token", node.Token.Type,
@@ -264,7 +267,7 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{
 				Type: "image",
 				Attributes: jsonast.AstAttributes{
-					"src": urlresolve.PrefixResolverEndpoint(
+					"src": jr.resolver.PrefixResolverEndpoint(
 						string(node.Destination),
 					),
 				},
@@ -325,7 +328,7 @@ func (jr *JSONRenderer) renderGraphLink(
 		return nil, errors.Wrap(err, "failed to parse uuid")
 	}
 
-	destNode, err := jr.p.GetByID(id)
+	destNode, err := jr.provider.GetByID(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get node by id")
 	}

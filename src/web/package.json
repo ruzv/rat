@@ -25,9 +25,11 @@
     "react-router-dom": "^6.16.0",
     "react-scripts": "^5.0.1",
     "react-syntax-highlighter": "^15.5.0",
+    "source-map-explorer": "^2.5.3",
     "typescript": "^4.9.5"
   },
   "scripts": {
+    "analyze": "source-map-explorer 'build/static/js/*.js'",
     "start": "react-scripts start",
     "build": "react-scripts build; touch build/.gitkeep",
     "test": "react-scripts test",
