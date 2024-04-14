@@ -10,12 +10,19 @@ services:
       args:
         RAT_VERSION: ${RAT_VERSION}
     ports:
-      - "8880:8888"
+      - 8888:8888
+      - 8877:8877
 
-  # rat-docs:
-  #   container_name: rat-docs
-  #   image: rat
-  #   ports:
-  #     - "8881:8888"
-  #   volumes:
-  #     - ./docs:/graph
+  rat-docs:
+    container_name: rat-docs
+    image: ruzv/rat:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RAT_VERSION: ${RAT_VERSION}
+    ports:
+      - 8888:8888
+      - 8877:8877
+    volumes:
+      - ./docs:/graph

@@ -1,6 +1,6 @@
 services:
   log:
-    defaultLevel: info
+    defaultLevel: debug
   web:
     port: 8888
     apiAuthority: http://localhost:8877
