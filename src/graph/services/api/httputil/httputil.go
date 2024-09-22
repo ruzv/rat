@@ -101,7 +101,7 @@ func Wrap(f RatHandlerFunc, log *logr.LogR, name string) MuxHandlerFunc {
 
 			httpErr := &httpError{}
 			if errors.As(err, &httpErr) {
-				WriteError(w, httpErr.statusCode, httpErr.err.Error())
+				WriteError(w, httpErr.statusCode, "%s", httpErr.err.Error())
 			}
 		}
 	}
@@ -132,7 +132,9 @@ func WriteResponse(w http.ResponseWriter, code int, body any) error {
 
 // WriteError writes an error to the response.
 func WriteError(w http.ResponseWriter, code int, format string, args ...any) {
-	WriteResponse( //nolint:errcheck,gosec // avoid double error handling.
+	// FIXME: migrate to httpError.
+	// no lint to avoid double error handling.
+	WriteResponse( //nolint:errcheck
 		w,
 		code,
 		struct {
@@ -146,7 +148,10 @@ func WriteError(w http.ResponseWriter, code int, format string, args ...any) {
 }
 
 // Body reads the requests body as a specified struct.
-func Body[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+func Body[T any]( //nolint:ireturn
+	w http.ResponseWriter,
+	r *http.Request,
+) (T, error) {
 	defer r.Body.Close() //nolint:errcheck // ignore.
 
 	var body, empty T

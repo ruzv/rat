@@ -48,6 +48,10 @@ linters-settings:
         - io/ioutil:
       local_replace_directives: false
 
+  gosec:
+    excludes:
+      - G104 # dupelicate of errcheck
+
   govet:
     enable-all: true
     disable:
@@ -154,7 +158,7 @@ linters-settings:
   tagliatelle:
     case:
       rules:
-        json: snake
+        json: camel
         yaml: camel
         xml: camel
         bson: camel
@@ -174,8 +178,8 @@ linters-settings:
       - .WithMessage(
       - .WithMessagef(
       - .WithStack(
-      # zabbix custom errors
-      - errs.New(
+      # custom errors
+      - httputil.Error(
 
 linters:
   enable-all: true
@@ -195,6 +199,8 @@ linters:
     # cyclomatic complexity checkers already enforce limit on function length.
     # no need to count lines.
     - funlen
+
+    - godox
 
     # conflicts with gci and goimports. the formatter should still be used,
     # only lint can't enforce it.

@@ -74,22 +74,24 @@ func (lr *LogR) Prefix(prefix string) *LogR {
 
 // Debugf logs a debug message.
 func (lr *LogR) Debugf(fmtStr string, args ...any) {
-	lr.log(LogLevelDebug, fmtStr, args...)
+	// TODO: handle error by saving it on the logger, create a service that
+	// would be able to report it FE or status.
+	lr.log(LogLevelDebug, fmtStr, args...) //nolint:errcheck
 }
 
 // Infof logs an info message.
 func (lr *LogR) Infof(fmtStr string, args ...any) {
-	lr.log(LogLevelInfo, fmtStr, args...)
+	lr.log(LogLevelInfo, fmtStr, args...) //nolint:errcheck
 }
 
 // Warnf logs a warn message.
 func (lr *LogR) Warnf(fmtStr string, args ...any) {
-	lr.log(LogLevelWarn, fmtStr, args...)
+	lr.log(LogLevelWarn, fmtStr, args...) //nolint:errcheck
 }
 
 // Errorf logs an error message.
 func (lr *LogR) Errorf(fmtStr string, args ...any) {
-	lr.log(LogLevelError, fmtStr, args...)
+	lr.log(LogLevelError, fmtStr, args...) //nolint:errcheck
 }
 
 // Group creates a new log group.
@@ -109,7 +111,7 @@ func (lg *LogGroup) Log(fmtStr string, args ...any) *LogGroup {
 
 // Close closes the log group writeing all grouped logs.
 func (lg *LogGroup) Close() {
-	lg.lr.log(lg.level, strings.Join(lg.parts, "\n"))
+	lg.lr.log(lg.level, "%s", strings.Join(lg.parts, "\n")) //nolint:errcheck
 }
 
 // String returns a string representation of log level.
@@ -201,13 +203,13 @@ func (lr *LogR) minLevel(prefix string) LogLevel {
 	return lr.level
 }
 
-func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
+func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) error {
 	if level < lr.minLevel(lr.prefix) {
-		return
+		return nil
 	}
 
 	// header
-	fmt.Fprintf(
+	_, err := fmt.Fprintf(
 		lr.w,
 		"%s\n",
 		fmt.Sprintf(
@@ -219,9 +221,12 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 			color.New(color.FgMagenta).Sprint(lr.prefix),
 		),
 	)
+	if err != nil {
+		return errors.Wrap(err, "failed to write header to log")
+	}
 
 	for _, part := range strings.Split(fmt.Sprintf(fmtStr, args...), "\n") {
-		fmt.Fprintf(
+		_, err = fmt.Fprintf(
 			lr.w,
 			"%s\n",
 			fmt.Sprintf(
@@ -230,5 +235,10 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) {
 				part,
 			),
 		)
+		if err != nil {
+			return errors.Wrap(err, "failed to write part to log")
+		}
 	}
+
+	return nil
 }

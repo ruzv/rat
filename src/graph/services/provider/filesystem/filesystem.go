@@ -176,7 +176,7 @@ func (p *Provider) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	if len(match) != 3 {
 		n.Content = string(data)
 
-		_, err := n.FillID()
+		_, err = n.FillID()
 		if err != nil {
 			return nil, errors.Wrapf(
 				err, "failed to fill id, for node %q without header", path,

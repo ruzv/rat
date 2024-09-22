@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"rat/buildinfo"
 )
+
+// ErrExitZero indicates that no error occurred.
+// The process should exit with 0.
+var ErrExitZero = errors.New("exit 0")
 
 // Args are the command line arguments.
 type Args struct {
@@ -14,7 +19,7 @@ type Args struct {
 }
 
 // Load parses the command line arguments in to a Args struct.
-func Load() (*Args, bool) {
+func Load() (*Args, error) {
 	configPath := pflag.StringP(
 		"config", "c", "./config.yaml", "path to yaml or json config file",
 	)
@@ -27,16 +32,21 @@ func Load() (*Args, bool) {
 	if *help {
 		pflag.PrintDefaults()
 
-		return nil, false
+		return nil, ErrExitZero
 	}
 
 	if *version {
-		fmt.Fprintf(os.Stdout, "rat server version %s\n", buildinfo.Version())
+		_, err := fmt.Fprintf(
+			os.Stdout,
+			"rat server version %s\n",
+			buildinfo.Version(),
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to print version")
+		}
 
-		return nil, false
+		return nil, ErrExitZero
 	}
 
-	return &Args{
-		ConfigPath: *configPath,
-	}, true
+	return &Args{ConfigPath: *configPath}, nil
 }

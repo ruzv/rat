@@ -46,6 +46,8 @@ type API struct {
 }
 
 // New creates a new API server service.
+//
+//revive:disable:argument-limit
 func New(
 	config *Config,
 	log *logr.LogR,
