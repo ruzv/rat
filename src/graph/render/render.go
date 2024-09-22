@@ -275,6 +275,11 @@ func (jr *JSONRenderer) renderNode(
 			&jsonast.AstPart{Type: "block_quote"},
 			entering,
 		)
+	case *ast.Emph:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "emphasis"},
+			entering,
+		)
 	case *RatErrorNode:
 		// for when markdown parser for rat tokens failed with something.
 		part.AddLeaf(

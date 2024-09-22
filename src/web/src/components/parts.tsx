@@ -269,6 +269,13 @@ export function NodePart({ part }: { part: NodeAstPart }) {
           <NodePartChildren part={part} />
         </blockquote>
       );
+    case "emphasis":
+      return (
+        <em>
+          <NodePartChildren part={part} />
+        </em>
+      );
+
     case "unknown":
       if (part.children === undefined) {
         return (

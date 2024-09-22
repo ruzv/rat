@@ -1,11 +1,15 @@
-# version: 1.54.1
-# everything should be sorted in alphabetical order
+# for golanci-lint version 1.61.0
+# everything (linter definitions) should be sorted in alphabetical order by name
 
 run:
   timeout: 1m
   allow-parallel-runners: true
 
+output:
+  sort-results: true
+
 linters-settings:
+  # declaration order
   decorder:
     dec-order:
       - const
@@ -15,6 +19,7 @@ linters-settings:
     disable-dec-order-check: false
     disable-init-func-first-check: false
 
+  # unchecked errors
   errcheck:
     check-type-assertions: true
     check-blank: true
@@ -22,17 +27,21 @@ linters-settings:
   gocritic:
     disabled-checks:
       - unnamedResult
-      - whyNoLint # annying
-    enabled-tags:
+      # cool idea, quite annoying in practice as nolint directive often
+      # requires weird placements to take effect
+      - whyNoLint
+    enabled-tags: # enable all
       - diagnostic
       - style
       - performance
       - experimental
       - opinionated
 
+  # cyclomatic complexity
   gocyclo:
     min-complexity: 10
 
+  # import block list
   gomodguard:
     blocked:
       modules:
@@ -43,21 +52,13 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
-      - shadow
 
+  # reports big interfaces
   interfacebloat:
     max: 6
 
-  ireturn:
-    allow:
-      - anon
-      - error
-      - empty
-      - stdlib
-      - generic
-
   lll:
-    line-length: 80
+    line-length: 120
     tab-width: 4
 
   makezero:
@@ -67,15 +68,15 @@ linters-settings:
     enable-all-rules: true
     severity: error
     rules:
-      # settings
       - name: argument-limit
         arguments:
           - 5
 
       - name: comment-spacings
         arguments:
-          - nolint
+          - nolint # allow //nolint:... (its a directive)
 
+      # comment for exported
       - name: exported
         arguments:
           - checkPrivateReceivers
@@ -90,57 +91,70 @@ linters-settings:
           - 5
 
       # disabled
+
+      # like gomnd, annoying
       - name: add-constant
         disabled: true
-      - name: argument-limit
+      - name: banned-characters # useless, as every char needs to be configured
         disabled: true
-      - name: banned-characters
-        disabled: true
-      - name: cognitive-complexity
-        disabled: true
+      # common to have a public faceing signature and internal uglier signature
+      # Walk and walk (for example)
       - name: confusing-naming
         disabled: true
       - name: confusing-results
         disabled: true
+      # cyclomatic complexity checks are enough, no need to complicate life
+      # with two different metrics for complexity.
+      - name: cognitive-complexity
+        disabled: true
+      # duplicate
       - name: cyclomatic
         disabled: true
-      - name: error-strings ## for zbx
-        disabled: true
+      # duplicate
       - name: file-header
         disabled: true
+      # cool idea, but warning about every bool param is not acceptable
       - name: flag-parameter
         disabled: true
+      # cyclomatic complexety checks are enough
       - name: function-length
         disabled: true
-      - name: import-shadowing
-        disabled: true
+      # duplicate
       - name: line-length-limit
         disabled: true
+      # duplicate
       - name: unhandled-error
         disabled: true
+      # duplicate
       - name: package-comments
         disabled: true
 
   stylecheck:
-    checks: ["all", "-ST1000", "-ST1003"]
+    checks:
+      - all
+      - -ST1000 # Incorrect or missing package comment
+      - -ST1003 # Poorly chosen identifier
     dot-import-whitelist: []
     http-status-code-whitelist: []
 
+  # tag order
   tagalign:
     align: false # could be true if https://github.com/momaek/formattag is used.
     order:
       - yaml
       - json
-      - yml
       - toml
       - mapstructure
       - binding
       - validate
 
+  # long, flat, ribbon-shaped pasta
+  # also
+  # struct tag naming convention checker
   tagliatelle:
     case:
       rules:
-        json: camel
+        json: snake
         yaml: camel
         xml: camel
         bson: camel
@@ -151,6 +165,7 @@ linters-settings:
 
   wrapcheck:
     ignoreSigs:
+      # defaults
       - .Errorf(
       - errors.New(
       - errors.Unwrap(
@@ -159,7 +174,8 @@ linters-settings:
       - .WithMessage(
       - .WithMessagef(
       - .WithStack(
-      - httputil.Error(
+      # zabbix custom errors
+      - errs.New(
 
 linters:
   enable-all: true
@@ -180,53 +196,45 @@ linters:
     # no need to count lines.
     - funlen
 
-    # conflicts with gci and goimports. the formatter should still be used, only
-    # lint can't enforce it.
+    # conflicts with gci and goimports. the formatter should still be used,
+    # only lint can't enforce it.
     - gofumpt
 
     # conflicts with gofumpt and gci. the tool still should be used but gci
     # needs be the last formatter.
     - goimports
 
-    # const one = 1 - just no
-    - gomnd
-
-    # don't use shorthand ifs
-    - ifshort
+    # not many cases when this is helpful were observed
+    - mnd
 
     # revive warns about this
     - nakedret
 
-    # current unit test situation is bad enough as is. no need to introduce new
-    # unit testing practices.
+    # we don't do black box testing in unit tests.
     - testpackage
 
     # having one length vars is fine.
     - varnamelen
 
     # deprecated
-    - deadcode
-    - exhaustivestruct
-    - golint
-    - ifshort
-    - interfacer
-    - maligned
-    - nosnakecase
-    - scopelint
-    - structcheck
-    - varcheck
+    - execinquery
+    - exportloopref
+    - gomnd
 
 issues:
   exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
+  max-issues-per-linter: 0 # unlimited
+  max-same-issues: 0 # unlimited
   exclude-rules:
     - path: _test\.go
       linters:
+        - dupl
+        - err113
         - errcheck
-        - goerr113
-        - wrapcheck
         - gocritic
+        - maintidx
+        - revive
+        - wrapcheck
 
 severity:
   default-severity: error
