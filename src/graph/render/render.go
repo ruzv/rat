@@ -97,7 +97,8 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.Link:
 		p, err := jr.renderGraphLink(part, node, entering)
 		if err != nil {
-			return part.AddContainer( //nolint:nilerr,lll // render link if graph link fails.
+			// render link if graph link fails.
+			return part.AddContainer( //nolint:nilerr
 				&jsonast.AstPart{
 					Type: "link",
 					Attributes: jsonast.AstAttributes{
@@ -273,6 +274,11 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.BlockQuote:
 		part = part.AddContainer(
 			&jsonast.AstPart{Type: "block_quote"},
+			entering,
+		)
+	case *ast.Emph:
+		part = part.AddContainer(
+			&jsonast.AstPart{Type: "emphasis"},
 			entering,
 		)
 	case *RatErrorNode:

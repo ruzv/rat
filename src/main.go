@@ -25,10 +25,15 @@ func main() {
 	}
 }
 
+//nolint:gocyclo,cyclop
 func run() error {
-	cmdArgs, ok := args.Load()
-	if !ok {
-		return nil
+	cmdArgs, err := args.Load()
+	if err != nil {
+		if errors.Is(err, args.ErrExitZero) {
+			return nil
+		}
+
+		return errors.Wrap(err, "failed to load args")
 	}
 
 	conf, err := config.Load(cmdArgs.ConfigPath)

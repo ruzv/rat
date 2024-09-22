@@ -327,7 +327,7 @@ func (n *Node) walk(
 	return nil
 }
 
-func getTemplateField[T any](
+func getTemplateField[T any]( //nolint:ireturn
 	p Provider,
 	n *Node,
 	rootTemplate *NodeTemplate,

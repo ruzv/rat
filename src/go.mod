@@ -1,6 +1,6 @@
 module rat
 
-go 1.21
+go 1.23
 
 require (
 	github.com/blevesearch/bleve/v2 v2.3.9

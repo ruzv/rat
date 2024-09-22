@@ -61,7 +61,7 @@ func New(
 	}
 
 	if c.Sync != nil {
-		syncer, err := sync.NewSyncer(c.Sync, log)
+		syncer, err := sync.NewSyncer(c.Sync, log) //nolint:govet // shadows err
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create syncer")
 		}

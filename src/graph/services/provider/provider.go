@@ -63,5 +63,5 @@ func logMetrics(p graph.Provider, log *logr.LogR) {
 		return
 	}
 
-	log.Infof(string(b))
+	log.Infof("%s", string(b))
 }

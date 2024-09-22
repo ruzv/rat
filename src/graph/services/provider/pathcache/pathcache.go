@@ -51,7 +51,7 @@ func (p *Provider) GetByID(id uuid.UUID) (*graph.Node, error) {
 	n, err := p.base.GetByPath(path)
 	if err != nil {
 		// this could mean that cache is stale and produces invalid paths
-		n, err := p.base.GetByID(id)
+		n, err = p.base.GetByID(id) //
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get node by id")
 		}
@@ -64,7 +64,7 @@ func (p *Provider) GetByID(id uuid.UUID) (*graph.Node, error) {
 	if n.Header.ID != id { // node changed, but path is the same
 		p.cache[n.Header.ID] = n.Path
 
-		n, err := p.base.GetByID(id)
+		n, err = p.base.GetByID(id)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get node by id")
 		}
