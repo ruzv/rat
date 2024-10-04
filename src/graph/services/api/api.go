@@ -3,13 +3,13 @@ package api
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/services"
+	"rat/graph/services/api/httputil"
 	"rat/graph/services/api/router"
 	"rat/graph/services/index"
 	"rat/graph/services/urlresolve"
@@ -18,24 +18,14 @@ import (
 
 var _ services.Service = (*API)(nil)
 
-// DefaultTimeouts is the default timeout values for the api server.
-//
-//nolint:gochecknoglobals
-var DefaultTimeouts = &timeouts{
-	Read:  15 * time.Second,
-	Write: 15 * time.Second,
-}
-
 // Config defines configuration parameters for the api server.
 type Config struct {
-	Port     int       `yaml:"port" validate:"nonzero"`
-	Timeouts *timeouts `yaml:"timeouts"`
-}
+	Port           int                `yaml:"port" validate:"nonzero"`
+	Authority      string             `yaml:"authority" validate:"nonzero"`
+	AllowedOrigins []string           `yaml:"allowedOrigins" validate:"nonzero"`
+	URLResolver    *urlresolve.Config `yaml:"urlResolver"`
 
-// timeouts defines timeout values for the api server.
-type timeouts struct {
-	Read  time.Duration `yaml:"read"`
-	Write time.Duration `yaml:"write"`
+	Timeouts *httputil.ServerTimeouts `yaml:"timeouts"`
 }
 
 // API is the API server service. Implements services.Service.
@@ -52,35 +42,47 @@ func New(
 	config *Config,
 	log *logr.LogR,
 	provider graph.Provider,
-	resolver *urlresolve.Resolver,
+	// resolver *urlresolve.Resolver,
 	graphIndex *index.Index,
-	webStaticContent fs.FS,
 ) (*API, error) {
 	log = log.Prefix("api")
 
-	r, err := router.New(log, provider, resolver, graphIndex, webStaticContent)
+	resolver, err := urlresolve.NewResolver(
+		config.URLResolver, log, config.Authority,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create url resolver")
+	}
+
+	r, err := router.New(
+		log,
+		provider,
+		resolver,
+		graphIndex,
+		config.AllowedOrigins,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create router")
 	}
 
-	timeouts := config.Timeouts.fillDefaults()
+	timeouts := config.Timeouts.FillDefaults()
 
 	return &API{
 		log:    log,
 		config: config,
-
 		server: &http.Server{
 			Handler:      r,
 			Addr:         fmt.Sprintf(":%d", config.Port),
 			WriteTimeout: timeouts.Write,
 			ReadTimeout:  timeouts.Read,
+			IdleTimeout:  timeouts.Idle,
 		},
 	}, nil
 }
 
 // Run runs the API server.
 func (api *API) Run() error {
-	api.log.Infof("serving on http://localhost:%d", api.config.Port)
+	api.log.Infof("API available on http://localhost:%d", api.config.Port)
 
 	start := time.Now()
 
@@ -104,22 +106,4 @@ func (api *API) Stop(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (t *timeouts) fillDefaults() *timeouts {
-	if t == nil {
-		return DefaultTimeouts
-	}
-
-	fill := *t
-
-	if fill.Read == 0 {
-		fill.Read = DefaultTimeouts.Read
-	}
-
-	if fill.Write == 0 {
-		fill.Write = DefaultTimeouts.Write
-	}
-
-	return &fill
 }

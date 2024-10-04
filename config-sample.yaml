@@ -3,8 +3,19 @@ services:
     defaultLevel: debug
     prefixLevels:
       rat.services.api.router.graphhttp.nodeshttp.json-renderer: info
-  api:
+  web:
     port: 8888
+    apiAuthority: http://localhost:8877
+  api:
+    port: 8877
+    authority: http://localhost:8877
+    allowedOrigins:
+      - http://localhost:8888
+    urlResolver:
+      fileservers:
+        - authority: http://fileserver:8080
+          user: username
+          password: passwd
   provider:
     dir: /path/to/graph/dir
     enablePathCache: true
@@ -19,11 +30,6 @@ services:
           <rat graph depth=1 />
 
           ---
-  urlResolver:
-    fileservers:
-      - authority: http://fileserver:8080
-        user: username
-        password: passwd
   sync:
     repoDir: /path/to/dir/containing/.git
     interval: 10s

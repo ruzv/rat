@@ -62,7 +62,7 @@ linters-settings:
     max: 6
 
   lll:
-    line-length: 120
+    line-length: 80
     tab-width: 4
 
   makezero:
