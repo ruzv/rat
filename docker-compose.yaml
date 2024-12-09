@@ -9,6 +9,8 @@ services:
       dockerfile: Dockerfile
       args:
         RAT_VERSION: ${RAT_VERSION}
+        NODE_VERSION: 20.7.0-alpine
+        GO_VERSION: 1.23.2-alpine
     ports:
       - 8888:8888
       - 8877:8877

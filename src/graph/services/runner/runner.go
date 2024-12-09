@@ -62,7 +62,7 @@ func New(c *Config, webStaticContent fs.FS) (*Runner, *logr.LogR, error) {
 	runnerServices := []services.Service{}
 
 	if c.Sync != nil {
-		syncer, err := sync.NewSyncer(c.Sync, log) 
+		syncer, err := sync.NewSyncer(c.Sync, log)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create syncer")
 		}

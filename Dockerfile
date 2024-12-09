@@ -1,5 +1,8 @@
+ARG NODE_VERSION="20.7.0-alpine"
+ARG GO_VERSION="1.23.2-alpine"
+
 # build web app static files.
-FROM node:20.7.0-alpine as web-builder
+FROM node:${NODE_VERSION} as web-builder
 WORKDIR /rat-web
 
 COPY src/web ./
@@ -8,7 +11,7 @@ RUN npm install
 RUN npm run build
 
 # build rat server binary, embeding web app static files from previous stage.
-FROM golang:1.21-alpine as server-builder
+FROM golang:${GO_VERSION} as server-builder
 WORKDIR /rat
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only
@@ -28,23 +31,6 @@ RUN go build \
 ENV API_AUTHORITY=http://localhost:8877
 ENV WEB_AUTHORITY=http://localhost:8888
 
-
-# RUN cat <<EOF > config.yaml
-# services:
-#   log:
-#     defaultLevel: debug
-#   web:
-#     port: 8888
-#     apiAuthority: ${API_AUTHORITY}
-#   api:
-#     port: 8877
-#     authority: ${API_AUTHORITY}
-#     allowedOrigins:
-#       - ${WEB_AUTHORITY}
-#   provider:
-#     dir: /graph
-# EOF
-
 # build final image
 FROM scratch
 WORKDIR /rat
@@ -52,7 +38,6 @@ WORKDIR /rat
 COPY --from=server-builder /rat/rat rat
 # COPY --from=server-builder /rat/config.yaml config.yaml
 COPY config-docker.yaml config.yaml
-
 
 # 8888 web
 # 8877 api

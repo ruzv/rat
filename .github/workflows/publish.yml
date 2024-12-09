@@ -46,6 +46,8 @@ jobs:
           file: ./Dockerfile
           build-args: |
             RAT_VERSION=${{ github.ref_name }}
+            NODE_VERSION=20.7.0-alpine
+            GO_VERSION=1.23.2-alpine
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
