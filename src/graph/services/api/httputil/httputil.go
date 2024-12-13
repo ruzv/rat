@@ -148,7 +148,7 @@ func WriteError(w http.ResponseWriter, code int, format string, args ...any) {
 }
 
 // Body reads the requests body as a specified struct.
-func Body[T any]( //nolint:ireturn
+func Body[T any](
 	w http.ResponseWriter,
 	r *http.Request,
 ) (T, error) {

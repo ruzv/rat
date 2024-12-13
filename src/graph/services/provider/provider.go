@@ -19,7 +19,7 @@ type Config struct {
 }
 
 // New creates a new provider.
-func New( //nolint:ireturn // i know better.
+func New(
 	c *Config,
 	log *logr.LogR,
 ) (graph.Provider, error) {

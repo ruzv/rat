@@ -22,7 +22,7 @@ type RatErrorNode struct {
 }
 
 // Parse parses markdown content to AST, with rat unique ast nodes, like tokens.
-func Parse(content string) ast.Node { //nolint:ireturn
+func Parse(content string) ast.Node {
 	p := parser.NewWithExtensions(
 		parser.NoIntraEmphasis |
 			parser.Tables |
@@ -53,7 +53,7 @@ func Parse(content string) ast.Node { //nolint:ireturn
 // stand alone, not in paragraph, or header or some other block).
 // If successful it returns an ast.Node, a buffer that should be parsed as a
 // block and the number of bytes consumed.
-func ratTokenHook(data []byte) (ast.Node, []byte, int) { //nolint:ireturn
+func ratTokenHook(data []byte) (ast.Node, []byte, int) {
 	astNode, consumed := parseRatTokenData(data)
 
 	// return empty buffer, cause nothing in the returned AST node should be
@@ -90,7 +90,7 @@ func ratTokenInlineHook(
 //
 //	*RatTokenNode - node parsed
 //	int           - bytes consumed
-func parseRatTokenData(data []byte) (ast.Node, int) { //nolint:ireturn
+func parseRatTokenData(data []byte) (ast.Node, int) {
 	startMarker := []byte(`<rat `)
 	endMarker := []byte(`/>`)
 

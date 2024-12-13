@@ -45,7 +45,7 @@ type Runner struct {
 
 // New creates a new graph services.
 //
-//nolint:gocyclop,cyclop
+//nolint:gocyclo,cyclop
 func New(c *Config, webStaticContent fs.FS) (*Runner, *logr.LogR, error) {
 	ratLog := logr.NewLogR(os.Stdout, "rat", c.Log)
 
