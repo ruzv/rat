@@ -62,7 +62,7 @@ linters-settings:
     max: 6
 
   lll:
-    line-length: 120
+    line-length: 80
     tab-width: 4
 
   makezero:
@@ -210,6 +210,9 @@ linters:
     # needs be the last formatter.
     - goimports
 
+    # anoying as fuck false positives
+    - ireturn
+
     # not many cases when this is helpful were observed
     - mnd
 
@@ -223,9 +226,7 @@ linters:
     - varnamelen
 
     # deprecated
-    - execinquery
     - exportloopref
-    - gomnd
 
 issues:
   exclude-use-default: false

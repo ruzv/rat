@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"rat/graph"
 	"rat/graph/render/jsonast"
+	"rat/graph/services/urlresolve"
 	"rat/graph/util"
 )
 
@@ -132,6 +133,7 @@ func (t *Token) Render(
 	root *jsonast.AstPart,
 	n *graph.Node,
 	p graph.Provider,
+	resolver *urlresolve.Resolver,
 	r jsonast.Renderer,
 ) error {
 	switch t.Type {
@@ -142,7 +144,7 @@ func (t *Token) Render(
 	case Kanban:
 		return t.renderKanban(root, p, r)
 	case Embed:
-		return t.renderEmbed(root)
+		return t.renderEmbed(root, resolver)
 	case Version:
 		renderVersion(root)
 

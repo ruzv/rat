@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	"rat/buildinfo"
 	"rat/graph/services"
 	"rat/graph/services/api"
 	"rat/graph/services/index"
 	"rat/graph/services/provider"
 	"rat/graph/services/sync"
-	"rat/graph/services/urlresolve"
+	"rat/graph/services/web"
 	"rat/logr"
 )
 
@@ -29,11 +30,11 @@ var _ services.Service = (*Runner)(nil)
 
 // Config contains graph services configuration parameters.
 type Config struct {
-	Log         *logr.Config       `yaml:"log" validate:"nonzero"`
-	Provider    *provider.Config   `yaml:"provider" validate:"nonzero"`
-	URLResolver *urlresolve.Config `yaml:"urlResolver"`
-	Sync        *sync.Config       `yaml:"sync"`
-	API         *api.Config        `yaml:"api" validate:"nonzero"`
+	Log      *logr.Config     `yaml:"log" validate:"nonzero"`
+	Provider *provider.Config `yaml:"provider"`
+	Sync     *sync.Config     `yaml:"sync"`
+	API      *api.Config      `yaml:"api"`
+	Web      *web.Config      `yaml:"web"`
 }
 
 // Runner contains service components of a graph.
@@ -43,25 +44,25 @@ type Runner struct {
 }
 
 // New creates a new graph services.
-func New(
-	c *Config, webStaticContent fs.FS,
-) (*Runner, *logr.LogR, error) {
+//
+//nolint:gocyclo,cyclop
+func New(c *Config, webStaticContent fs.FS) (*Runner, *logr.LogR, error) {
 	ratLog := logr.NewLogR(os.Stdout, "rat", c.Log)
 
 	ratLog.Infof("%s\nversion: %s", logo, buildinfo.Version())
 
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to marshal config")
+	}
+
+	ratLog.Debugf("config:\n%s", string(b))
+
 	log := ratLog.Prefix("services")
 	runnerServices := []services.Service{}
 
-	resolver := urlresolve.NewResolver(c.URLResolver, log)
-
-	graphProvider, err := provider.New(c.Provider, log)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to create graph provider")
-	}
-
 	if c.Sync != nil {
-		syncer, err := sync.NewSyncer(c.Sync, log) //nolint:govet // shadows err
+		syncer, err := sync.NewSyncer(c.Sync, log)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create syncer")
 		}
@@ -69,24 +70,39 @@ func New(
 		runnerServices = append(runnerServices, syncer)
 	}
 
-	graphIndex, err := index.NewIndex(log, graphProvider)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to create index")
+	if c.API != nil {
+		if c.Provider == nil {
+			return nil, nil, errors.New(
+				"provider configuration is required for API",
+			)
+		}
+
+		graphProvider, err := provider.New(c.Provider, log)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create graph provider")
+		}
+
+		graphIndex, err := index.NewIndex(log, graphProvider)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create index")
+		}
+
+		graphAPI, err := api.New(c.API, log, graphProvider, graphIndex)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create api")
+		}
+
+		runnerServices = append(runnerServices, graphAPI)
 	}
 
-	graphAPI, err := api.New(
-		c.API,
-		log,
-		graphProvider,
-		resolver,
-		graphIndex,
-		webStaticContent,
-	)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to create api")
-	}
+	if c.Web != nil {
+		graphWeb, err := web.New(c.Web, log, webStaticContent)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to create web")
+		}
 
-	runnerServices = append(runnerServices, graphAPI)
+		runnerServices = append(runnerServices, graphWeb)
+	}
 
 	return &Runner{
 			services: runnerServices,

@@ -28,6 +28,8 @@ type Config struct {
 }
 
 // LogLevel describes the log level.
+//
+//nolint:recvcheck
 type LogLevel int
 
 // LogR simple logger.

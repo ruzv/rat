@@ -246,7 +246,7 @@ func parseHint(line string) (*Hint, error) {
 
 // Value returns the value of the hint as the given type. Returns an empty
 // value of type T if hint is nil or hint value is not of type T.
-func Value[T any](h *Hint) T { //nolint:ireturn
+func Value[T any](h *Hint) T {
 	var empty T
 
 	if h == nil {

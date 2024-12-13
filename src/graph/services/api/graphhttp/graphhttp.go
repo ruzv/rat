@@ -64,7 +64,7 @@ func RegisterRoutes(
 		),
 	).Methods(http.MethodPost, http.MethodOptions)
 
-	err := nodeshttp.RegisterRoutes(graphRouter, h.log, provider, idx)
+	err := nodeshttp.RegisterRoutes(graphRouter, h.log, provider, resolver, idx)
 	if err != nil {
 		return errors.Wrap(err, "failed to register nodes routes")
 	}

@@ -12,6 +12,7 @@ import (
 	"rat/graph/render/jsonast"
 	"rat/graph/services/api/httputil"
 	"rat/graph/services/index"
+	"rat/graph/services/urlresolve"
 	pathutil "rat/graph/util/path"
 	"rat/logr"
 )
@@ -37,6 +38,7 @@ func RegisterRoutes(
 	router *mux.Router,
 	log *logr.LogR,
 	provider graph.Provider,
+	resolver *urlresolve.Resolver,
 	idx *index.Index,
 ) error {
 	log = log.Prefix("nodeshttp")
@@ -45,7 +47,7 @@ func RegisterRoutes(
 		log:      log,
 		provider: provider,
 		idx:      idx,
-		r:        render.NewJSONRenderer(log, provider),
+		r:        render.NewJSONRenderer(log, provider, resolver),
 	}
 
 	nodeRouter := router.PathPrefix("/node/{path:.*}").Subrouter()

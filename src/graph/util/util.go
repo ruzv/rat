@@ -2,7 +2,7 @@ package util
 
 // ReverseSlice reverses a slice.
 func ReverseSlice[T any](a []T) []T {
-	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 {
+	for left, right := 0, len(a)-1; left < right; left, right = left+1, right-1 { //nolint:lll
 		a[left], a[right] = a[right], a[left]
 	}
 
