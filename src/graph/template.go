@@ -33,17 +33,19 @@ var smiles = []string{
 
 // NodeTemplate describes a template data of a node.
 type NodeTemplate struct {
-	Name     string        `yaml:"name,omitempty"`
-	Weight   string        `yaml:"weight,omitempty"`
-	Content  string        `yaml:"content,omitempty"`
-	Template *NodeTemplate `yaml:"template,omitempty"`
+	DisplayName string        `yaml:"name,omitempty"`
+	PathName    string        `yaml:"pathName,omitempty"`
+	Weight      string        `yaml:"weight,omitempty"`
+	Content     string        `yaml:"content,omitempty"`
+	Template    *NodeTemplate `yaml:"template,omitempty"`
 }
 
 // TemplateData describes data that can be used in node templates.
 type TemplateData struct {
 	RawTemplateData
-	// name that was filled by name template.
-	Name string
+	// fields populated when template is executed.
+	DisplayName string
+	PathName    string
 }
 
 // RawTemplateData describes the template fields available to unprocessed
@@ -84,21 +86,45 @@ func NewTemplateData(name string) *TemplateData {
 	}
 }
 
-// FillName fills templated node name.
-func (nt *NodeTemplate) FillName(td *RawTemplateData) (string, error) {
-	nameTemplate, err := template.New("").Parse(nt.Name)
+// FillNames returns templated nodes display name and path name.
+func (nt *NodeTemplate) FillNames(td *RawTemplateData) (string, string, error) {
+	templt, err := template.New("").Parse(nt.DisplayName)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse name template")
+		return "", "", errors.Wrap(err, "failed to parse name template")
 	}
 
 	buff := &bytes.Buffer{}
 
-	err = nameTemplate.Execute(buff, td)
+	err = templt.Execute(buff, td)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to execute name template")
+		return "", "", errors.Wrap(err, "failed to execute name template")
 	}
 
-	return buff.String(), nil
+	displayName := buff.String()
+	pathName := displayName
+
+	if nt.PathName != "" {
+		templt, err := template.New("").Parse(nt.PathName)
+		if err != nil {
+			return "", "", errors.Wrap(err, "failed to parse name template")
+		}
+
+		buff := &bytes.Buffer{}
+
+		err = templt.Execute(buff, td)
+		if err != nil {
+			return "", "", errors.Wrap(err, "failed to execute name template")
+		}
+
+		pathName = buff.String()
+	}
+
+	pathName = parsePathName(pathName)
+	if pathName == "" {
+		return "", "", errors.New("empty path name")
+	}
+
+	return displayName, pathName, nil
 }
 
 // FillWeight fills templated node weight.

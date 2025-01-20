@@ -19,7 +19,7 @@ var (
 	ErrPartialTemplate = errors.New("partial or missing template")
 )
 
-var allowedPathNameSymbols = regexp.MustCompile(`[a-zA-Z0-9_\-]`)
+var allowedPathNameSymbols = regexp.MustCompile(`[a-zA-Z0-9]`)
 
 // Node describes a single node.
 type Node struct {
@@ -30,11 +30,11 @@ type Node struct {
 
 // NodeHeader describes info stored in nodes header.
 type NodeHeader struct {
-	ID       uuid.UUID      `yaml:"id"`
-	Name     string         `yaml:"name,omitempty"`
-	Weight   int            `yaml:"weight,omitempty"`
-	Template *NodeTemplate  `yaml:"template,omitempty"`
-	Any      map[string]any `yaml:",inline"`
+	ID          uuid.UUID      `yaml:"id"`
+	DisplayName string         `yaml:"displayName,omitempty"`
+	Weight      int            `yaml:"weight,omitempty"`
+	Template    *NodeTemplate  `yaml:"template,omitempty"`
+	Any         map[string]any `yaml:",inline"`
 }
 
 // Metrics groups all nodes metrics.
@@ -53,8 +53,8 @@ type metric struct {
 // Name returns the name of a node. That being either the defined name in node
 // header or first element of nodes path.
 func (n *Node) Name() string {
-	if n.Header.Name != "" {
-		return n.Header.Name
+	if n.Header.DisplayName != "" {
+		return n.Header.DisplayName
 	}
 
 	return n.Path.Name()
@@ -167,13 +167,22 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 		return nil, errors.Wrap(err, "failed to get root node")
 	}
 
-	nt.Name, err = getTemplateField(
+	nt.DisplayName, err = getTemplateField(
 		p, n, root.Header.Template,
-		func(nt *NodeTemplate) string { return nt.Name },
+		func(nt *NodeTemplate) string { return nt.DisplayName },
 		func(s string) bool { return s == "" },
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get name field")
+		return nil, errors.Wrap(err, "failed to get display name field")
+	}
+
+	nt.PathName, err = getTemplateField(
+		p, n, root.Header.Template,
+		func(nt *NodeTemplate) string { return nt.PathName },
+		func(s string) bool { return s == "" },
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get path name field")
 	}
 
 	nt.Weight, err = getTemplateField(
@@ -379,12 +388,10 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 
 	td := NewTemplateData(name)
 
-	name, err = templ.FillName(&td.RawTemplateData)
+	td.DisplayName, td.PathName, err = templ.FillNames(&td.RawTemplateData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fill name")
 	}
-
-	td.Name = name
 
 	content, err := templ.FillContent(td)
 	if err != nil {
@@ -396,31 +403,39 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to fill weight")
 	}
 
-	pathName := parsePathName(name)
-	if pathName == "" {
-		return nil, errors.Errorf("empty path name, parsed from %q", name)
-	}
-
 	var headerName string
 
-	if pathName != name { // mismatch, need to set.
-		headerName = name
+	if td.PathName != td.DisplayName { // mismatch, need to set.
+		headerName = td.DisplayName
 	}
 
 	return &Node{
-		Path: n.Path.JoinName(pathName),
+		Path: n.Path.JoinName(td.PathName),
 		Header: NodeHeader{
-			ID:       id,
-			Name:     headerName,
-			Weight:   weight,
-			Template: templ.Template,
+			ID:          id,
+			DisplayName: headerName,
+			Weight:      weight,
+			Template:    templ.Template,
 		},
 		Content: content,
 	}, nil
 }
 
 func parsePathName(name string) string {
-	fields := strings.Fields(strings.TrimSpace(strings.ToLower(name)))
+	const seperators = " -_"
+
+	fields := []string{strings.TrimSpace(strings.ToLower(name))}
+
+	for _, s := range strings.Split(seperators, "") {
+		newFields := make([]string, 0, len(fields))
+
+		for _, field := range fields {
+			newFields = append(newFields, strings.Split(field, s)...)
+		}
+
+		fields = newFields
+	}
+
 	cleanFields := make([]string, 0, len(fields))
 
 	for _, field := range fields {

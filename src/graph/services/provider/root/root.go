@@ -13,9 +13,9 @@ var defaultConfig = Config{ //nolint:gochecknoglobals // constant.
 	Name:    "🐀 Rat",
 	Content: "# 🐀🐀🐀 Welcome to rat! 🐀🐀🐀",
 	Template: &graph.NodeTemplate{
-		Name:    "{{ .RawName }}",
-		Weight:  "0",
-		Content: "# {{ .Name }}\n\n<rat graph />\n",
+		DisplayName: "{{ .RawName }}",
+		Weight:      "0",
+		Content:     "# {{ .Name }}\n\n<rat graph />\n",
 	},
 }
 
@@ -109,9 +109,9 @@ func (p *Provider) Delete(node *graph.Node) error {
 func (p *Provider) rootNode() *graph.Node {
 	return &graph.Node{
 		Header: graph.NodeHeader{
-			ID:       uuid.Nil,
-			Name:     p.root.Name,
-			Template: p.root.Template,
+			ID:          uuid.Nil,
+			DisplayName: p.root.Name,
+			Template:    p.root.Template,
 		},
 		Content: p.root.Content,
 	}
@@ -135,8 +135,8 @@ func (c *Config) fillDefaults() Config {
 	if c.Template == nil {
 		fill.Template = defaultConfig.Template
 	} else {
-		if c.Template.Name == "" {
-			fill.Template.Name = defaultConfig.Template.Name
+		if c.Template.DisplayName == "" {
+			fill.Template.DisplayName = defaultConfig.Template.DisplayName
 		}
 
 		if c.Template.Weight == "" {
