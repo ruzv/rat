@@ -2,7 +2,7 @@ ARG NODE_VERSION="20.7.0-alpine"
 ARG GO_VERSION="1.23.2-alpine"
 
 # build web app static files.
-FROM node:${NODE_VERSION} as web-builder
+FROM node:${NODE_VERSION} AS web-builder
 WORKDIR /rat-web
 
 COPY src/web ./
@@ -11,7 +11,7 @@ RUN npm install
 RUN npm run build
 
 # build rat server binary, embeding web app static files from previous stage.
-FROM golang:${GO_VERSION} as server-builder
+FROM golang:${GO_VERSION} AS server-builder
 WORKDIR /rat
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only

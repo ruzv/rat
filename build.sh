@@ -99,5 +99,5 @@ if [ "$_DOCKER" = "true" ]; then
     echo "building docker image"
 
     RAT_VERSION="$_RAT_VERSION" \
-        docker-compose build || exit 1
+        docker compose build || exit 1
 fi

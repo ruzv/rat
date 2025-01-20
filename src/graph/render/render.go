@@ -160,7 +160,7 @@ func (jr *JSONRenderer) renderNode(
 			},
 		)
 	case *ast.HTMLBlock:
-		jr.log.Infof("html block %s", logr.Preview(string(node.Literal)))
+		jr.log.Debugf("html block %s", logr.Preview(string(node.Literal)))
 		part.AddLeaf(
 			&jsonast.AstPart{
 				Type: "html_block",
