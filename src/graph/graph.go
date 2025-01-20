@@ -390,7 +390,7 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 
 	td.DisplayName, td.PathName, err = templ.FillNames(&td.RawTemplateData)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fill name")
+		return nil, errors.Wrap(err, "failed to fill names")
 	}
 
 	content, err := templ.FillContent(td)

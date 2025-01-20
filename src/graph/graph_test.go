@@ -58,6 +58,11 @@ func Test_parsePathName(t *testing.T) {
 			args{`Boy - The Heron`},
 			"boy-the-heron",
 		},
+		{
+			"-number",
+			args{`1234`},
+			"1234",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

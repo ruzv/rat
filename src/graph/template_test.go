@@ -10,11 +10,11 @@ func TestNodeTemplate_FillNames(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
-		Name     string
-		NodeName string
-		Weight   string
-		Content  string
-		Template *NodeTemplate
+		DisplayName string
+		PathName    string
+		Weight      string
+		Content     string
+		Template    *NodeTemplate
 	}
 
 	type args struct {
@@ -32,7 +32,7 @@ func TestNodeTemplate_FillNames(t *testing.T) {
 		{
 			"+valid",
 			fields{
-				Name: "{{ .RawName }}",
+				DisplayName: "{{ .RawName }}",
 			},
 			args{&RawTemplateData{
 				RawName: "test",
@@ -44,8 +44,8 @@ func TestNodeTemplate_FillNames(t *testing.T) {
 		{
 			"+withFilenameTemplate",
 			fields{
-				Name:     "{{ .RawName }}",
-				NodeName: "{{ .RawName }} filename",
+				DisplayName: "{{ .RawName }}",
+				PathName:    "{{ .RawName }} filename",
 			},
 			args{&RawTemplateData{
 				RawName: "test",
@@ -55,10 +55,10 @@ func TestNodeTemplate_FillNames(t *testing.T) {
 			false,
 		},
 		{
-			"+irlCase",
+			"+fixedName",
 			fields{
-				Name:     "🌊 Current (week {{ .Week }})",
-				NodeName: "ashtasht",
+				DisplayName: "🌊 Current (week {{ .Week }})",
+				PathName:    "ashtasht",
 			},
 			args{&RawTemplateData{
 				Week: 4,
@@ -67,14 +67,26 @@ func TestNodeTemplate_FillNames(t *testing.T) {
 			"ashtasht",
 			false,
 		},
+		{
+			"+onlyDisplayNameFromTemplateField",
+			fields{
+				DisplayName: "{{ .Day }}",
+			},
+			args{&RawTemplateData{
+				Day: 4,
+			}},
+			"4",
+			"4",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			nt := &NodeTemplate{
-				DisplayName: tt.fields.Name,
-				PathName:    tt.fields.NodeName,
+				DisplayName: tt.fields.DisplayName,
+				PathName:    tt.fields.PathName,
 				Weight:      tt.fields.Weight,
 				Content:     tt.fields.Content,
 				Template:    tt.fields.Template,
