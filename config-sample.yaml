@@ -1,14 +1,22 @@
 services:
   log:
     defaultLevel: debug
+    # log level for every rat server component can be configured separately
+    # specify components prefix and the desired log level
     prefixLevels:
       rat.services.api.router.graphhttp.nodeshttp.json-renderer: info
+  # service serving rat web client
   web:
     port: 8888
+    # the API authority (host:port (port if non-default 80)) the web client
+    # should accpet and do requests to. for CORS
     apiAuthority: http://localhost:8877
+  # service serving rat API
   api:
     port: 8877
+    # how the API authority looks for external access
     authority: http://localhost:8877
+    # allowed origins on client application servers for CORS.
     allowedOrigins:
       - http://localhost:8888
     urlResolver:
@@ -16,9 +24,13 @@ services:
         - authority: http://fileserver:8080
           user: username
           password: passwd
+  # graph provider
   provider:
+    # filepath pointing to directory containing graph
     dir: /path/to/graph/dir
+    # whether to enable caching node paths in memory
     enablePathCache: true
+    # describes the root node
     root:
       content: hello
       template:
@@ -30,6 +42,7 @@ services:
           <rat graph depth=1 />
 
           ---
+  # configures automatic sync to git
   sync:
     repoDir: /path/to/dir/containing/.git
     interval: 10s
