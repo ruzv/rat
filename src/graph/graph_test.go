@@ -54,14 +54,24 @@ func Test_parsePathName(t *testing.T) {
 			"dijkstras-shortest-path",
 		},
 		{
-			"-dashes",
+			"dashes",
 			args{`Boy - The Heron`},
 			"boy-the-heron",
 		},
 		{
-			"-number",
+			"number",
 			args{`1234`},
 			"1234",
+		},
+		{
+			"slash",
+			args{`1234/hello`},
+			"1234-hello",
+		},
+		{
+			"double slash",
+			args{`1234//hello`},
+			"1234-hello",
 		},
 	}
 	for _, tt := range tests {

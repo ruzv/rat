@@ -51,39 +51,83 @@ type TemplateData struct {
 // RawTemplateData describes the template fields available to unprocessed
 // template fillers, like FillName.
 type RawTemplateData struct {
-	RawName string // name that user provided.
-	Day     int    // day of the month
-	Month   int
-	Year    int
+	RawName   string // name that user provided.
+	Day       int    // day of the month   1,2,..31
+	Month     int    // month of the year 1,2,3...12
+	MonthName string // month name in English
+	Year      int
 
-	Week    int // week of the year
-	YearDay int // day of the year
+	Week        int    // week number of the year
+	Weekday     int    // number of the weekday 1,2...7
+	WeekdayName string // monday (1), tuesday(2)...sunday
+	YearDay     int    // day of the year 1,2,...365
+
+	// next ++ increment of weight of largest sibling node
+	WeightAutoincrement int
 
 	Smile string
 }
 
-// NewTemplateData populates template data fields.
-func NewTemplateData(name string) *TemplateData {
+// Template prepares n nodes template. Walking up the graph tree to find
+// a base template and setting template data to be used to fill template fields.
+func (n *Node) Template(
+	p Provider,
+	rawName string,
+) (*NodeTemplate, *TemplateData, error) {
+	nt, err := n.GetTemplate(p)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get template")
+	}
+
+	leafs, err := n.GetLeafs(p)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get leafs")
+	}
+
+	maxWeight := 0
+
+	if len(leafs) != 0 {
+		for _, leaf := range leafs {
+			if leaf.Header.Weight > maxWeight {
+				maxWeight = leaf.Header.Weight
+			}
+		}
+	}
+
 	now := time.Now()
 
 	year, week := now.ISOWeek()
-	month := int(now.Month())
+	weekday := now.Weekday()
+	month := now.Month()
 	day := now.Day()
 	yearDay := now.YearDay()
 	smile := smiles[rand.Intn(len(smiles))] //nolint:gosec // week rand num gen.
+	weightAutoincrement := maxWeight + 1
 
-	return &TemplateData{
-		RawTemplateData: RawTemplateData{
-			RawName: name,
-			Year:    year,
-			Month:   month,
-			Day:     day,
-			Week:    week,
-			YearDay: yearDay,
-			Smile:   smile,
-		},
-		// name is only populated after name template is executed.
+	rawTemplateData := RawTemplateData{
+		RawName:             rawName,
+		Year:                year,
+		Month:               int(month),
+		MonthName:           month.String(),
+		Day:                 day,
+		Week:                week,
+		Weekday:             (int(weekday) + 7) % 7,
+		WeekdayName:         weekday.String(),
+		YearDay:             yearDay,
+		WeightAutoincrement: weightAutoincrement,
+		Smile:               smile,
 	}
+
+	displayName, pathName, err := nt.FillNames(&rawTemplateData)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to fill names")
+	}
+
+	return nt, &TemplateData{
+		RawTemplateData: rawTemplateData,
+		DisplayName:     displayName,
+		PathName:        pathName,
+	}, nil
 }
 
 // FillNames returns templated nodes display name and path name.

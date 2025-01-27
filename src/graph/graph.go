@@ -381,16 +381,9 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 		return nil, errors.Wrap(err, "failed to generate id")
 	}
 
-	templ, err := n.GetTemplate(p)
+	templ, td, err := n.Template(p, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get template")
-	}
-
-	td := NewTemplateData(name)
-
-	td.DisplayName, td.PathName, err = templ.FillNames(&td.RawTemplateData)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to fill names")
+		return nil, errors.Wrap(err, "failed to prepare template")
 	}
 
 	content, err := templ.FillContent(td)
@@ -422,7 +415,7 @@ func (n *Node) sub(p Provider, name string) (*Node, error) {
 }
 
 func parsePathName(name string) string {
-	const seperators = " -_"
+	const seperators = " -_/"
 
 	fields := []string{strings.TrimSpace(strings.ToLower(name))}
 
