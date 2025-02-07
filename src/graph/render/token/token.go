@@ -28,20 +28,14 @@ const (
 	Embed Type = "embed"
 	// Version token renders the rat server version as a in line code ast node.
 	Version Type = "version"
+	// TimeSince token renders the days passed since a specified date.
+	TimeSince Type = "timeSince"
+	// TimeNow token renders the current time.
+	TimeNow Type = "timeNow"
 )
 
-var allTypes = []Type{ //nolint:gochecknoglobals
-	Graph,
-	Todo,
-	Kanban,
-	Embed,
-	Version,
-}
-
-var (
-	errUnknownTokenType = errors.New("unknown token type")
-	errMissingArgument  = errors.New("missing argument")
-)
+// ErrMissingArgument error returned when and argument is missing in token.
+var ErrMissingArgument = errors.New("missing argument")
 
 // Type describes rat token types.
 type Type string
@@ -79,24 +73,7 @@ func Parse(raw string) (*Token, error) {
 
 	sf := util.NewStringFeed(parts)
 
-	rawTokenType, err := sf.MustPop()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get token type")
-	}
-
-	tokenType, err := func(raw string) (Type, error) {
-		target := Type(raw)
-
-		for _, valid := range allTypes {
-			if target == valid {
-				return target, nil
-			}
-		}
-
-		return "", errors.Wrapf(
-			errUnknownTokenType, "unknown token type %s", target,
-		)
-	}(rawTokenType)
+	tokenType, err := sf.MustPop()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get token type")
 	}
@@ -123,7 +100,7 @@ func Parse(raw string) (*Token, error) {
 	}
 
 	return &Token{
-		Type: tokenType,
+		Type: Type(tokenType),
 		Args: args,
 	}, nil
 }
@@ -149,7 +126,13 @@ func (t *Token) Render(
 		renderVersion(root)
 
 		return nil
+	case TimeSince:
+		return t.renderTimeSince(root, p)
+	case TimeNow:
+		t.renderTimeNow(root, p)
+
+		return nil
 	default:
-		return errors.Errorf("unknown token type - %s", t.Type)
+		return errors.Errorf("unknown token type - %q", t.Type)
 	}
 }

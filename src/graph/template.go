@@ -65,7 +65,7 @@ type RawTemplateData struct {
 	// next ++ increment of weight of largest sibling node
 	WeightAutoincrement int
 
-	Smile string
+	Smile string // random gyph smile
 }
 
 // Template prepares n nodes template. Walking up the graph tree to find
@@ -94,7 +94,7 @@ func (n *Node) Template(
 		}
 	}
 
-	now := time.Now()
+	now := time.Now().In(p.TimeZone())
 
 	year, week := now.ISOWeek()
 	weekday := now.Weekday()

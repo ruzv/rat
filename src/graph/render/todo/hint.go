@@ -52,7 +52,7 @@ var hintTypeProcessors = map[HintType]*struct {
 }{
 	Due: {
 		parse: func(s string) (any, error) {
-			due, err := parseTime(s)
+			due, err := parseTime(s, location)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse due date")
 			}

@@ -12,7 +12,7 @@ func (t *Token) renderEmbed(
 	embedURL, ok := t.Args["url"]
 	if !ok {
 		return errors.Wrap(
-			errMissingArgument, "missing url arg for embed token",
+			ErrMissingArgument, "missing url arg for embed token",
 		)
 	}
 

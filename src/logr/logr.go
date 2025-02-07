@@ -36,6 +36,7 @@ type LogLevel int
 type LogR struct {
 	w           io.Writer
 	prefix      string
+	timeFormat  string
 	level       LogLevel
 	levelCached bool
 	config      *Config
@@ -52,9 +53,10 @@ type LogGroup struct {
 // NewLogR creates a new logger.
 func NewLogR(w io.Writer, prefix string, config *Config) *LogR {
 	return &LogR{
-		w:      w,
-		prefix: prefix,
-		config: config,
+		w:          w,
+		prefix:     prefix,
+		timeFormat: "02-01-2006 15:04:05.00000",
+		config:     config,
 		colors: [5]*color.Color{
 			color.New(color.FgHiBlue),
 			color.New(color.FgGreen),
@@ -218,7 +220,7 @@ func (lr *LogR) log(level LogLevel, fmtStr string, args ...any) error {
 			"%s %s %s",
 			lr.colors[level].Sprintf("%-5s", level.String()),
 			color.New(color.FgCyan).Sprintf(
-				"%s", time.Now().Format("02-01-2006 15:04:05.00000"),
+				"%s", time.Now().Format(lr.timeFormat),
 			),
 			color.New(color.FgMagenta).Sprint(lr.prefix),
 		),

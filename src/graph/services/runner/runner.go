@@ -50,6 +50,7 @@ func New(c *Config, webStaticContent fs.FS) (*Runner, *logr.LogR, error) {
 	ratLog := logr.NewLogR(os.Stdout, "rat", c.Log)
 
 	ratLog.Infof("%s\nversion: %s", logo, buildinfo.Version())
+	ratLog.Infof("current time: %s", time.Now().Format(time.RFC1123))
 
 	b, err := yaml.Marshal(c)
 	if err != nil {

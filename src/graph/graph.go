@@ -146,7 +146,7 @@ func (n *Node) Walk(
 }
 
 // Parent returns parent of node.
-func (n *Node) Parent(p Provider) (*Node, error) {
+func (n *Node) Parent(p ReadWriteProvider) (*Node, error) {
 	parent, err := p.GetByPath(n.Path.Parent())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get parent")
@@ -156,7 +156,7 @@ func (n *Node) Parent(p Provider) (*Node, error) {
 }
 
 // GetTemplate returns the first template encountered when walking up the tree.
-func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
+func (n *Node) GetTemplate(p ReadWriteProvider) (*NodeTemplate, error) {
 	var (
 		nt  = &NodeTemplate{}
 		err error
@@ -220,7 +220,7 @@ func (n *Node) GetTemplate(p Provider) (*NodeTemplate, error) {
 }
 
 // Metrics calculates metrics for node.
-func (n *Node) Metrics(p Provider) (*Metrics, error) {
+func (n *Node) Metrics(p ReadWriteProvider) (*Metrics, error) {
 	var (
 		m          Metrics
 		hasLeafs   int
@@ -289,7 +289,7 @@ func (n *Node) Metrics(p Provider) (*Metrics, error) {
 }
 
 // ChildNodes returns all child nodes of node.
-func (n *Node) ChildNodes(p Provider) ([]*Node, error) {
+func (n *Node) ChildNodes(p ReadWriteProvider) ([]*Node, error) {
 	var childNodes []*Node
 
 	err := n.Walk(
@@ -337,7 +337,7 @@ func (n *Node) walk(
 }
 
 func getTemplateField[T any](
-	p Provider,
+	p ReadWriteProvider,
 	n *Node,
 	rootTemplate *NodeTemplate,
 	getter func(*NodeTemplate) T,
