@@ -23,7 +23,7 @@ type Index struct {
 
 // NewIndex loads or creates a index in the specified location.
 func NewIndex(
-	log *logr.LogR, provider graph.ReadWriteProvider,
+	log *logr.LogR, provider graph.Provider,
 ) (*Index, error) {
 	idx := &Index{
 		log: log.Prefix("index"),
@@ -89,7 +89,7 @@ func (idx *Index) Remove(path pathutil.NodePath) {
 	idx.paths = idx.paths[:len(idx.paths)-1]
 }
 
-func (idx *Index) load(provider graph.ReadWriteProvider) error {
+func (idx *Index) load(provider graph.Provider) error {
 	idx.pathsMu.Lock()
 	idx.paths = []string{}
 	idx.pathsMu.Unlock()

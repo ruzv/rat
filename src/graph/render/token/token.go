@@ -28,14 +28,18 @@ const (
 	Embed Type = "embed"
 	// Version token renders the rat server version as a in line code ast node.
 	Version Type = "version"
-	// TimeSince token renders the days passed since a specified date.
-	TimeSince Type = "timeSince"
-	// TimeNow token renders the current time.
-	TimeNow Type = "timeNow"
+	// Time token renders the result of different time calculations.
+	Time Type = "time"
 )
 
 // ErrMissingArgument error returned when and argument is missing in token.
-var ErrMissingArgument = errors.New("missing argument")
+var (
+	// ErrMissingArgument error returned when and argument is missing in token.
+	ErrMissingArgument = errors.New("missing argument")
+	// ErrUnknownTokenType error returned when token type is not recognised by
+	// token parser.
+	ErrUnknownTokenType = errors.New("unknown token type")
+)
 
 // Type describes rat token types.
 type Type string
@@ -55,8 +59,6 @@ type Token struct {
 
 // Parse attempts to parse a new woken from raw string. The raw string commes
 // from rat markdown AST parser and should not have start and end markers.
-//
-//nolint:cyclop,gocyclo
 func Parse(raw string) (*Token, error) {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))
@@ -126,13 +128,11 @@ func (t *Token) Render(
 		renderVersion(root)
 
 		return nil
-	case TimeSince:
-		return t.renderTimeSince(root, p)
-	case TimeNow:
-		t.renderTimeNow(root, p)
-
-		return nil
+	case Time:
+		return t.renderTime(root)
 	default:
-		return errors.Errorf("unknown token type - %q", t.Type)
+		return errors.Wrapf(
+			ErrUnknownTokenType, "unknown token type - %q", t.Type,
+		)
 	}
 }

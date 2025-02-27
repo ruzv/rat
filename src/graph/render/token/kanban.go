@@ -11,7 +11,7 @@ import (
 
 func (t *Token) renderKanban(
 	part *jsonast.AstPart,
-	p graph.ReadWriteProvider,
+	p graph.Provider,
 	r jsonast.Renderer,
 ) error {
 	cols, err := t.getArgColumns()

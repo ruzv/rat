@@ -94,7 +94,7 @@ func (n *Node) Template(
 		}
 	}
 
-	now := time.Now().In(p.TimeZone())
+	now := time.Now()
 
 	year, week := now.ISOWeek()
 	weekday := now.Weekday()

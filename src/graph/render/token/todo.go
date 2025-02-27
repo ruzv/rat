@@ -15,7 +15,7 @@ import (
 func (t *Token) renderTodo(
 	part *jsonast.AstPart,
 	n *graph.Node,
-	p graph.ReadWriteProvider,
+	p graph.Provider,
 	r jsonast.Renderer,
 ) error {
 	filtersHas, err := t.getArgFilterHas()
@@ -74,7 +74,7 @@ func (t *Token) renderTodo(
 }
 
 //nolint:gocyclo,cyclop //TODO: fix
-func (t *Token) getTodos(p graph.ReadWriteProvider) ([]*todo.Todo, error) {
+func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 	includeSources, excludeSources, err := t.getArgSources()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get sources arg")

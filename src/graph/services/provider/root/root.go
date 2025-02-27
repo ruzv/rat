@@ -7,7 +7,7 @@ import (
 	pathutil "rat/graph/util/path"
 )
 
-var _ graph.ReadWriteProvider = (*Provider)(nil)
+var _ graph.Provider = (*Provider)(nil)
 
 var defaultConfig = Config{ //nolint:gochecknoglobals // constant.
 	Name:    "🐀 Rat",

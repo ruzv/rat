@@ -10,18 +10,18 @@ import (
 	"rat/logr"
 )
 
-var _ graph.ReadWriteProvider = (*Provider)(nil)
+var _ graph.Provider = (*Provider)(nil)
 
 // Provider implements graph.Store reading and writing to the filesystem.
 // Node paths are cached in memory.
 type Provider struct {
-	base    graph.ReadWriteProvider
+	base    graph.Provider
 	cache   map[uuid.UUID]pathutil.NodePath
 	cacheMu sync.Mutex
 }
 
 // NewPathCache returns a new PathCache.
-func NewPathCache(base graph.ReadWriteProvider, log *logr.LogR) *Provider {
+func NewPathCache(base graph.Provider, log *logr.LogR) *Provider {
 	log = log.Prefix("pathcache")
 	log.Infof("enabled")
 

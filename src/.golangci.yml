@@ -222,11 +222,11 @@ linters:
     # we don't do black box testing in unit tests.
     - testpackage
 
+    # depricated
+    - tenv
+
     # having one length vars is fine.
     - varnamelen
-
-    # deprecated
-    - exportloopref
 
 issues:
   exclude-use-default: false

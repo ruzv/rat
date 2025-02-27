@@ -42,9 +42,6 @@ services:
           <rat graph depth=1 />
 
           ---
-    # the time zone in which all graph times are going to be processesd.
-    # (rat tokens timeSince, timeNow, todo, for template field generation)
-    timeZone: Europe/Riga
   # configures automatic sync to git
   sync:
     repoDir: /path/to/dir/containing/.git

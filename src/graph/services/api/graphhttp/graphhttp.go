@@ -18,7 +18,7 @@ import (
 
 type handler struct {
 	log      *logr.LogR
-	provider graph.ReadWriteProvider
+	provider graph.Provider
 	idx      *index.Index
 }
 

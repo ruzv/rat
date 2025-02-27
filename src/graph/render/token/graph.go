@@ -10,7 +10,7 @@ import (
 )
 
 func (t *Token) renderGraph(
-	part *jsonast.AstPart, n *graph.Node, p graph.ReadWriteProvider,
+	part *jsonast.AstPart, n *graph.Node, p graph.Provider,
 ) error {
 	depth, err := t.getArgDepth()
 	if err != nil {
@@ -28,7 +28,7 @@ func (t *Token) renderGraph(
 func renderGraphTokenWithDepth(
 	part *jsonast.AstPart,
 	n *graph.Node,
-	p graph.ReadWriteProvider,
+	p graph.Provider,
 	depth, d int,
 ) error {
 	if depth != -1 && d >= depth {
