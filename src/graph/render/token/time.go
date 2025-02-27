@@ -14,11 +14,11 @@ var ErrUnknownTimeTokenOperation = errors.New("unknown opperation")
 func (t *Token) renderTime(
 	part *jsonast.AstPart,
 ) error {
-	opperation, ok := t.Args["opp"]
+	opperation, ok := t.Args["op"]
 	if !ok {
 		return errors.Wrap(
 			ErrMissingArgument,
-			"time 'opp' argument must have value one of 'now', `since`",
+			"time 'op' argument must have value one of 'now', `since`",
 		)
 	}
 
