@@ -120,7 +120,6 @@ func (t *Token) getTodos(p graph.Provider) ([]*todo.Todo, error) {
 					return false, nil
 				}
 
-				// shadows err
 				nodeTodos, err := todo.ParseNode(node) //nolint:govet
 				if err != nil {
 					return false, errors.Wrap(err, "failed to parse node todos")

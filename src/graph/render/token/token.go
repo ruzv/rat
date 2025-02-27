@@ -28,19 +28,17 @@ const (
 	Embed Type = "embed"
 	// Version token renders the rat server version as a in line code ast node.
 	Version Type = "version"
+	// Time token renders the result of different time calculations.
+	Time Type = "time"
 )
 
-var allTypes = []Type{ //nolint:gochecknoglobals
-	Graph,
-	Todo,
-	Kanban,
-	Embed,
-	Version,
-}
-
+// ErrMissingArgument error returned when and argument is missing in token.
 var (
-	errUnknownTokenType = errors.New("unknown token type")
-	errMissingArgument  = errors.New("missing argument")
+	// ErrMissingArgument error returned when and argument is missing in token.
+	ErrMissingArgument = errors.New("missing argument")
+	// ErrUnknownTokenType error returned when token type is not recognised by
+	// token parser.
+	ErrUnknownTokenType = errors.New("unknown token type")
 )
 
 // Type describes rat token types.
@@ -61,8 +59,6 @@ type Token struct {
 
 // Parse attempts to parse a new woken from raw string. The raw string commes
 // from rat markdown AST parser and should not have start and end markers.
-//
-//nolint:cyclop,gocyclo
 func Parse(raw string) (*Token, error) {
 	s := &scanner.Scanner{}
 	s.Init(strings.NewReader(strings.ReplaceAll(raw, "\"", "`")))
@@ -79,24 +75,7 @@ func Parse(raw string) (*Token, error) {
 
 	sf := util.NewStringFeed(parts)
 
-	rawTokenType, err := sf.MustPop()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get token type")
-	}
-
-	tokenType, err := func(raw string) (Type, error) {
-		target := Type(raw)
-
-		for _, valid := range allTypes {
-			if target == valid {
-				return target, nil
-			}
-		}
-
-		return "", errors.Wrapf(
-			errUnknownTokenType, "unknown token type %s", target,
-		)
-	}(rawTokenType)
+	tokenType, err := sf.MustPop()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get token type")
 	}
@@ -123,7 +102,7 @@ func Parse(raw string) (*Token, error) {
 	}
 
 	return &Token{
-		Type: tokenType,
+		Type: Type(tokenType),
 		Args: args,
 	}, nil
 }
@@ -149,7 +128,11 @@ func (t *Token) Render(
 		renderVersion(root)
 
 		return nil
+	case Time:
+		return t.renderTime(root)
 	default:
-		return errors.Errorf("unknown token type - %s", t.Type)
+		return errors.Wrapf(
+			ErrUnknownTokenType, "unknown token type - %q", t.Type,
+		)
 	}
 }

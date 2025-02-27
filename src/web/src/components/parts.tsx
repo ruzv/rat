@@ -275,6 +275,12 @@ export function NodePart({ part }: { part: NodeAstPart }) {
           <NodePartChildren part={part} />
         </em>
       );
+    case "strikethrough":
+      return (
+        <del>
+          <NodePartChildren part={part} />
+        </del>
+      );
 
     case "unknown":
       if (part.children === undefined) {

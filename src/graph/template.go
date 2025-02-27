@@ -65,7 +65,7 @@ type RawTemplateData struct {
 	// next ++ increment of weight of largest sibling node
 	WeightAutoincrement int
 
-	Smile string
+	Smile string // random gyph smile
 }
 
 // Template prepares n nodes template. Walking up the graph tree to find

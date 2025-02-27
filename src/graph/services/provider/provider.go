@@ -14,8 +14,8 @@ import (
 // Config contains provider configuration parameters.
 type Config struct {
 	Dir             string       `yaml:"dir" validate:"nonzero"`
-	Root            *root.Config `yaml:"root"`
 	EnablePathCache *bool        `yaml:"enablePathCache"`
+	Root            *root.Config `yaml:"root"`
 }
 
 // New creates a new provider.
@@ -36,6 +36,7 @@ func New(
 		p = pathcache.NewPathCache(p, log)
 	}
 
+	// log metrics only when construction of provider is fully done
 	logMetrics(p, log.Prefix("metrics"))
 
 	return p, nil
