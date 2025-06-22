@@ -14,7 +14,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useState, useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
-import { graphviz } from "d3-graphviz";
+import { Engine, graphviz } from "d3-graphviz";
 import { useNavigate } from "react-router-dom";
 import {
   useDroppable,
@@ -207,7 +207,12 @@ export function NodePart({ part }: { part: NodeAstPart }) {
     case "kanban_card":
       return <KanbanCard part={part} />;
     case "graphviz":
-      return <Graphviz dot={part.attributes["text"]} />;
+      return (
+        <Graphviz
+          dot={part.attributes["text"]}
+          engine={part.attributes["engine"]}
+        />
+      );
     case "image":
       return <Image part={part} />;
     case "embed":
@@ -655,7 +660,7 @@ function KanbanCard({ part }: { part: NodeAstPart }) {
 let graphvizIDCounter = 0;
 const graphvizID = () => `graphviz${graphvizIDCounter++}`;
 
-function Graphviz({ dot }: { dot: string }) {
+function Graphviz({ dot, engine }: { dot: string; engine: string }) {
   const id = useMemo(graphvizID, []);
 
   useEffect(() => {
@@ -663,6 +668,7 @@ function Graphviz({ dot }: { dot: string }) {
       graphviz(`#${id}`, {
         fit: true,
         zoom: false,
+        engine: engine as Engine,
       }).renderDot(dot);
     } catch (error) {
       console.error(error);

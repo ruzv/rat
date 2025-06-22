@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gofrs/uuid"
@@ -15,6 +16,10 @@ import (
 )
 
 var _ jsonast.Renderer = (*JSONRenderer)(nil)
+
+var graphvizEngineRe = regexp.MustCompile(
+	`\/\/ ?engine=(circo|dot|fdp|neato|osage|patchwork|twopi)`,
+)
 
 // JSONRenderer renders a nodes markdown content to JSON representation of the
 // markdown AST.
@@ -191,12 +196,13 @@ func (jr *JSONRenderer) renderNode(
 		)
 	case *ast.CodeBlock:
 		switch string(node.Info) {
-		case "graphviz":
+		case "graphviz", "dot":
 			part.AddLeaf(
 				&jsonast.AstPart{
 					Type: "graphviz",
 					Attributes: jsonast.AstAttributes{
-						"text": string(node.Literal),
+						"text":   string(node.Literal),
+						"engine": getGraphvizEngine(node.Literal),
 					},
 				},
 			)
@@ -367,4 +373,13 @@ func (jr *JSONRenderer) renderGraphLink(
 	}
 
 	return linkPart, nil
+}
+
+func getGraphvizEngine(in []byte) string {
+	match := graphvizEngineRe.FindSubmatch(in)
+	if len(match) != 2 {
+		return "dot"
+	}
+
+	return string(match[1])
 }

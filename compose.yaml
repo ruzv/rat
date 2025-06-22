@@ -1,0 +1,10 @@
+services:
+  rat:
+    container_name: rat
+    image: ruzv/rat:dev
+    volumes:
+      - ../../notes:/graph
+      - ../../notes/config-docker.yaml:/rat/config.yaml
+    ports:
+      - 8888:8888
+      - 8877:8877

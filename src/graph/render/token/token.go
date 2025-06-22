@@ -30,6 +30,8 @@ const (
 	Version Type = "version"
 	// Time token renders the result of different time calculations.
 	Time Type = "time"
+
+	Graphic Type = "graphic"
 )
 
 // ErrMissingArgument error returned when and argument is missing in token.
@@ -130,6 +132,8 @@ func (t *Token) Render(
 		return nil
 	case Time:
 		return t.renderTime(root)
+	case Graphic:
+		return t.renderGraphic(root, n, p)
 	default:
 		return errors.Wrapf(
 			ErrUnknownTokenType, "unknown token type - %q", t.Type,
