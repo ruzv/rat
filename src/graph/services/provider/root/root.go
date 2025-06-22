@@ -28,22 +28,22 @@ type Config struct {
 
 // Provider wraps a provider, catching method calls for root node.
 type Provider struct {
-	graph.RootsProvider
+	rp   graph.RootsProvider
 	root Config
 }
 
 // NewProvider creates a new root node provider.
 func NewProvider(base graph.RootsProvider, root *Config) *Provider {
 	return &Provider{
-		RootsProvider: base,
-		root:          root.fillDefaults(),
+		rp:   base,
+		root: root.fillDefaults(),
 	}
 }
 
 // GetByID returns node by ID.
 func (p *Provider) GetByID(id uuid.UUID) (*graph.Node, error) {
 	if id != graph.RootNodeID {
-		return p.RootsProvider.GetByID(id) //nolint:wrapcheck // avoid stutter.
+		return p.rp.GetByID(id) //nolint:wrapcheck // avoid stutter.
 	}
 
 	return p.rootNode(), nil
@@ -52,7 +52,7 @@ func (p *Provider) GetByID(id uuid.UUID) (*graph.Node, error) {
 // GetByPath returns node by path.
 func (p *Provider) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 	if path != graph.RootNodePath {
-		return p.RootsProvider.GetByPath( //nolint:wrapcheck // avoid stutter.
+		return p.rp.GetByPath( //nolint:wrapcheck // avoid stutter.
 			path,
 		)
 	}
@@ -63,12 +63,12 @@ func (p *Provider) GetByPath(path pathutil.NodePath) (*graph.Node, error) {
 // GetLeafs returns leafs of node by path.
 func (p *Provider) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 	if path != graph.RootNodePath {
-		return p.RootsProvider.GetLeafs( //nolint:wrapcheck // avoid stutter.
+		return p.rp.GetLeafs( //nolint:wrapcheck // avoid stutter.
 			path,
 		)
 	}
 
-	leafs, err := p.RootsProvider.Roots()
+	leafs, err := p.rp.Roots()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get root nodes")
 	}
@@ -79,7 +79,7 @@ func (p *Provider) GetLeafs(path pathutil.NodePath) ([]*graph.Node, error) {
 // Move moves node to a new path.
 func (p *Provider) Move(id uuid.UUID, path pathutil.NodePath) error {
 	if id != graph.RootNodeID {
-		return p.RootsProvider.Move( //nolint:wrapcheck // avoid stutter.
+		return p.rp.Move( //nolint:wrapcheck // avoid stutter.
 			id,
 			path,
 		)
@@ -91,7 +91,7 @@ func (p *Provider) Move(id uuid.UUID, path pathutil.NodePath) error {
 // Write writes node to a storage.
 func (p *Provider) Write(node *graph.Node) error {
 	if node.Header.ID != graph.RootNodeID {
-		return p.RootsProvider.Write(node) //nolint:wrapcheck // avoid stutter.
+		return p.rp.Write(node) //nolint:wrapcheck // avoid stutter.
 	}
 
 	return errors.New("cannot write root node, update config to edit root node")
@@ -100,7 +100,7 @@ func (p *Provider) Write(node *graph.Node) error {
 // Delete deletes node from a storage.
 func (p *Provider) Delete(node *graph.Node) error {
 	if node.Header.ID != graph.RootNodeID {
-		return p.RootsProvider.Delete(node) //nolint:wrapcheck // avoid stutter.
+		return p.rp.Delete(node) //nolint:wrapcheck // avoid stutter.
 	}
 
 	return errors.New("cannot delete root node")

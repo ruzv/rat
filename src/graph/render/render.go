@@ -18,7 +18,7 @@ import (
 var _ jsonast.Renderer = (*JSONRenderer)(nil)
 
 var graphvizEngineRe = regexp.MustCompile(
-	`\/\/ ?engine=(circo|dot|fdp|neato|osage|patchwork|twopi)`,
+	`// ?engine=(circo|dot|fdp|neato|osage|patchwork|twopi)`,
 )
 
 // JSONRenderer renders a nodes markdown content to JSON representation of the

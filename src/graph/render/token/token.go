@@ -30,7 +30,7 @@ const (
 	Version Type = "version"
 	// Time token renders the result of different time calculations.
 	Time Type = "time"
-
+	// Graphic token renders a grapical representation of a nodes subgraph.
 	Graphic Type = "graphic"
 )
 
@@ -67,11 +67,7 @@ func Parse(raw string) (*Token, error) {
 
 	var parts []string
 
-	for {
-		if s.Scan() == scanner.EOF {
-			break
-		}
-
+	for s.Scan() == scanner.EOF {
 		parts = append(parts, s.TokenText())
 	}
 

@@ -12,6 +12,7 @@ import (
 	"rat/graph/render/jsonast"
 )
 
+//nolint:gocyclo,cyclop
 func (t *Token) renderGraphic(
 	root *jsonast.AstPart,
 	n *graph.Node,
@@ -83,7 +84,7 @@ func (t *Token) renderGraphic(
 
 	fmt.Fprintf(
 		&buff,
-		"%q [label=\"%s\",shape=circle,width=%f,color=\"#f3715d\",fillcolor=\"#f3715d\",style=filled,fixedsize=true]\n",
+		"%q [label=\"%s\",shape=circle,width=%f,color=\"#f3715d\",fillcolor=\"#f3715d\",style=filled,fixedsize=true]\n", //nolint:lll
 		sourceNode.Header.ID.String(),
 		sourceNode.Name(),
 		3.0,
@@ -137,7 +138,7 @@ func renderGraphicWithDepth(
 	for _, child := range children {
 		fmt.Fprintf(
 			buff,
-			"%q [label=\"%s\",shape=circle,width=%f,color=\"#f3715d\",fillcolor=\"#f3715d\",style=filled,fixedsize=true]\n",
+			"%q [label=\"%s\",shape=circle,width=%f,color=\"#f3715d\",fillcolor=\"#f3715d\",style=filled,fixedsize=true]\n", //nolint:lll
 			child.Header.ID.String(),
 			child.Name(),
 			2.0/float64(d+1),
