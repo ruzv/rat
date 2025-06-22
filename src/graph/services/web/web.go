@@ -102,23 +102,21 @@ func newRouter(
 ) (*mux.Router, error) {
 	router := mux.NewRouter()
 
+	router.NotFoundHandler = http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			httputil.WriteError(
+				w,
+				http.StatusNotFound,
+				"Web UI static file server didn't find the the requested URI",
+			)
+		},
+	)
+
 	h := &handler{
 		log:          log,
 		wsc:          webStaticContent,
 		apiAuthority: apiAuthority,
 	}
-
-	router.PathPrefix("/view/{path:.*}").
-		HandlerFunc(
-			httputil.Wrap(h.serveFile("index.html"), h.log, "view-node"),
-		).
-		Methods(http.MethodGet)
-
-	router.PathPrefix("/view").
-		HandlerFunc(
-			httputil.Wrap(h.serveFile("index.html"), h.log, "view-root"),
-		).
-		Methods(http.MethodGet)
 
 	router.PathPrefix("/favicon.png").
 		HandlerFunc(
@@ -128,7 +126,7 @@ func newRouter(
 
 	router.PathPrefix("/api-authority").
 		HandlerFunc(
-			httputil.Wrap(h.getAPIAuthority, h.log, "favicon"),
+			httputil.Wrap(h.getAPIAuthority, h.log, "api-authority"),
 		).
 		Methods(http.MethodGet)
 
@@ -145,6 +143,12 @@ func newRouter(
 			"/static/", http.FileServer(http.FS(staticContent)),
 		))
 
+	router.PathPrefix("/{path:.*}").
+		HandlerFunc(
+			httputil.Wrap(h.serveFile("index.html"), h.log, "index"),
+		).
+		Methods(http.MethodGet)
+
 	h.logServedContent()
 
 	return router, nil
@@ -156,7 +160,7 @@ func (h *handler) serveFile(
 	return func(w http.ResponseWriter, _ *http.Request) error {
 		file, err := h.wsc.Open(name)
 		if err != nil {
-			return errors.Wrap(err, "failed to open index.html")
+			return errors.Wrapf(err, "failed to open file %q", name)
 		}
 
 		defer file.Close() //nolint:errcheck // ignore.

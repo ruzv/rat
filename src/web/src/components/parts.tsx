@@ -73,6 +73,8 @@ export function NodeContent() {
     return <></>;
   }
 
+  // spacers are adder to keep the container margins consistent size regardles
+  // of text (h1 has bigger margins that p for example)
   return (
     <Container>
       <Spacer height={30} />
@@ -132,8 +134,11 @@ function ChildNodesColumns({ childNodes }: { childNodes: Node[] }) {
 function ChildNodesColumn({ childNodes }: { childNodes: Node[] }) {
   return (
     <div className={styles.childNodesColumn}>
-      {childNodes.map((node) => (
-        <ChildNode key={node.id} node={node} />
+      {childNodes.map((node, idx) => (
+        <>
+          <ChildNode key={node.id} node={node} />
+          {idx !== childNodes.length - 1 && <Spacer height={20} />}
+        </>
       ))}
     </div>
   );
@@ -144,7 +149,6 @@ function ChildNode({ node }: { node: Node }) {
 
   return (
     <>
-      <Spacer height={20} />
       <ClickableContainer onClick={() => navigate(`/view/${node.path}`)}>
         <Spacer height={30} />
         <NodePart part={node.ast} />
@@ -673,7 +677,7 @@ function Graphviz({ dot, engine }: { dot: string; engine: string }) {
     } catch (error) {
       console.error(error);
     }
-  }, [dot, id]);
+  }, [dot, id, engine]);
 
   return <div className={styles.graphviz} id={id} />;
 }
@@ -734,6 +738,6 @@ function ClickableContainer(
   );
 }
 
-function Container(props: React.PropsWithChildren<{}>) {
+export function Container(props: React.PropsWithChildren<{}>) {
   return <div className={styles.container}>{props.children}</div>;
 }

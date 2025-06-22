@@ -1,5 +1,10 @@
 import { modalOpenAtom, nodePathAtom, childNodesAtom } from "./atoms";
-import { TextButton, IconButton, ButtonRow } from "./buttons/buttons";
+import {
+  TextButton,
+  IconButton,
+  ButtonRow,
+  IconTextButton,
+} from "./buttons/buttons";
 import { ConfirmModal, ContentModal } from "./modals";
 import { Spacer } from "./util";
 import { Code } from "./parts";
@@ -11,6 +16,7 @@ import binIcon from "./icons/bin.png";
 import loupeIcon from "./icons/loupe.png";
 import addNodeIcon from "./icons/add-node.png";
 import rootIcon from "./icons/root.png";
+import ratIcon from "./icons/rat.png";
 
 import { useAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
@@ -49,11 +55,20 @@ export function Console({ id }: { id: string }) {
       )}
       <Spacer height={6} />
       <ButtonRow>
-        <IconButton
-          icon={rootIcon}
-          tooltip="navigate to root node"
-          href={"/view"}
+        <IconTextButton
+          icon={ratIcon}
+          text={"Rat"}
+          tooltip="navigate to landing page"
+          href={"/"}
         />
+        {!isRoot && (
+          <IconTextButton
+            icon={rootIcon}
+            text={"Root"}
+            tooltip="navigate to root node"
+            href={"/view"}
+          />
+        )}
         {pathParts.map((part, idx) => {
           let path = pathParts.slice(0, idx + 1).join("/");
 

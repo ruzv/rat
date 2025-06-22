@@ -1,3 +1,8 @@
+.iconTextButton {
+  font-size: 18px;
+  height: 40px;
+}
+
 .textButton {
   /* for some wtf reason 18px is the maximum font size to get height 40px */
   font-size: 18px;

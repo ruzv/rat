@@ -81,7 +81,7 @@ func (lf *StringFeed) PopParts(parts ...string) error {
 // read.
 func (lf *StringFeed) MustPop() (string, error) {
 	if !lf.More() {
-		return "", errors.Wrap(io.EOF, "no more strins in feed")
+		return "", errors.Wrap(io.EOF, "no more strings in feed")
 	}
 
 	return lf.Pop(), nil

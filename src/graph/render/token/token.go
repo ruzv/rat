@@ -67,7 +67,7 @@ func Parse(raw string) (*Token, error) {
 
 	var parts []string
 
-	for s.Scan() == scanner.EOF {
+	for s.Scan() != scanner.EOF {
 		parts = append(parts, s.TokenText())
 	}
 

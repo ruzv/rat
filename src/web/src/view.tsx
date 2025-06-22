@@ -1,6 +1,7 @@
 import React from "react";
 
 import { NodeContent, ChildNodes } from "./components/parts";
+import { Spacer } from "./components/util";
 import { Console } from "./components/console";
 import {
   nodeAtom,
@@ -17,6 +18,7 @@ import { read } from "./api/node";
 
 export function View() {
   const [node, setNode] = useAtom(nodeAtom);
+
   const setNodeAst = useSetAtom(nodeAstAtom);
   const setChildNodes = useSetAtom(childNodesAtom);
   const setNodePath = useSetAtom(nodePathAtom);
@@ -24,6 +26,8 @@ export function View() {
   const path = useLoaderData() as string; // path from router
 
   useEffect(() => {
+    setNode(undefined);
+
     read(path).then((node) => {
       setNode(node);
       setNodeAst(node.ast);
@@ -41,7 +45,9 @@ export function View() {
   return (
     <>
       <Console id={node.id} />
+      <Spacer height={20} />
       <NodeContent />
+      <Spacer height={20} />
       <ChildNodes />
     </>
   );
