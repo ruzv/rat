@@ -4,6 +4,36 @@ import styles from "./buttons.module.css";
 
 import Tooltip from "@mui/material/Tooltip";
 
+export function IconTextButton({
+  icon,
+  text,
+  onClick,
+  tooltip,
+  href,
+}: {
+  icon: string;
+  text: string;
+  onClick?: () => void;
+  tooltip?: string;
+  href?: string;
+}) {
+  return (
+    <Button
+      className={styles.iconTextButton}
+      onClick={onClick}
+      tooltip={tooltip}
+      href={href}
+    >
+      <img
+        style={{ height: "100%", float: "left", marginRight: "5px" }}
+        src={icon}
+        alt="icon"
+      />
+      <span>{text}</span>
+    </Button>
+  );
+}
+
 export function TextButton({
   text,
   onClick,
