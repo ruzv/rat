@@ -1,4 +1,8 @@
 
+bin
+cmd/rat/embed/*
+!cmd/rat/embed/.gitkeep
+
 
 logs.log
 content

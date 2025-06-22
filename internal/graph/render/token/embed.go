@@ -1,0 +1,29 @@
+package token
+
+import (
+	"github.com/pkg/errors"
+	"github.com/ruzv/rat/internal/graph/render/jsonast"
+	"github.com/ruzv/rat/internal/graph/services/urlresolve"
+)
+
+func (t *Token) renderEmbed(
+	part *jsonast.AstPart, resolver *urlresolve.Resolver,
+) error {
+	embedURL, ok := t.Args["url"]
+	if !ok {
+		return errors.Wrap(
+			ErrMissingArgument, "missing url arg for embed token",
+		)
+	}
+
+	part.AddLeaf(
+		&jsonast.AstPart{
+			Type: "embed",
+			Attributes: jsonast.AstAttributes{
+				"url": resolver.PrefixResolverEndpoint(embedURL),
+			},
+		},
+	)
+
+	return nil
+}

@@ -5,7 +5,7 @@ ARG GO_VERSION="1.23.2-alpine"
 FROM node:${NODE_VERSION} AS web-builder
 WORKDIR /rat-web
 
-COPY src/web ./
+COPY web ./
 
 RUN npm install
 RUN npm run build
@@ -16,20 +16,21 @@ WORKDIR /rat
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only
 # redownloading them in subsequent builds if they change
-COPY src/go.mod src/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-COPY src .
-COPY --from=web-builder /rat-web/build ./web/build
+COPY . .
+COPY --from=web-builder /rat-web/build/ ./cmd/rat/embed
 
 ARG RAT_VERSION="v0.0.0+unknown"
 RUN go build \
     -ldflags "-X rat/buildinfo.version=$RAT_VERSION" \
     -v \
-    -o /rat/rat
+    -o /rat/rat \
+    ./cmd/rat
 
-ENV API_AUTHORITY=http://localhost:8877
-ENV WEB_AUTHORITY=http://localhost:8888
+# ENV API_AUTHORITY=http://localhost:8877
+# ENV WEB_AUTHORITY=http://localhost:8888
 
 # build final image
 FROM scratch
