@@ -103,11 +103,11 @@ func newRouter(
 	router := mux.NewRouter()
 
 	router.NotFoundHandler = http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+		func(w http.ResponseWriter, _ *http.Request) {
 			httputil.WriteError(
 				w,
 				http.StatusNotFound,
-				"Web UI static file server didn't find the the requested URI",
+				"Web UI static file server didn't find the requested URI",
 			)
 		},
 	)
