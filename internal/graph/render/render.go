@@ -1,15 +1,19 @@
 package render
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/gofrs/uuid"
 	"github.com/gomarkdown/markdown/ast"
 	"github.com/pkg/errors"
 	"github.com/ruzv/rat/internal/graph"
 	"github.com/ruzv/rat/internal/graph/render/jsonast"
+	"github.com/ruzv/rat/internal/graph/render/mdast"
 	"github.com/ruzv/rat/internal/graph/render/todo"
 	"github.com/ruzv/rat/internal/graph/services/urlresolve"
 	"github.com/ruzv/rat/pkg/logr"
@@ -44,16 +48,28 @@ func NewJSONRenderer(
 
 // Render renders the markdown content of the specified node to JSON.
 func (jr *JSONRenderer) Render(
-	root *jsonast.AstPart, n *graph.Node, data string,
+	root *jsonast.AstPart,
+	n *graph.Node,
+	data string,
 ) {
 	jr.log.Debugf("rendering for node %q %s", n.Path, logr.Preview(data))
 
 	part := root
 
+	rootMarkdownNode := Parse(data)
+
+	generateHeadingIDs(rootMarkdownNode)
+
 	ast.WalkFunc(
-		Parse(data),
+		rootMarkdownNode,
 		func(node ast.Node, entering bool) ast.WalkStatus {
-			newPart, err := jr.renderNode(part, n, node, entering)
+			newPart, err := jr.renderNode(
+				part,
+				n,
+				rootMarkdownNode,
+				node,
+				entering,
+			)
 			if err != nil {
 				part.AddLeaf(
 					&jsonast.AstPart{
@@ -78,6 +94,7 @@ func (jr *JSONRenderer) Render(
 func (jr *JSONRenderer) renderNode(
 	part *jsonast.AstPart,
 	n *graph.Node,
+	rootMarkdownNode ast.Node,
 	node ast.Node,
 	entering bool,
 ) (*jsonast.AstPart, error) {
@@ -85,7 +102,14 @@ func (jr *JSONRenderer) renderNode(
 	case *ast.Document:
 		part = part.AddContainer(&jsonast.AstPart{Type: "document"}, entering)
 	case *RatTokenNode:
-		err := node.Token.Render(part, n, jr.provider, jr.resolver, jr)
+		err := node.Token.Render(
+			part,
+			rootMarkdownNode,
+			n,
+			jr.provider,
+			jr.resolver,
+			jr,
+		)
 		if err != nil {
 			return nil, errors.Wrapf(
 				err, "failed to render %q token", node.Token.Type,
@@ -151,6 +175,7 @@ func (jr *JSONRenderer) renderNode(
 				Type: "heading",
 				Attributes: jsonast.AstAttributes{
 					"level": node.Level,
+					"id":    string(node.Attribute.ID),
 				},
 			},
 			entering,
@@ -382,4 +407,46 @@ func getGraphvizEngine(in []byte) string {
 	}
 
 	return string(match[1])
+}
+
+func generateHeadingIDs(
+	rootMarkdownNode ast.Node,
+) {
+	headingsCount := map[string]int{}
+
+	ast.WalkFunc(
+		rootMarkdownNode,
+		func(node ast.Node, entering bool) ast.WalkStatus {
+			if !entering {
+				return ast.GoToNext
+			}
+
+			heading, ok := node.(*ast.Heading)
+			if !ok {
+				return ast.GoToNext
+			}
+
+			text := mdast.GetTextOfSubNodes(heading)
+			count := headingsCount[text]
+			headingsCount[text] = count + 1
+
+			heading.Attribute = &ast.Attribute{
+				ID: []byte(getHeadingID(fmt.Sprintf("%s%d", text, count))),
+			}
+
+			return ast.GoToNext
+		},
+	)
+}
+
+func getHeadingID(
+	headingText string,
+) string {
+	data := make([]byte, 8) //nolint:makezero
+	binary.BigEndian.PutUint64(data, xxhash.Sum64String(headingText))
+
+	dest := make([]byte, base64.StdEncoding.EncodedLen(len(data))) //nolint:makezero,lll
+	base64.StdEncoding.Encode(dest, data)
+
+	return string(dest)
 }

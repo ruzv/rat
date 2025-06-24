@@ -23,6 +23,7 @@ COPY . .
 COPY --from=web-builder /rat-web/build/ ./cmd/rat/embed
 
 ARG RAT_VERSION="v0.0.0+unknown"
+
 RUN go build \
     -ldflags "-X rat/buildinfo.version=$RAT_VERSION" \
     -v \

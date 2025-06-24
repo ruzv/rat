@@ -4,6 +4,7 @@ import (
 	"strings"
 	"text/scanner"
 
+	"github.com/gomarkdown/markdown/ast"
 	"github.com/pkg/errors"
 	"github.com/ruzv/rat/internal/graph"
 	"github.com/ruzv/rat/internal/graph/render/jsonast"
@@ -32,6 +33,8 @@ const (
 	Time Type = "time"
 	// Graphic token renders a grapical representation of a nodes subgraph.
 	Graphic Type = "graphic"
+	// ToC token renders a table of contents of a node.
+	ToC Type = "toc"
 )
 
 // ErrMissingArgument error returned when and argument is missing in token.
@@ -106,8 +109,11 @@ func Parse(raw string) (*Token, error) {
 }
 
 // Render renders a token to JSON AST.
+//
+//nolint:revive
 func (t *Token) Render(
 	root *jsonast.AstPart,
+	rootMarkdownNode ast.Node,
 	n *graph.Node,
 	p graph.Provider,
 	resolver *urlresolve.Resolver,
@@ -130,6 +136,8 @@ func (t *Token) Render(
 		return t.renderTime(root)
 	case Graphic:
 		return t.renderGraphic(root, n, p)
+	case ToC:
+		return t.renderToC(root, rootMarkdownNode)
 	default:
 		return errors.Wrapf(
 			ErrUnknownTokenType, "unknown token type - %q", t.Type,
