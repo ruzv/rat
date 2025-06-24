@@ -43,7 +43,7 @@ func New(
 	log *logr.LogR,
 	provider graph.Provider,
 	// resolver *urlresolve.Resolver,
-	graphIndex *index.Index,
+	graphIndex index.Indexer,
 ) (*API, error) {
 	log = log.Prefix("api")
 

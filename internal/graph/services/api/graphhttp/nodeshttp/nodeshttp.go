@@ -20,7 +20,7 @@ import (
 type handler struct {
 	log      *logr.LogR
 	provider graph.Provider
-	idx      *index.Index
+	idx      index.Indexer
 	r        jsonast.Renderer
 }
 
@@ -39,7 +39,7 @@ func RegisterRoutes(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	idx *index.Index,
+	idx index.Indexer,
 ) error {
 	log = log.Prefix("nodeshttp")
 

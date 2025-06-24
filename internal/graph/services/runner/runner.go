@@ -12,7 +12,7 @@ import (
 	"github.com/ruzv/rat/internal/buildinfo"
 	"github.com/ruzv/rat/internal/graph/services"
 	"github.com/ruzv/rat/internal/graph/services/api"
-	"github.com/ruzv/rat/internal/graph/services/index"
+	"github.com/ruzv/rat/internal/graph/services/index/fzf"
 	"github.com/ruzv/rat/internal/graph/services/provider"
 	"github.com/ruzv/rat/internal/graph/services/sync"
 	"github.com/ruzv/rat/internal/graph/services/web"
@@ -82,7 +82,7 @@ func New(c *Config, webStaticContent fs.FS) (*Runner, *logr.LogR, error) {
 			return nil, nil, errors.Wrap(err, "failed to create graph provider")
 		}
 
-		graphIndex, err := index.NewIndex(log, graphProvider)
+		graphIndex, err := fzf.NewIndex(log, graphProvider)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create index")
 		}

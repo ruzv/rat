@@ -19,7 +19,7 @@ import (
 type handler struct {
 	log      *logr.LogR
 	provider graph.Provider
-	idx      *index.Index
+	idx      index.Indexer
 }
 
 // RegisterRoutes registers graph routes on given router.
@@ -28,7 +28,7 @@ func RegisterRoutes(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	idx *index.Index,
+	idx index.Indexer,
 ) error {
 	h := &handler{
 		log:      log.Prefix("graphhttp"),

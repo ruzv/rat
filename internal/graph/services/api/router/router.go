@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -20,7 +21,7 @@ func New(
 	log *logr.LogR,
 	provider graph.Provider,
 	resolver *urlresolve.Resolver,
-	graphIndex *index.Index,
+	graphIndex index.Indexer,
 	allowedOrigins []string,
 ) (*mux.Router, error) {
 	log = log.Prefix("router")
@@ -32,13 +33,9 @@ func New(
 				func(w http.ResponseWriter, r *http.Request) {
 					origin := r.Header.Get("Origin")
 
-					for _, allowed := range allowedOrigins {
-						if origin == allowed {
-							w.Header().
-								Set("Access-Control-Allow-Origin", origin)
-
-							break
-						}
+					if slices.Contains(allowedOrigins, origin) {
+						w.Header().
+							Set("Access-Control-Allow-Origin", origin)
 					}
 
 					next.ServeHTTP(w, r)
