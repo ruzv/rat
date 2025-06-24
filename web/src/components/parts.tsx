@@ -5,7 +5,7 @@ import { nodeAstAtom, childNodesAtom } from "./atoms";
 import { Spacer } from "./util";
 import { move } from "../api/graph";
 import { IconButton } from "./buttons/buttons";
-import { Link } from "./link";
+import { Link, InvisibleLink } from "./link";
 
 import styles from "./parts.module.css";
 import copyIcon from "./icons/copy.png";
@@ -15,7 +15,7 @@ import { darcula as SyntaxHighlighterStyle } from "react-syntax-highlighter/dist
 import { useState, useEffect, useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { Engine, graphviz } from "d3-graphviz";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   useDroppable,
   useDraggable,
@@ -339,41 +339,56 @@ function Document({ part }: { part: NodeAstPart }) {
 }
 
 function Heading({ part }: { part: NodeAstPart }) {
+  let id = part.attributes["id"] as string;
+  let location = useLocation();
+
   switch (part.attributes["level"] as number) {
     case 1:
       return (
-        <h1>
-          <NodePartChildren part={part} />
+        <h1 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h1>
       );
     case 2:
       return (
-        <h2>
-          <NodePartChildren part={part} />
+        <h2 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h2>
       );
     case 3:
       return (
-        <h3>
-          <NodePartChildren part={part} />
+        <h3 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h3>
       );
     case 4:
       return (
-        <h4>
-          <NodePartChildren part={part} />
+        <h4 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h4>
       );
     case 5:
       return (
-        <h5>
-          <NodePartChildren part={part} />
+        <h5 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h5>
       );
     case 6:
       return (
-        <h6>
-          <NodePartChildren part={part} />
+        <h6 id={id}>
+          <InvisibleLink href={`${location.pathname}#${id}`}>
+            <NodePartChildren part={part} />
+          </InvisibleLink>
         </h6>
       );
     default:
